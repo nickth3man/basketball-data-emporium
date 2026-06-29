@@ -48,7 +48,7 @@ export function DataTable({ rows, columns, defaultVisibleColumns, onExportCsv }:
     [columns],
   );
 
-  // eslint-disable-next-line react-hooks/incompatible-library
+  // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Table returns non-memoizable functions by design; accepted trade-off.
   const table = useReactTable({
     data: rows,
     columns: columnDefs,

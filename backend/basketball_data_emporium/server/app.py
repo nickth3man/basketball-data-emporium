@@ -141,7 +141,9 @@ def _build_app() -> FastAPI:
         if request.url.path.startswith("/api/"):
             forwarded_for = request.headers.get("x-forwarded-for")
             client_host = request.client.host if request.client else "unknown"
-            client_key = (forwarded_for.split(",", 1)[0].strip() if forwarded_for else client_host)
+            client_key = (
+                forwarded_for.split(",", 1)[0].strip() if forwarded_for else client_host
+            )
             try:
                 check_rate_limit(client_key)
             except RateLimitJailedError as exc:
@@ -204,7 +206,8 @@ def _build_parser() -> argparse.ArgumentParser:
     serve.add_argument(
         "--reload",
         action="store_true",
-        default=os.environ.get("BASKETBALL_DATA_RELOAD", "").lower() in {"1", "true", "yes"},
+        default=os.environ.get("BASKETBALL_DATA_RELOAD", "").lower()
+        in {"1", "true", "yes"},
         help="Enable autoreload (dev only).",
     )
     serve.add_argument(
@@ -221,7 +224,9 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if args.command == "serve":
-        if os.environ.get("BASKETBALL_DATA_SKIP_STARTUP_VALIDATION", "").lower() not in {"1", "true", "yes"}:
+        if os.environ.get(
+            "BASKETBALL_DATA_SKIP_STARTUP_VALIDATION", ""
+        ).lower() not in {"1", "true", "yes"}:
             pool = get_pool()
             with pool.connection() as conn:
                 validate_featured_players(conn)
@@ -239,7 +244,6 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     parser.error(f"unknown command: {args.command}")
-    return 2  # unreachable; argparse exits first
 
 
 if __name__ == "__main__":

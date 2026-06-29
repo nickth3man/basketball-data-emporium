@@ -69,10 +69,10 @@ class _StubPool(DuckDBPool):
     def __init__(self) -> None:
         self._conn = _StubConn()
 
-    def acquire(self):  # type: ignore[override]
+    def acquire(self):
         return self._conn
 
-    def release(self, conn) -> None:  # type: ignore[override]
+    def release(self, conn) -> None:
         return None
 
     def initialize(self) -> None:
@@ -133,11 +133,13 @@ def test_status_cors_preflight_allows_next_origin(status_client: TestClient) -> 
     assert response.headers["access-control-allow-origin"] == "http://127.0.0.1:3000"
 
 
-def test_rate_limit_jail_envelope(status_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_rate_limit_jail_envelope(
+    status_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
     from basketball_data_emporium.server import rate_limit
 
     monkeypatch.setenv("BASKETBALL_DATA_RATE_LIMIT_PER_MINUTE", "1")
-    rate_limit._hits.clear()  # type: ignore[attr-defined]
+    rate_limit._hits.clear()
 
     assert status_client.get("/api/status").status_code == 200
     response = status_client.get("/api/status")
@@ -157,11 +159,20 @@ def test_status_openapi_lists_route(status_client: TestClient) -> None:
     schema = body["components"]["schemas"]["StatusResponse"]
     assert schema["properties"]["ok"]["type"] == "boolean"
     assert schema["properties"]["endpoint_count"]["type"] == "integer"
-    assert schema["properties"]["data_state"]["enum"] == ["passed", "failed", "stale", "unverified"]
+    assert schema["properties"]["data_state"]["enum"] == [
+        "passed",
+        "failed",
+        "stale",
+        "unverified",
+    ]
 
 
 def test_module_exposes_app_and_main() -> None:
-    from basketball_data_emporium.server.app import app as fastapi_app, main, _map_exception
+    from basketball_data_emporium.server.app import (
+        app as fastapi_app,
+        main,
+        _map_exception,
+    )
 
     # `app` is the FastAPI singleton; `main` is the CLI entry point;
     # `_map_exception` is the named envelope mapper that the frontend
@@ -185,11 +196,14 @@ def _make_isolated_client() -> tuple[TestClient, FastAPI]:
     convert uncaught `Exception`s into the `internal_error` envelope
     instead of re-raising them in the test thread.
     """
-    from basketball_data_emporium.server.app import _map_exception, _map_exception_unhandled
+    from basketball_data_emporium.server.app import (
+        _map_exception,
+        _map_exception_unhandled,
+    )
 
     isolated = FastAPI()
     isolated.add_exception_handler(err_mod.BasketballDataEmporiumError, _map_exception)
-    isolated.add_exception_handler(Exception, _map_exception_unhandled)  # type: ignore[arg-type]
+    isolated.add_exception_handler(Exception, _map_exception_unhandled)
     return TestClient(isolated, raise_server_exceptions=False), isolated
 
 
@@ -218,7 +232,11 @@ EXCEPTION_CASES: list[tuple[err_mod.BasketballDataEmporiumError, int, str]] = [
         404,
         "invalid_season",
     ),
-    (err_mod.RateLimitJailedError("slow down", retry_after=3), 429, "rate_limit_jailed"),
+    (
+        err_mod.RateLimitJailedError("slow down", retry_after=3),
+        429,
+        "rate_limit_jailed",
+    ),
     (err_mod.SchemaDriftError("table missing"), 500, "schema_drift"),
     (err_mod.InternalError("boom"), 500, "internal_error"),
 ]

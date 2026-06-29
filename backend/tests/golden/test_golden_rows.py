@@ -115,12 +115,10 @@ def test_franchise_leaders_view_matches_team(
     rows = {r["golden_id"]: r for r in _load_golden()}
     # v_franchise_leaders returns team-level points INCLUDING playoffs.
     lal_view = db.execute(
-        "SELECT pts, pts_person_id FROM api.v_franchise_leaders "
-        "WHERE team = 'LAL'"
+        "SELECT pts, pts_person_id FROM api.v_franchise_leaders WHERE team = 'LAL'"
     ).fetchone()
     bos_view = db.execute(
-        "SELECT pts, pts_person_id FROM api.v_franchise_leaders "
-        "WHERE team = 'BOS'"
+        "SELECT pts, pts_person_id FROM api.v_franchise_leaders WHERE team = 'BOS'"
     ).fetchone()
     assert lal_view is not None and bos_view is not None, (
         "v_franchise_leaders must return one row per team"

@@ -65,7 +65,9 @@ def test_audit_schema_exists(duckdb_conn: duckdb.DuckDBPyConnection) -> None:
     )
 
 
-def test_audit_pipeline_run_log_table_exists(duckdb_conn: duckdb.DuckDBPyConnection) -> None:
+def test_audit_pipeline_run_log_table_exists(
+    duckdb_conn: duckdb.DuckDBPyConnection,
+) -> None:
     """`audit.pipeline_run_log` exists."""
     assert _table_exists(duckdb_conn, "audit", "pipeline_run_log"), (
         "Table `audit.pipeline_run_log` is missing; the ETL has no run log."
@@ -84,7 +86,9 @@ def test_audit_dq_results_table_exists(duckdb_conn: duckdb.DuckDBPyConnection) -
 # ---------------------------------------------------------------------------
 
 
-def test_audit_pipeline_run_log_is_populated(duckdb_conn: duckdb.DuckDBPyConnection) -> None:
+def test_audit_pipeline_run_log_is_populated(
+    duckdb_conn: duckdb.DuckDBPyConnection,
+) -> None:
     """`audit.pipeline_run_log` has at least one row.
 
     Zero rows means the ETL has not successfully completed a
@@ -110,7 +114,9 @@ def test_audit_pipeline_run_log_is_populated(duckdb_conn: duckdb.DuckDBPyConnect
     ),
     strict=False,
 )
-def test_audit_pipeline_run_log_recent_run_succeeded(duckdb_conn: duckdb.DuckDBPyConnection) -> None:
+def test_audit_pipeline_run_log_recent_run_succeeded(
+    duckdb_conn: duckdb.DuckDBPyConnection,
+) -> None:
     """The most recent `audit.pipeline_run_log` row has status='success'.
 
     The pipeline run log records per-stage outcomes; we want at

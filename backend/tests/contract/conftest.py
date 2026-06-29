@@ -21,7 +21,6 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
-import duckdb
 import pytest
 from fastapi.testclient import TestClient
 
@@ -103,10 +102,10 @@ def contract_client() -> Iterator[TestClient]:
             def __init__(self) -> None:
                 self._conn = _StubConn()
 
-            def acquire(self):  # type: ignore[override]
+            def acquire(self):
                 return self._conn
 
-            def release(self, conn) -> None:  # type: ignore[override]
+            def release(self, conn) -> None:
                 return None
 
             def initialize(self) -> None:

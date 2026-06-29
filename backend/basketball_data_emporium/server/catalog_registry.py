@@ -21,6 +21,7 @@ safer than promising a key that returns 500 at request time.
 from __future__ import annotations
 
 from functools import lru_cache
+from typing import Literal
 
 from basketball_data_emporium.catalog import by_key
 from basketball_data_emporium.db.registry import get_dataset_binding
@@ -35,9 +36,7 @@ from basketball_data_emporium.server.models.catalog import (
 )
 
 
-def _build_column_meta(
-    keys: list[str], default_visible: set[str]
-) -> list[ColumnMeta]:
+def _build_column_meta(keys: list[str], default_visible: set[str]) -> list[ColumnMeta]:
     """Build ``ColumnMeta`` from manifest keys. Fails fast on unknown keys.
 
     Each ``ColumnMeta.key`` is resolved against the manifest via
@@ -88,6 +87,12 @@ def _column_meta(keys: list[str], default_visible: set[str]) -> list[ColumnMeta]
     return columns
 
 
+def _supports_inactive_games(scope: Literal["player", "team"], dataset_id: str) -> bool:
+    """Whether a dataset binding exists and can opt out of the inactive-games filter."""
+    binding = get_dataset_binding(scope, dataset_id)
+    return binding is not None and binding.supports_include_inactive_games
+
+
 # ---------------------------------------------------------------------------
 # Player-hub catalog
 # ---------------------------------------------------------------------------
@@ -126,9 +131,7 @@ _PLAYER_HUB_DATASETS: tuple[DatasetCatalogEntry, ...] = (
         ),
         default_visible_columns=["pts", "ast", "reb", "gp"],
         supports_export=True,
-        supports_include_inactive_games=bool(
-            get_dataset_binding("player", "career") and get_dataset_binding("player", "career").supports_include_inactive_games
-        ),
+        supports_include_inactive_games=_supports_inactive_games("player", "career"),
     ),
     DatasetCatalogEntry(
         id="adjusted-shooting",
@@ -142,9 +145,8 @@ _PLAYER_HUB_DATASETS: tuple[DatasetCatalogEntry, ...] = (
         ),
         default_visible_columns=["per", "bpm", "vorp", "gp"],
         supports_export=True,
-        supports_include_inactive_games=bool(
-            get_dataset_binding("player", "adjusted-shooting")
-            and get_dataset_binding("player", "adjusted-shooting").supports_include_inactive_games
+        supports_include_inactive_games=_supports_inactive_games(
+            "player", "adjusted-shooting"
         ),
     ),
 )
@@ -202,9 +204,7 @@ _TEAM_HUB_DATASETS: tuple[TeamDatasetCatalogEntry, ...] = (
         ),
         default_visible_columns=["full_name", "per"],
         supports_export=True,
-        supports_include_inactive_games=bool(
-            get_dataset_binding("team", "roster") and get_dataset_binding("team", "roster").supports_include_inactive_games
-        ),
+        supports_include_inactive_games=_supports_inactive_games("team", "roster"),
     ),
     TeamDatasetCatalogEntry(
         id="franchise-arc",

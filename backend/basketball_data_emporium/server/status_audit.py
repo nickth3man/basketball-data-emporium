@@ -101,7 +101,9 @@ def read_audit_status(conn: duckdb.DuckDBPyConnection) -> AuditStatusSnapshot:
         return _empty_snapshot()
 
     pipeline_columns = _columns(conn, "audit", "pipeline_run_log")
-    started_col = _first_existing(pipeline_columns, ("started_at", "run_started_at", "created_at"))
+    started_col = _first_existing(
+        pipeline_columns, ("started_at", "run_started_at", "created_at")
+    )
     status_col = _first_existing(pipeline_columns, ("status", "run_status"))
     stage_col = _first_existing(pipeline_columns, ("stage_name", "stage"))
     run_id_col = _first_existing(pipeline_columns, ("run_id", "pipeline_run_id", "id"))
@@ -128,13 +130,19 @@ def read_audit_status(conn: duckdb.DuckDBPyConnection) -> AuditStatusSnapshot:
         return _empty_snapshot()
 
     latest_run_id, latest_stage, latest_status, latest_started_at = latest
-    latest_status_normalized = str(latest_status).lower() if latest_status is not None else None
+    latest_status_normalized = (
+        str(latest_status).lower() if latest_status is not None else None
+    )
 
     dq_status: str | None = None
     if _table_exists(conn, "audit", "dq_results"):
         dq_columns = _columns(conn, "audit", "dq_results")
-        dq_status_col = _first_existing(dq_columns, ("status", "result_status", "check_status"))
-        dq_time_col = _first_existing(dq_columns, ("checked_at", "created_at", "started_at"))
+        dq_status_col = _first_existing(
+            dq_columns, ("status", "result_status", "check_status")
+        )
+        dq_time_col = _first_existing(
+            dq_columns, ("checked_at", "created_at", "started_at")
+        )
         if dq_status_col:
             dq_order = f"ORDER BY {dq_time_col} DESC NULLS LAST" if dq_time_col else ""
             dq_status = _scalar(
@@ -146,13 +154,25 @@ def read_audit_status(conn: duckdb.DuckDBPyConnection) -> AuditStatusSnapshot:
             count = _scalar(conn, "SELECT count(*) FROM audit.dq_results")
             dq_status = "present" if count and int(count) > 0 else None
 
-    is_stale = _is_stale(latest_started_at if isinstance(latest_started_at, datetime) else None)
+    is_stale = _is_stale(
+        latest_started_at if isinstance(latest_started_at, datetime) else None
+    )
     dq_passed = dq_status in {"passed", "pass", "success", "succeeded", "ok", "present"}
-    run_passed = latest_status_normalized in {"success", "succeeded", "passed", "pass", "ok"}
+    run_passed = latest_status_normalized in {
+        "success",
+        "succeeded",
+        "passed",
+        "pass",
+        "ok",
+    }
     is_verified = bool(run_passed and dq_passed and not is_stale)
     if is_stale:
         state = "stale"
-    elif latest_status_normalized in {"failed", "failure", "error"} or dq_status in {"failed", "failure", "error"}:
+    elif latest_status_normalized in {"failed", "failure", "error"} or dq_status in {
+        "failed",
+        "failure",
+        "error",
+    }:
         state = "failed"
     elif is_verified:
         state = "passed"
@@ -163,7 +183,9 @@ def read_audit_status(conn: duckdb.DuckDBPyConnection) -> AuditStatusSnapshot:
         latest_run_id=str(latest_run_id) if latest_run_id is not None else None,
         latest_stage=str(latest_stage) if latest_stage is not None else None,
         latest_status=latest_status_normalized,
-        latest_started_at=latest_started_at if isinstance(latest_started_at, datetime) else None,
+        latest_started_at=latest_started_at
+        if isinstance(latest_started_at, datetime)
+        else None,
         dq_status=dq_status,
         is_verified=is_verified,
         is_stale=is_stale,

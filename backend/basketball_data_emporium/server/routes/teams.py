@@ -110,7 +110,9 @@ def export_team_dataset(
         season_end_year=season_end_year,
         include_inactive_games=include_inactive_games,
     )
-    safe_identifier = "".join(ch for ch in identifier if ch.isalnum() or ch in {"_", "-"})
+    safe_identifier = "".join(
+        ch for ch in identifier if ch.isalnum() or ch in {"_", "-"}
+    )
     safe_dataset = "".join(ch for ch in dataset if ch.isalnum() or ch in {"_", "-"})
     return StreamingResponse(
         csv_body,

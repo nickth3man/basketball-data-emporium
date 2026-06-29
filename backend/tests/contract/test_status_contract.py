@@ -60,7 +60,9 @@ def test_status_field_types(contract_client: TestClient) -> None:
     """
     response = contract_client.get("/api/status")
     body = response.json()
-    assert isinstance(body["ok"], bool), f"`ok` was {type(body['ok']).__name__}, expected bool."
+    assert isinstance(body["ok"], bool), (
+        f"`ok` was {type(body['ok']).__name__}, expected bool."
+    )
     assert isinstance(body["endpoint_count"], int), (
         f"`endpoint_count` was {type(body['endpoint_count']).__name__}, expected int."
     )

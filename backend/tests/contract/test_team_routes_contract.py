@@ -13,7 +13,9 @@ def test_team_search_returns_bbr_abbrev(contract_client: TestClient) -> None:
     assert body[0]["name"] == "Boston Celtics"
 
 
-def test_team_search_short_term_uses_error_envelope(contract_client: TestClient) -> None:
+def test_team_search_short_term_uses_error_envelope(
+    contract_client: TestClient,
+) -> None:
     response = contract_client.get("/api/teams/search", params={"term": "b"})
     assert response.status_code == 400
     assert response.json()["detail"]["code"] == "invalid_search"
@@ -24,7 +26,12 @@ def test_team_featured_shape(contract_client: TestClient) -> None:
     assert response.status_code == 200, response.text
     body = response.json()
     assert set(body) == {"teams"}
-    assert {team["identifier"] for team in body["teams"]} >= {"LAL", "BOS", "GSW", "CHI"}
+    assert {team["identifier"] for team in body["teams"]} >= {
+        "LAL",
+        "BOS",
+        "GSW",
+        "CHI",
+    }
 
 
 def test_team_summary_embeds_roster_and_arc(contract_client: TestClient) -> None:

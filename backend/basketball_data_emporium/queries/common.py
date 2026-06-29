@@ -15,7 +15,11 @@ from basketball_data_emporium.server.catalog_registry import (
     build_player_hub_catalog,
     build_team_hub_catalog,
 )
-from basketball_data_emporium.server.errors import BadRequestError, InternalError, SchemaDriftError
+from basketball_data_emporium.server.errors import (
+    BadRequestError,
+    InternalError,
+    SchemaDriftError,
+)
 from basketball_data_emporium.server.models.catalog import ColumnMeta
 from basketball_data_emporium.server.models.common import EndpointRowsResponse
 
@@ -27,7 +31,10 @@ def _query_timeout_seconds() -> float | None:
     try:
         timeout_ms = int(raw)
     except ValueError:
-        logger.warning("BASKETBALL_DATA_QUERY_TIMEOUT_MS=%r is not an int; disabling query timeout.", raw)
+        logger.warning(
+            "BASKETBALL_DATA_QUERY_TIMEOUT_MS=%r is not an int; disabling query timeout.",
+            raw,
+        )
         return None
     if timeout_ms <= 0:
         return None
@@ -45,6 +52,7 @@ def fetch_dicts(
     timed_out = threading.Event()
     timer: threading.Timer | None = None
     if timeout is not None:
+
         def interrupt_query() -> None:
             timed_out.set()
             conn.interrupt()
@@ -98,7 +106,11 @@ def team_dataset_meta(dataset: str) -> tuple[str, list[ColumnMeta], list[str]]:
     catalog = build_team_hub_catalog()
     for entry in catalog.datasets:
         if entry.id == dataset:
-            return entry.endpoint_name, entry.columns or [], entry.default_visible_columns or []
+            return (
+                entry.endpoint_name,
+                entry.columns or [],
+                entry.default_visible_columns or [],
+            )
     raise BadRequestError("Unknown team dataset", detail={"dataset": dataset})
 
 

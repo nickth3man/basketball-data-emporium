@@ -23,7 +23,10 @@ from __future__ import annotations
 import duckdb
 import pytest
 
-from basketball_data_emporium.db.schema_compat import DIM_PLAYER_COMPAT_SQL, DIM_TEAM_COMPAT_SQL
+from basketball_data_emporium.db.schema_compat import (
+    DIM_PLAYER_COMPAT_SQL,
+    DIM_TEAM_COMPAT_SQL,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -101,21 +104,31 @@ def test_required_table_exists(
 # ---------------------------------------------------------------------------
 
 
-def test_dim_player_compat_has_spec_named_columns(duckdb_conn: duckdb.DuckDBPyConnection) -> None:
+def test_dim_player_compat_has_spec_named_columns(
+    duckdb_conn: duckdb.DuckDBPyConnection,
+) -> None:
     """The player compatibility layer exposes `bref_player_id`, `display_name`, `is_active`."""
     cols = _query_column_names(duckdb_conn, DIM_PLAYER_COMPAT_SQL)
     missing = SPEC_DIM_PLAYER - cols
-    assert not missing, f"player compatibility projection missing spec columns: {sorted(missing)}"
+    assert not missing, (
+        f"player compatibility projection missing spec columns: {sorted(missing)}"
+    )
 
 
-def test_dim_team_compat_has_spec_named_columns(duckdb_conn: duckdb.DuckDBPyConnection) -> None:
+def test_dim_team_compat_has_spec_named_columns(
+    duckdb_conn: duckdb.DuckDBPyConnection,
+) -> None:
     """The team compatibility layer exposes `team_id`, `full_name`."""
     cols = _query_column_names(duckdb_conn, DIM_TEAM_COMPAT_SQL)
     missing = SPEC_DIM_TEAM - cols
-    assert not missing, f"team compatibility projection missing spec columns: {sorted(missing)}"
+    assert not missing, (
+        f"team compatibility projection missing spec columns: {sorted(missing)}"
+    )
 
 
-def test_fact_player_season_stats_has_spec_named_columns(duckdb_conn: duckdb.DuckDBPyConnection) -> None:
+def test_fact_player_season_stats_has_spec_named_columns(
+    duckdb_conn: duckdb.DuckDBPyConnection,
+) -> None:
     """`fact_player_season_stats` exposes `player_id`, `season_year`, `is_playoffs`, `pts`."""
     cols = _column_names(duckdb_conn, "unified_star.fact_player_season_stats")
     missing = SPEC_FACT_PLAYER_SEASON_STATS - cols
@@ -138,7 +151,9 @@ def test_dim_player_has_actual_columns(duckdb_conn: duckdb.DuckDBPyConnection) -
     """`dim_player` exposes the columns live endpoints will need: bref_player_id, full_name, is_active."""
     cols = _column_names(duckdb_conn, "unified_star.dim_player")
     missing = ACTUAL_DIM_PLAYER - cols
-    assert not missing, f"unified_star.dim_player missing live columns: {sorted(missing)}"
+    assert not missing, (
+        f"unified_star.dim_player missing live columns: {sorted(missing)}"
+    )
 
 
 def test_dim_team_has_actual_columns(duckdb_conn: duckdb.DuckDBPyConnection) -> None:
@@ -160,13 +175,21 @@ def test_dim_player_has_rows(duckdb_conn: duckdb.DuckDBPyConnection) -> None:
     Phase 1). The assertion is `> 1000` to avoid drift sensitivity
     while still catching "the table was truncated" regressions.
     """
-    n = duckdb_conn.execute("SELECT count(*) FROM unified_star.dim_player").fetchone()[0]
-    assert n > 1000, f"unified_star.dim_player has only {n} rows; expected at least 1000."
+    n = duckdb_conn.execute("SELECT count(*) FROM unified_star.dim_player").fetchone()[
+        0
+    ]
+    assert n > 1000, (
+        f"unified_star.dim_player has only {n} rows; expected at least 1000."
+    )
 
 
-def test_fact_player_season_stats_has_rows(duckdb_conn: duckdb.DuckDBPyConnection) -> None:
+def test_fact_player_season_stats_has_rows(
+    duckdb_conn: duckdb.DuckDBPyConnection,
+) -> None:
     """`fact_player_season_stats` is populated."""
-    n = duckdb_conn.execute("SELECT count(*) FROM unified_star.fact_player_season_stats").fetchone()[0]
+    n = duckdb_conn.execute(
+        "SELECT count(*) FROM unified_star.fact_player_season_stats"
+    ).fetchone()[0]
     assert n > 1000, f"unified_star.fact_player_season_stats has only {n} rows."
 
 

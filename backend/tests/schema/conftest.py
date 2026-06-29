@@ -36,7 +36,9 @@ def duckdb_conn() -> Iterator[duckdb.DuckDBPyConnection]:
     """Yield a read-only DuckDB connection for the duration of the test session."""
     path = _resolve_db_path()
     if not path.exists():
-        pytest.skip(f"DuckDB file not found at {path}; set DUCKDB_PATH to enable schema tests.")
+        pytest.skip(
+            f"DuckDB file not found at {path}; set DUCKDB_PATH to enable schema tests."
+        )
     con = duckdb.connect(str(path), read_only=True)
     try:
         yield con

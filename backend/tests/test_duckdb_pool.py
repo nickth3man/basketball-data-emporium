@@ -18,7 +18,7 @@ class _BlockingTestPool(DuckDBPool):
         super().__init__(Path("unused.duckdb"), size=1)
         self.open_count = 0
 
-    def _open_one(self) -> Any:  # type: ignore[override]
+    def _open_one(self) -> Any:
         self.open_count += 1
         return _Conn()
 

@@ -122,7 +122,9 @@ def search_teams(conn: duckdb.DuckDBPyConnection, term: str) -> list[TeamSearchR
         [pattern, pattern, term.strip(), term.strip(), f"{term.strip()}%"],
     )
     return [
-        TeamSearchResult(name=row["full_name"], identifier=row["identifier"], leagues=[row["league"]])
+        TeamSearchResult(
+            name=row["full_name"], identifier=row["identifier"], leagues=[row["league"]]
+        )
         for row in rows
     ]
 
@@ -288,8 +290,7 @@ def team_summary(conn: duckdb.DuckDBPyConnection, identifier: str) -> TeamHubSum
         hero_stats=TeamHeroStats(team=team["team_abbrev"], **(hero_row or {})),
         roster=team_dataset(conn, identifier, "roster", season_end_year=default),
         franchise_arc=[
-            FranchiseArcPoint(team_name=team["full_name"], **row)
-            for row in arc_rows
+            FranchiseArcPoint(team_name=team["full_name"], **row) for row in arc_rows
         ],
     )
 

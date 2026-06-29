@@ -77,7 +77,9 @@ def _pool_size() -> int:
         logger.warning("DUCKDB_POOL_SIZE=%d is < 1; falling back to 1.", size)
         return 1
     if size > 32:
-        logger.warning("DUCKDB_POOL_SIZE=%d is suspiciously high; clamping to 32.", size)
+        logger.warning(
+            "DUCKDB_POOL_SIZE=%d is suspiciously high; clamping to 32.", size
+        )
         return 32
     return size
 

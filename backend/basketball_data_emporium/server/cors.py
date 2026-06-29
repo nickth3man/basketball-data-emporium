@@ -33,7 +33,9 @@ def configure_cors(app: FastAPI) -> None:
         CORSMiddleware,
         allow_origins=_csv_env("BASKETBALL_DATA_CORS_ORIGINS", DEFAULT_ALLOWED_ORIGINS),
         allow_methods=_csv_env("BASKETBALL_DATA_CORS_METHODS", ("GET", "OPTIONS")),
-        allow_headers=_csv_env("BASKETBALL_DATA_CORS_HEADERS", ("Accept", "Content-Type")),
+        allow_headers=_csv_env(
+            "BASKETBALL_DATA_CORS_HEADERS", ("Accept", "Content-Type")
+        ),
         allow_credentials=False,
         max_age=int(os.environ.get("BASKETBALL_DATA_CORS_MAX_AGE", "600")),
     )

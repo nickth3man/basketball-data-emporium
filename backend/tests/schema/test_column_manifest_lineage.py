@@ -176,8 +176,7 @@ def test_available_since_season_consistency() -> None:
     for c in ALL_COLUMN_CONTRACTS:
         violations.extend(_season_constraint_violations(c))
     assert not violations, (
-        "available_since_season constraints violated:\n  - "
-        + "\n  - ".join(violations)
+        "available_since_season constraints violated:\n  - " + "\n  - ".join(violations)
     )
 
 
@@ -236,14 +235,8 @@ def test_manifest_format_rule_is_nonempty() -> None:
 
 def test_manifest_season_floor() -> None:
     """No contract should claim data before the 1946-47 BAA season."""
-    bad = [
-        c.key
-        for c in ALL_COLUMN_CONTRACTS
-        if c.available_since_season < 1947
-    ]
-    assert not bad, (
-        f"available_since_season < 1947 (the league's first season): {bad}"
-    )
+    bad = [c.key for c in ALL_COLUMN_CONTRACTS if c.available_since_season < 1947]
+    assert not bad, f"available_since_season < 1947 (the league's first season): {bad}"
 
 
 def test_manifest_is_playoffs_scoped_is_boolean() -> None:
@@ -251,7 +244,9 @@ def test_manifest_is_playoffs_scoped_is_boolean() -> None:
     bad: list[str] = []
     for c in ALL_COLUMN_CONTRACTS:
         if not isinstance(c.is_playoffs_scoped, bool):
-            bad.append(f"{c.key}: is_playoffs_scoped is {type(c.is_playoffs_scoped).__name__}")
+            bad.append(
+                f"{c.key}: is_playoffs_scoped is {type(c.is_playoffs_scoped).__name__}"
+            )
     assert not bad, "is_playoffs_scoped is not strictly bool: " + ", ".join(bad)
 
 

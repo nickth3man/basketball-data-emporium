@@ -13,7 +13,9 @@ def test_player_search_returns_bbr_slug(contract_client: TestClient) -> None:
     assert {"name", "identifier", "leagues"} <= set(body[0])
 
 
-def test_player_search_short_term_uses_error_envelope(contract_client: TestClient) -> None:
+def test_player_search_short_term_uses_error_envelope(
+    contract_client: TestClient,
+) -> None:
     response = contract_client.get("/api/players/search", params={"term": "j"})
     assert response.status_code == 400
     assert response.json()["detail"]["code"] == "invalid_search"
@@ -62,7 +64,9 @@ def test_player_dataset_shape(contract_client: TestClient) -> None:
 
 
 def test_player_season_dataset_shape(contract_client: TestClient) -> None:
-    response = contract_client.get("/api/players/jamesle01/seasons/2024/adjusted-shooting")
+    response = contract_client.get(
+        "/api/players/jamesle01/seasons/2024/adjusted-shooting"
+    )
     assert response.status_code == 200, response.text
     body = response.json()
     assert body["dataset"] == "adjusted-shooting"

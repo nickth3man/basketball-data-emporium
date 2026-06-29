@@ -31,7 +31,9 @@ class FeaturedTeamsResponse(BaseModel):
     """Featured teams for the Team Hub landing page."""
 
     model_config = ConfigDict(
-        json_schema_extra={"description": "Featured teams for the Team Hub landing page."}
+        json_schema_extra={
+            "description": "Featured teams for the Team Hub landing page."
+        }
     )
 
     teams: list[FeaturedTeam]

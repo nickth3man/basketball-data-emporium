@@ -107,7 +107,12 @@ def test_player_catalog_dataset_shape(contract_client: TestClient) -> None:
             f"not in {{'player', 'season'}}."
         )
         for column in dataset["columns"]:
-            assert set(column.keys()) == {"key", "label", "default_visible", "numeric"}, (
+            assert set(column.keys()) == {
+                "key",
+                "label",
+                "default_visible",
+                "numeric",
+            }, (
                 f"player-hub dataset {dataset['id']!r} column {column.get('key')!r} "
                 f"keys were {sorted(column.keys())!r}; "
                 f"expected exactly {{'key', 'label', 'default_visible', 'numeric'}}."

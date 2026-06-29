@@ -17,7 +17,10 @@ from basketball_data_emporium.queries.common import (
     player_dataset_meta,
     season_end_expr,
 )
-from basketball_data_emporium.server.errors import InvalidPlayerError, InvalidSeasonError
+from basketball_data_emporium.server.errors import (
+    InvalidPlayerError,
+    InvalidSeasonError,
+)
 from basketball_data_emporium.server.models.common import EndpointRowsResponse
 from basketball_data_emporium.server.models.players import (
     FeaturedAthlete,
@@ -75,7 +78,9 @@ def _player_or_404(conn: duckdb.DuckDBPyConnection, identifier: str) -> dict[str
     return player
 
 
-def search_players(conn: duckdb.DuckDBPyConnection, term: str) -> list[PlayerSearchResult]:
+def search_players(
+    conn: duckdb.DuckDBPyConnection, term: str
+) -> list[PlayerSearchResult]:
     pattern = f"%{term.strip()}%"
     rows = fetch_dicts(
         conn,
@@ -95,7 +100,9 @@ def search_players(conn: duckdb.DuckDBPyConnection, term: str) -> list[PlayerSea
         [pattern, pattern, term.strip(), term.strip(), f"{term.strip()}%"],
     )
     return [
-        PlayerSearchResult(name=row["name"], identifier=row["identifier"], leagues=["NBA"])
+        PlayerSearchResult(
+            name=row["name"], identifier=row["identifier"], leagues=["NBA"]
+        )
         for row in rows
     ]
 
@@ -115,7 +122,9 @@ def featured_players(conn: duckdb.DuckDBPyConnection) -> FeaturedAthletesRespons
     return FeaturedAthletesResponse(athletes=athletes)
 
 
-def _career_rows(conn: duckdb.DuckDBPyConnection, identifier: str) -> list[dict[str, Any]]:
+def _career_rows(
+    conn: duckdb.DuckDBPyConnection, identifier: str
+) -> list[dict[str, Any]]:
     return fetch_dicts(
         conn,
         """
@@ -239,13 +248,16 @@ def player_dataset(
     )
 
 
-def player_summary(conn: duckdb.DuckDBPyConnection, identifier: str) -> PlayerHubSummary:
+def player_summary(
+    conn: duckdb.DuckDBPyConnection, identifier: str
+) -> PlayerHubSummary:
     player = _player_or_404(conn, identifier)
     available_seasons = _available_player_seasons(conn, identifier)
     default_season = available_seasons[0] if available_seasons else None
-    hero = fetch_one(
-        conn,
-        """
+    hero = (
+        fetch_one(
+            conn,
+            """
         SELECT
           SUM(G) AS gp,
           SUM(PTS) AS pts,
@@ -257,8 +269,10 @@ def player_summary(conn: duckdb.DuckDBPyConnection, identifier: str) -> PlayerHu
         FROM api.v_canonical_player_season_totals
         WHERE PLAYER_ID = ?
         """,
-        [identifier],
-    ) or {}
+            [identifier],
+        )
+        or {}
+    )
     return PlayerHubSummary(
         identifier=identifier,
         display_name=player["display_name"],

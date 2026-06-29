@@ -172,7 +172,13 @@ def test_openapi_drift_gate(
         # for input; 30s timeout so a broken toolchain fails fast.
         cli_js = _openapi_typescript_cli(frontend_dir)
         if cli_js is None and os.name == "nt":
-            cmd = ["cmd.exe", "/d", "/s", "/c", f"npx --yes openapi-typescript {spec_path} -o {types_path}"]
+            cmd = [
+                "cmd.exe",
+                "/d",
+                "/s",
+                "/c",
+                f"npx --yes openapi-typescript {spec_path} -o {types_path}",
+            ]
         elif cli_js is None:
             cmd = ["npx", "--yes", "openapi-typescript", spec_path, "-o", types_path]
         else:
@@ -256,7 +262,10 @@ def test_openapi_drift_gate(
         # 3c. The Phase 2 catalog operations. Same 200-only scope as
         # 3b: the catalog routes don't declare error responses, so we
         # only need to compare the 200 success shape.
-        for op_id in ("catalog_api_endpoints_player_hub_get", "team_catalog_api_endpoints_team_hub_get"):
+        for op_id in (
+            "catalog_api_endpoints_player_hub_get",
+            "team_catalog_api_endpoints_team_hub_get",
+        ):
             gen_op = _extract_block(generated, op_id)
             com_op = _extract_block(committed, op_id)
             assert gen_op is not None and com_op is not None, (
