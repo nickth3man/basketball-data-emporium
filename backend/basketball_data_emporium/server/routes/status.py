@@ -2,8 +2,8 @@
 
 The endpoint runs `SELECT 1` against a read-only connection from the
 pool to confirm the database is reachable. On success it returns
-`{"ok": true, "endpoint_count": 15}` (15 is the static total of
-planned endpoints, not a live count). On any failure the domain
+`{"ok": true, "endpoint_count": 18}` (18 is the static total of
+public endpoints, not a live count). On any failure the domain
 exception is raised and `_map_exception` in `app.py` turns it into
 the standard `{ detail: { code, message, detail } }` envelope.
 """
@@ -21,9 +21,9 @@ from basketball_data_emporium.server.status_audit import read_audit_status
 router = APIRouter(tags=["status"])
 
 
-# Static total of planned endpoints. Informational only; the catalog
-# endpoint (Phase 2) is the source of truth for the live endpoint list.
-ENDPOINT_COUNT: int = 15
+# Static total of public endpoints. Informational only; the route
+# modules are the source of truth for the live endpoint list.
+ENDPOINT_COUNT: int = 18
 
 
 @router.get(

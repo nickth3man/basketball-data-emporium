@@ -40,6 +40,7 @@ from basketball_data_emporium.server.cors import configure_cors
 from basketball_data_emporium.server.rate_limit import check_rate_limit
 from basketball_data_emporium.server.routes import catalog as catalog_route
 from basketball_data_emporium.server.routes import players as players_route
+from basketball_data_emporium.server.routes import seasons as seasons_route
 from basketball_data_emporium.server.routes import status as status_route
 from basketball_data_emporium.server.routes import teams as teams_route
 
@@ -164,6 +165,7 @@ def _build_app() -> FastAPI:
 
     app.include_router(catalog_route.router)
     app.include_router(players_route.router)
+    app.include_router(seasons_route.router)
     app.include_router(status_route.router)
     app.include_router(teams_route.router)
 

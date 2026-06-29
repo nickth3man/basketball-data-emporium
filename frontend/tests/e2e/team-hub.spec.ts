@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 const status = {
   ok: true,
-  endpoint_count: 15,
+  endpoint_count: 18,
   data_state: "passed",
   data_state_reason: "verified",
   data_verified: true,

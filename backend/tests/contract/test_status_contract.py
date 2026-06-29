@@ -45,7 +45,7 @@ def test_status_body_contract(contract_client: TestClient) -> None:
     response = contract_client.get("/api/status")
     body = response.json()
     assert body["ok"] is True
-    assert body["endpoint_count"] == 15
+    assert body["endpoint_count"] == 18
     assert body["data_state"] in {"passed", "failed", "stale", "unverified"}
     assert body["data_state_reason"] in {
         "audit_missing",
@@ -63,7 +63,7 @@ def test_status_body_contract(contract_client: TestClient) -> None:
 def test_status_field_types(contract_client: TestClient) -> None:
     """`ok` is bool, `endpoint_count` is int.
 
-    `endpoint_count` is the static constant 15; if a future phase
+    `endpoint_count` is the static constant 18; if a future phase
     changes it to a `count(*)` over a real route table, this test
     will catch a `bool` vs `int` regression.
     """
@@ -82,8 +82,8 @@ def test_status_field_types(contract_client: TestClient) -> None:
         "`data_state_reason` was "
         f"{type(body['data_state_reason']).__name__}, expected str."
     )
-    assert body["endpoint_count"] == 15, (
-        f"`endpoint_count` was {body['endpoint_count']}; the MVCS contract pins it to 15."
+    assert body["endpoint_count"] == 18, (
+        f"`endpoint_count` was {body['endpoint_count']}; the MVCS contract pins it to 18."
     )
 
 

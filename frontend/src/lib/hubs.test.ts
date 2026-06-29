@@ -2,7 +2,7 @@
  * Tests for `ui/src/lib/hubs.ts`.
  *
  * Pins down the canonical list of hub navigation entries. A regression
- * that drops a hub (e.g. `Teams` removal) trips a test rather than
+ * that drops a hub (e.g. `Seasons` removal) trips a test rather than
  * silently shrinking the cross-nav.
  */
 import { describe, expect, it } from "vitest";
@@ -10,9 +10,13 @@ import { describe, expect, it } from "vitest";
 import { HUBS, type HubLink } from "@/lib/hubs";
 
 describe("HUBS", () => {
-  it("has exactly the two v1 hubs: Players and Teams", () => {
-    expect(HUBS).toHaveLength(2);
-    expect(HUBS.map((entry) => entry.label)).toEqual(["Players", "Teams"]);
+  it("has exactly the three v1 hubs: Players, Teams, and Seasons", () => {
+    expect(HUBS).toHaveLength(3);
+    expect(HUBS.map((entry) => entry.label)).toEqual([
+      "Players",
+      "Teams",
+      "Seasons",
+    ]);
   });
 
   it("maps each hub to an absolute path under the app root", () => {

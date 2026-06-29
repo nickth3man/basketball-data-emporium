@@ -32,7 +32,7 @@ class StatusResponse(BaseModel):
     """Health and runtime metadata for the UI shell.
 
     Returned by `GET /api/status`. `endpoint_count` is the static total
-    of planned endpoints (15) — it is informational, not a live count.
+    of public endpoints (18) — it is informational, not a live count.
     """
 
     model_config = ConfigDict(

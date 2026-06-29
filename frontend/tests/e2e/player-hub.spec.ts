@@ -65,7 +65,7 @@ const career = {
 
 test.beforeEach(async ({ page }) => {
   await page.route("http://127.0.0.1:8765/api/status", async (route) => {
-    await route.fulfill({ json: { ok: true, endpoint_count: 61 } });
+    await route.fulfill({ json: { ok: true, endpoint_count: 18 } });
   });
   await page.route("http://127.0.0.1:8765/api/endpoints/player-hub", async (route) => {
     await route.fulfill({ json: catalog });

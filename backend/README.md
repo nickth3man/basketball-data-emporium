@@ -29,6 +29,9 @@ The service listens on port `8765` by default and exposes:
 | `GET /api/teams/{identifier}/{dataset}` | Team-level dataset rows. |
 | `GET /api/teams/{identifier}/seasons/{season_end_year}/{dataset}` | Team season-scoped dataset rows. |
 | `GET /api/teams/{identifier}/export?dataset=...` | Team dataset CSV export. |
+| `GET /api/seasons` | Available season-ending years for the Season Hub. |
+| `GET /api/seasons/{season_end_year}/standings` | Canonical team-season standings. |
+| `GET /api/seasons/{season_end_year}/leaders?stat=pts` | Ranked season leaders for a bounded stat. |
 
 `/openapi.json` is the source for
 `frontend/src/lib/openapi-types.ts`; regenerate that file after schema or route
@@ -41,7 +44,7 @@ changes with `npm run gen:api` from `frontend/`.
 ```json
 {
   "ok": true,
-  "endpoint_count": 15,
+  "endpoint_count": 18,
   "data_state": "failed",
   "data_state_reason": "latest_pipeline_failed",
   "data_verified": false,
@@ -86,6 +89,11 @@ Add new datasets by updating the registry binding, catalog entry, query branch,
 and contract tests together. Do not advertise raw PBP, shot chart, or betting
 line views until each has a dedicated UI and bounded query plan.
 
+The Season Hub is not a generic dataset registry entry. It deliberately exposes
+three bounded routes over low-cardinality projections (`api.v_canonical_team_season`
+and `api.v_season_leaders`) while keeping high-cardinality game-log and shot
+chart views deferred.
+
 ## Install
 
 This project uses `uv`. From this directory:
@@ -123,6 +131,7 @@ Useful checks:
 
 ```bash
 curl http://127.0.0.1:8765/api/status
+curl http://127.0.0.1:8765/api/seasons
 curl http://127.0.0.1:8765/openapi.json
 curl http://127.0.0.1:8765/docs
 ```

@@ -12,7 +12,7 @@ import { expect, test } from "@playwright/test";
 
 const status = {
   ok: true,
-  endpoint_count: 61,
+  endpoint_count: 18,
 };
 
 const catalog = {

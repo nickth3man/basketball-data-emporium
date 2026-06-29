@@ -8,9 +8,9 @@ This test uses TestClient (in-process HTTP, no server). It writes the live
 OpenAPI spec to a temp file, runs openapi-typescript, and compares the
 StatusResponse + /api/status sections against the committed file.
 
-For Phase 1, only the /api/status endpoint exists. The comparison is scoped
-to the sections that should match. When Phase 2+ adds endpoints, expand the
-comparison scope (or move to a full-file structural diff once all 15 exist).
+The comparison is scoped to sections that should match. When new public
+endpoint families land, expand the comparison scope (or move to a full-file
+structural diff once all generated sections are intentionally stable).
 """
 
 from __future__ import annotations

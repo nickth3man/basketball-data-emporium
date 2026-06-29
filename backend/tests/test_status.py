@@ -9,7 +9,7 @@ Two test groups:
 
 1. `/api/status` happy path — fake `DuckDBPool` returns a stub
    connection that responds to `execute("SELECT 1")`; we assert the
-   response is exactly `{"ok": true, "endpoint_count": 15}`.
+   response is exactly `{"ok": true, "endpoint_count": 18}`.
 2. `_map_exception` envelope shape — every domain exception class is
    raised against a tiny isolated FastAPI app and the response is
    asserted to have the expected status + `{ detail: { code, message,
@@ -115,7 +115,7 @@ def test_status_happy_path(status_client: TestClient) -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["ok"] is True
-    assert body["endpoint_count"] == 15
+    assert body["endpoint_count"] == 18
     assert body["data_state"] == "unverified"
     assert body["data_state_reason"] == "audit_missing"
     assert body["data_verified"] is False

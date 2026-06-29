@@ -17,4 +17,5 @@ export interface HubLink {
 export const HUBS: readonly HubLink[] = [
   { label: "Players", href: "/players" },
   { label: "Teams", href: "/teams" },
+  { label: "Seasons", href: "/seasons" },
 ] as const;
