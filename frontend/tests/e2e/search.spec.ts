@@ -136,7 +136,7 @@ test("does not search for 1-char terms", async ({ page }) => {
   await expect(page.getByRole("button", { name: "LeBron James" })).toHaveCount(0);
 });
 
-test("Enter submits and navigates to player page", async ({ page }) => {
+test("Enter submits and navigates to the canonical player page", async ({ page }) => {
   await page.goto("/players");
 
   const input = page.getByPlaceholder("Search players");
@@ -148,8 +148,3 @@ test("Enter submits and navigates to player page", async ({ page }) => {
   await expect(page).toHaveURL(/\/players\/jamesle01$/);
   await expect(page.getByRole("heading", { name: "LeBron James" })).toBeVisible();
 });
-
-test.fixme(
-  "URL persists term on submit after product decides whether search terms survive detail navigation",
-  async () => {},
-);

@@ -251,23 +251,7 @@ def test_manifest_is_playoffs_scoped_is_boolean() -> None:
 
 
 # ---------------------------------------------------------------------------
-# 5. Manifest is regenerable. Skipped until a manifest regenerator exists.
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.skip(
-    reason="build_manifest.py is a Phase 3 task; once it lands this test "
-    "should regenerate the manifest from a single discovery query and "
-    "fail if the hand-written file diverges.",
-)
-def test_manifest_regenerates_from_db() -> None:
-    """Future test: the hand-written manifest must match what a discovery
-    query against ``information_schema.columns`` would produce."""
-    pytest.skip("Manifest regenerator is not part of the current repository.")
-
-
-# ---------------------------------------------------------------------------
-# 6. Generated-on sentinel. If a manifest is older than 90 days,
+# 5. Generated-on sentinel. If a manifest is older than 90 days,
 #    surface a warning so a maintainer knows the lineage is stale.
 # ---------------------------------------------------------------------------
 

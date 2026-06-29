@@ -47,6 +47,15 @@ def test_status_body_contract(contract_client: TestClient) -> None:
     assert body["ok"] is True
     assert body["endpoint_count"] == 15
     assert body["data_state"] in {"passed", "failed", "stale", "unverified"}
+    assert body["data_state_reason"] in {
+        "audit_missing",
+        "latest_pipeline_failed",
+        "latest_dq_failed",
+        "audit_stale",
+        "dq_missing",
+        "verified",
+        "unverified",
+    }
     assert isinstance(body["data_verified"], bool)
     assert isinstance(body["data_stale"], bool)
 
@@ -68,6 +77,10 @@ def test_status_field_types(contract_client: TestClient) -> None:
     )
     assert isinstance(body["data_state"], str), (
         f"`data_state` was {type(body['data_state']).__name__}, expected str."
+    )
+    assert isinstance(body["data_state_reason"], str), (
+        "`data_state_reason` was "
+        f"{type(body['data_state_reason']).__name__}, expected str."
     )
     assert body["endpoint_count"] == 15, (
         f"`endpoint_count` was {body['endpoint_count']}; the MVCS contract pins it to 15."

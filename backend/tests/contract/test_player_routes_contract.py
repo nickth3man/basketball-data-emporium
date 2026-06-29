@@ -63,6 +63,17 @@ def test_player_dataset_shape(contract_client: TestClient) -> None:
     assert {"gp", "pts", "ast", "reb"} <= set(body["rows"][0])
 
 
+def test_player_shooting_dataset_shape(contract_client: TestClient) -> None:
+    response = contract_client.get("/api/players/curryst01/shooting")
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["dataset"] == "shooting"
+    assert body["row_count"] > 0
+    assert {"fgm", "fga", "fg_pct", "fg3m", "fg3a", "fg3_pct"} <= set(
+        body["rows"][0]
+    )
+
+
 def test_player_season_dataset_shape(contract_client: TestClient) -> None:
     response = contract_client.get(
         "/api/players/jamesle01/seasons/2024/adjusted-shooting"

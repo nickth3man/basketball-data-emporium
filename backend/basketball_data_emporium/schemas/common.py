@@ -44,6 +44,15 @@ class StatusResponse(BaseModel):
     ok: bool
     endpoint_count: int
     data_state: Literal["passed", "failed", "stale", "unverified"]
+    data_state_reason: Literal[
+        "audit_missing",
+        "latest_pipeline_failed",
+        "latest_dq_failed",
+        "audit_stale",
+        "dq_missing",
+        "verified",
+        "unverified",
+    ]
     data_verified: bool
     data_stale: bool
     latest_pipeline_run_id: str | None = None

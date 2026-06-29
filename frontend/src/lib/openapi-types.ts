@@ -486,6 +486,11 @@ export interface components {
              * @enum {string}
              */
             data_state: "passed" | "failed" | "stale" | "unverified";
+            /**
+             * Data State Reason
+             * @enum {string}
+             */
+            data_state_reason: "audit_missing" | "latest_pipeline_failed" | "latest_dq_failed" | "audit_stale" | "dq_missing" | "verified" | "unverified";
             /** Data Verified */
             data_verified: boolean;
             /** Data Stale */

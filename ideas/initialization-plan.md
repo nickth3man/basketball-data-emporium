@@ -1,6 +1,10 @@
 # Initialization Plan: Basketball Data Emporium API ← DuckDB → Next.js UI
 
-> **Status:** Phase 1 complete (sidecar skeleton + `/api/status` live). This plan covers the remaining initialization work: correctness scaffolding (Track A), the 14 remaining API endpoints (Track B, Phases 2–9), and frontend type reconciliation (Track C).
+> **Status:** Historical plan. The sidecar now exposes status, catalogs, search,
+> featured cards, player/team summaries, dataset rows, season dataset rows, CSV
+> exports, CORS, rate limiting, OpenAPI generation, and audit-aware status.
+> Keep this file as planning/provenance context; use `backend/README.md` and
+> the route/test files as the current implementation source of truth.
 >
 > **Sources synthesized:** explorer schema recon, librarian domain/framework research, oracle connection plan + verification strategy, librarian golden dataset, fixer Phase 1 build report.
 

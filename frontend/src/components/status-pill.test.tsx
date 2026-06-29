@@ -24,6 +24,7 @@ const healthyStatus: StatusResponse = {
   ok: true,
   endpoint_count: 50,
   data_state: "passed",
+  data_state_reason: "verified",
   data_verified: true,
   data_stale: false,
   latest_pipeline_run_id: "run-1",
@@ -57,13 +58,13 @@ describe("StatusPill", () => {
   });
 
   it("renders failed, stale, and unverified audit states", () => {
-    for (const [dataState, label] of [
-      ["failed", "DQ failed"],
-      ["stale", "Stale"],
-      ["unverified", "Unverified"],
+    for (const [dataState, reason, label] of [
+      ["failed", "latest_dq_failed", "DQ failed"],
+      ["stale", "audit_stale", "Stale"],
+      ["unverified", "audit_missing", "Unverified"],
     ] as const) {
       useStatus.mockReturnValue({
-        data: { ...healthyStatus, data_state: dataState },
+        data: { ...healthyStatus, data_state: dataState, data_state_reason: reason },
         error: null,
         isLoading: false,
         isError: false,
@@ -74,6 +75,24 @@ describe("StatusPill", () => {
       expect(screen.getByText(label)).toBeInTheDocument();
       unmount();
     }
+  });
+
+  it("renders ETL failed when the pipeline is the failed audit source", () => {
+    useStatus.mockReturnValue({
+      data: {
+        ...healthyStatus,
+        data_state: "failed",
+        data_state_reason: "latest_pipeline_failed",
+      },
+      error: null,
+      isLoading: false,
+      isError: false,
+      isSuccess: true,
+    });
+
+    render(<StatusPill />);
+
+    expect(screen.getByText("ETL failed")).toBeInTheDocument();
   });
 
   it("renders the red 'Rate limited' pill when useStatus has a rate_limit_jailed error", () => {

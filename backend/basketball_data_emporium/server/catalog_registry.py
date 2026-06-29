@@ -57,6 +57,7 @@ def _build_column_meta(keys: list[str], default_visible: set[str]) -> list[Colum
 
 _DERIVED_COLUMN_META: dict[str, ColumnMeta] = {
     "season_end_year": ColumnMeta(key="season_end_year", label="Season", numeric=True),
+    "team": ColumnMeta(key="team", label="Team", numeric=False),
     "win_pct": ColumnMeta(key="win_pct", label="Win%", numeric=True),
 }
 
@@ -115,6 +116,14 @@ _PLAYER_HUB_TABS: tuple[PlayerHubTab, ...] = (
         datasets=["adjusted-shooting"],
         default_dataset="adjusted-shooting",
     ),
+    PlayerHubTab(
+        id="shooting",
+        label="Shooting",
+        description="Season-level field-goal, 3-point, and free-throw totals.",
+        scope="player",
+        datasets=["shooting"],
+        default_dataset="shooting",
+    ),
 )
 
 
@@ -148,6 +157,32 @@ _PLAYER_HUB_DATASETS: tuple[DatasetCatalogEntry, ...] = (
         supports_include_inactive_games=_supports_inactive_games(
             "player", "adjusted-shooting"
         ),
+    ),
+    DatasetCatalogEntry(
+        id="shooting",
+        label="Shooting",
+        endpoint_name="shooting",
+        scope="player",
+        description="Regular-season shooting totals and percentages by season and team.",
+        columns=_column_meta(
+            [
+                "season_end_year",
+                "team",
+                "fgm",
+                "fga",
+                "fg_pct",
+                "fg3m",
+                "fg3a",
+                "fg3_pct",
+                "ftm",
+                "fta",
+                "ft_pct",
+            ],
+            default_visible={"season_end_year", "team", "fgm", "fga", "fg_pct", "fg3m"},
+        ),
+        default_visible_columns=["season_end_year", "team", "fgm", "fga", "fg_pct", "fg3m"],
+        supports_export=True,
+        supports_include_inactive_games=_supports_inactive_games("player", "shooting"),
     ),
 )
 

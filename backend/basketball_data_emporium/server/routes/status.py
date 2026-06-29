@@ -59,6 +59,7 @@ def get_status(
         ok=True,
         endpoint_count=ENDPOINT_COUNT,
         data_state=audit.state,
+        data_state_reason=audit.reason,
         data_verified=audit.is_verified,
         data_stale=audit.is_stale,
         latest_pipeline_run_id=audit.latest_run_id,

@@ -153,6 +153,34 @@ def _career_rows(
     )
 
 
+def _shooting_rows(
+    conn: duckdb.DuckDBPyConnection, identifier: str
+) -> list[dict[str, Any]]:
+    return fetch_dicts(
+        conn,
+        """
+        SELECT
+          SEASON AS season_end_year,
+          CAST(SEASON - 1 AS VARCHAR) || '-' || LPAD(CAST(SEASON % 100 AS VARCHAR), 2, '0') AS season,
+          TEAM_ABBR AS team,
+          FG AS fgm,
+          FGA AS fga,
+          "FG%" AS fg_pct,
+          "3P" AS fg3m,
+          "3PA" AS fg3a,
+          "3P%" AS fg3_pct,
+          FT AS ftm,
+          FTA AS fta,
+          "FT%" AS ft_pct
+        FROM api.v_canonical_player_season_totals
+        WHERE PLAYER_ID = ?
+        ORDER BY SEASON DESC, TEAM_ABBR
+        LIMIT 500
+        """,
+        [identifier],
+    )
+
+
 def _available_player_seasons(
     conn: duckdb.DuckDBPyConnection,
     identifier: str,
@@ -195,6 +223,8 @@ def player_dataset(
 
     if dataset == "career":
         rows = _career_rows(conn, identifier)
+    elif dataset == "shooting":
+        rows = _shooting_rows(conn, identifier)
     elif dataset == "adjusted-shooting":
         params: list[Any] = [identifier]
         season_filter = ""

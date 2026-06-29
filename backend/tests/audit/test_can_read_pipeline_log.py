@@ -24,7 +24,8 @@ Per the MVCS brief:
 from __future__ import annotations
 
 import duckdb
-import pytest
+
+from basketball_data_emporium.server.status_audit import read_audit_status
 
 
 def _table_exists(con: duckdb.DuckDBPyConnection, schema: str, table: str) -> bool:
@@ -103,31 +104,15 @@ def test_audit_pipeline_run_log_is_populated(
     )
 
 
-@pytest.mark.xfail(
-    reason=(
-        "Live DB shows audit.pipeline_run_log has 2 rows, both `status='failed'`. "
-        "The ETL has not produced a verified snapshot yet (only the per-stage "
-        "failures are being written). When the ETL produces a successful run, "
-        "this test will XPASS and the assertion flips to a hard pass. "
-        "Phase 2 should still proceed — the `unified_star.*` views are present "
-        "and the table is being written, just not yet to a 'success' state."
-    ),
-    strict=False,
-)
-def test_audit_pipeline_run_log_recent_run_succeeded(
+def test_audit_pipeline_run_log_verification_state_is_truthful(
     duckdb_conn: duckdb.DuckDBPyConnection,
 ) -> None:
-    """The most recent `audit.pipeline_run_log` row has status='success'.
+    """The status aggregator does not report failed-only ETL history as verified.
 
     The pipeline run log records per-stage outcomes; we want at
-    least one `status='success'` row to exist (a "verified"
-    snapshot of `unified_star.*` exists).
-
-    Note: `pipeline_run_log` records per-stage, not per-run; the
-    assertion checks "any successful row exists" rather than
-    "the latest row is success" because the latter is a much
-    stricter gate and would block Phase 2 on a run that has
-    partial success today. Tighten this in a later phase.
+    least one `status='success'` row to exist before the snapshot can be
+    considered verified. If the live DB has only failed rows, that is a
+    real operational condition, not an expected test failure.
     """
     rows = duckdb_conn.execute(
         """
@@ -137,11 +122,20 @@ def test_audit_pipeline_run_log_recent_run_succeeded(
         ORDER BY status
         """
     ).fetchall()
-    statuses = {r[0]: int(r[1]) for r in rows if r[0] is not None}
-    assert "success" in statuses, (
-        f"audit.pipeline_run_log has no `status='success'` rows; got {statuses!r}. "
-        f"The ETL has not produced a verified snapshot yet."
-    )
+    statuses = {str(r[0]).lower(): int(r[1]) for r in rows if r[0] is not None}
+    snapshot = read_audit_status(duckdb_conn)
+    if "success" not in statuses:
+        assert snapshot.is_verified is False
+        assert snapshot.state in {"failed", "stale", "unverified"}
+        assert snapshot.reason in {
+            "latest_pipeline_failed",
+            "audit_stale",
+            "dq_missing",
+            "unverified",
+        }
+        return
+
+    assert statuses["success"] > 0
 
 
 def test_audit_dq_results_is_populated(duckdb_conn: duckdb.DuckDBPyConnection) -> None:

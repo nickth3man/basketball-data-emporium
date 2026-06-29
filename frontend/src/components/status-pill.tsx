@@ -49,10 +49,12 @@ export function StatusPill() {
     );
   }
   if (state === "failed") {
+    const label =
+      status.data.data_state_reason === "latest_pipeline_failed" ? "ETL failed" : "DQ failed";
     return (
       <span className="inline-flex h-8 items-center gap-2 rounded-md border border-court-danger-line bg-court-danger-soft px-3 text-xs font-medium text-court-danger">
         <AlertTriangle className="size-3.5" aria-hidden="true" />
-        DQ failed
+        {label}
       </span>
     );
   }

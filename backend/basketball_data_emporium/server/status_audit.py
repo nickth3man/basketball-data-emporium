@@ -10,6 +10,15 @@ from typing import Any, Literal
 import duckdb
 
 AuditDataState = Literal["passed", "failed", "stale", "unverified"]
+AuditStateReason = Literal[
+    "audit_missing",
+    "latest_pipeline_failed",
+    "latest_dq_failed",
+    "audit_stale",
+    "dq_missing",
+    "verified",
+    "unverified",
+]
 
 
 @dataclass(frozen=True)
@@ -24,6 +33,7 @@ class AuditStatusSnapshot:
     is_verified: bool
     is_stale: bool
     state: AuditDataState
+    reason: AuditStateReason
 
 
 def _empty_snapshot() -> AuditStatusSnapshot:
@@ -36,6 +46,7 @@ def _empty_snapshot() -> AuditStatusSnapshot:
         is_verified=False,
         is_stale=True,
         state="unverified",
+        reason="audit_missing",
     )
 
 
@@ -166,18 +177,25 @@ def read_audit_status(conn: duckdb.DuckDBPyConnection) -> AuditStatusSnapshot:
         "ok",
     }
     is_verified = bool(run_passed and dq_passed and not is_stale)
-    if is_stale:
-        state = "stale"
-    elif latest_status_normalized in {"failed", "failure", "error"} or dq_status in {
-        "failed",
-        "failure",
-        "error",
-    }:
+    reason: AuditStateReason
+    if latest_status_normalized in {"failed", "failure", "error"}:
         state = "failed"
+        reason = "latest_pipeline_failed"
+    elif dq_status in {"failed", "failure", "error"}:
+        state = "failed"
+        reason = "latest_dq_failed"
+    elif is_stale:
+        state = "stale"
+        reason = "audit_stale"
     elif is_verified:
         state = "passed"
+        reason = "verified"
+    elif dq_status is None:
+        state = "unverified"
+        reason = "dq_missing"
     else:
         state = "unverified"
+        reason = "unverified"
 
     return AuditStatusSnapshot(
         latest_run_id=str(latest_run_id) if latest_run_id is not None else None,
@@ -190,4 +208,5 @@ def read_audit_status(conn: duckdb.DuckDBPyConnection) -> AuditStatusSnapshot:
         is_verified=is_verified,
         is_stale=is_stale,
         state=state,
+        reason=reason,
     )

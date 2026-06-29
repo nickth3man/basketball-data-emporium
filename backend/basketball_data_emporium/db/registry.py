@@ -125,6 +125,46 @@ DATASET_BINDINGS: tuple[DatasetBinding, ...] = (
         derived_lineage=("season_end_year = normalized ending year from season_year",),
     ),
     DatasetBinding(
+        dataset_id="shooting",
+        owner="player",
+        scope="player",
+        sql_schema="api",
+        sql_object="v_canonical_player_season_totals",
+        projections=(
+            ProjectionColumn(
+                "season_end_year",
+                "SEASON",
+                "api.v_canonical_player_season_totals.SEASON",
+            ),
+            ProjectionColumn("season", "season label formula", None, "season_label"),
+            ProjectionColumn(
+                "team", "TEAM_ABBR", "api.v_canonical_player_season_totals.TEAM_ABBR"
+            ),
+            ProjectionColumn("fgm", "FG", "api.v_canonical_player_season_totals.FG"),
+            ProjectionColumn("fga", "FGA", "api.v_canonical_player_season_totals.FGA"),
+            ProjectionColumn(
+                "fg_pct", "FG%", "api.v_canonical_player_season_totals.FG%"
+            ),
+            ProjectionColumn("fg3m", "3P", "api.v_canonical_player_season_totals.3P"),
+            ProjectionColumn(
+                "fg3a", "3PA", "api.v_canonical_player_season_totals.3PA"
+            ),
+            ProjectionColumn(
+                "fg3_pct", "3P%", "api.v_canonical_player_season_totals.3P%"
+            ),
+            ProjectionColumn("ftm", "FT", "api.v_canonical_player_season_totals.FT"),
+            ProjectionColumn("fta", "FTA", "api.v_canonical_player_season_totals.FTA"),
+            ProjectionColumn(
+                "ft_pct", "FT%", "api.v_canonical_player_season_totals.FT%"
+            ),
+        ),
+        default_order_by=("season_end_year DESC", "team"),
+        max_page_size=500,
+        supports_export=True,
+        supports_include_inactive_games=False,
+        derived_lineage=("season = formatted ending-season label from SEASON",),
+    ),
+    DatasetBinding(
         dataset_id="roster",
         owner="team",
         scope="team",

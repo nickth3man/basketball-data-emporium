@@ -117,6 +117,7 @@ def test_status_happy_path(status_client: TestClient) -> None:
     assert body["ok"] is True
     assert body["endpoint_count"] == 15
     assert body["data_state"] == "unverified"
+    assert body["data_state_reason"] == "audit_missing"
     assert body["data_verified"] is False
     assert body["data_stale"] is True
 
@@ -163,6 +164,15 @@ def test_status_openapi_lists_route(status_client: TestClient) -> None:
         "passed",
         "failed",
         "stale",
+        "unverified",
+    ]
+    assert schema["properties"]["data_state_reason"]["enum"] == [
+        "audit_missing",
+        "latest_pipeline_failed",
+        "latest_dq_failed",
+        "audit_stale",
+        "dq_missing",
+        "verified",
         "unverified",
     ]
 

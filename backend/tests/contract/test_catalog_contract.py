@@ -127,6 +127,19 @@ def test_player_catalog_dataset_shape(contract_client: TestClient) -> None:
             )
 
 
+def test_player_catalog_includes_shooting_dataset(contract_client: TestClient) -> None:
+    """The deliberately exposed Shooting dataset is discoverable from the catalog."""
+    response = contract_client.get("/api/endpoints/player-hub")
+    datasets = {entry["id"]: entry for entry in response.json()["datasets"]}
+    assert "shooting" in datasets
+    shooting = datasets["shooting"]
+    assert shooting["scope"] == "player"
+    assert shooting["supports_export"] is True
+    assert {"season_end_year", "team", "fgm", "fga", "fg_pct", "fg3m"} <= set(
+        shooting["default_visible_columns"]
+    )
+
+
 # ---------------------------------------------------------------------------
 # Team-hub
 # ---------------------------------------------------------------------------
