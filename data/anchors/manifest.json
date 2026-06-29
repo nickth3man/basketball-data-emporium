@@ -1,0 +1,4434 @@
+{
+  "snapshot_date": "2026-06-14",
+  "supplemental_fetch_date": "2026-06-29",
+  "bbr_build": "req/202605271",
+  "generated_on": "2026-06-29",
+  "generator": "data/anchors/generate_manifest.py",
+  "root": "data\\anchors\\bbref-pages",
+  "total_files": 441,
+  "unique_by_md5": 369,
+  "duplicate_count": 45,
+  "duplicate_groups": 27,
+  "entity_type_counts": {
+    "advanced_leaders": 11,
+    "franchise_leaders": 3,
+    "game_boxscore": 10,
+    "other": 336,
+    "player_career": 38,
+    "season_leaders": 1,
+    "season_summary": 13,
+    "team_season": 29
+  },
+  "files": [
+    {
+      "path": "allstar_career_leaders/leaders_career.html",
+      "canonical_url": "https://www.basketball-reference.com/allstar/leaders_career.html",
+      "md5": "fba0b386cc146ef24aabc794164e410e",
+      "size_bytes": 254421,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "NBA All-Star Game Career Leaders | Basketball-Reference.com"
+    },
+    {
+      "path": "allstar_career_stats/NBA-allstar-career-stats.html",
+      "canonical_url": "https://www.basketball-reference.com/allstar/NBA-allstar-career_stats.html",
+      "md5": "01884e6efc5b4d2e3ee6ea52c0a55b86",
+      "size_bytes": 881848,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "NBA All-Star Career Stats | Basketball-Reference.com"
+    },
+    {
+      "path": "allstar_contests/contest.html",
+      "canonical_url": "https://www.basketball-reference.com/allstar/contest.html",
+      "md5": "31b4c44f8afb36b41f7be850ac412ab2",
+      "size_bytes": 220262,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "NBA &amp; ABA All-Star Game Contest Winners | Basketball-Reference.com"
+    },
+    {
+      "path": "allstar_game_boxscore/202502162NBA.html",
+      "canonical_url": "https://www.basketball-reference.com/allstar/202502162NBA.html",
+      "md5": "12e8046855d75e718f278b2703281b58",
+      "size_bytes": 172710,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2025 NBA All-Star Game Box Score | Basketball-Reference.com"
+    },
+    {
+      "path": "allstar_game_index/NBA_2025.html",
+      "canonical_url": "https://www.basketball-reference.com/allstar/202502162NBA.html",
+      "md5": "12e8046855d75e718f278b2703281b58",
+      "size_bytes": 172710,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2025 NBA All-Star Game Box Score | Basketball-Reference.com"
+    },
+    {
+      "path": "allstar_legends/legends.html",
+      "canonical_url": "https://www.basketball-reference.com/allstar/legends.html",
+      "md5": "44d091a515e887762dd51c6b45a27dd0",
+      "size_bytes": 138826,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "NBA All-Star Legends Game Stats and History | Basketball-Reference.com"
+    },
+    {
+      "path": "allstar_rookies/rookie.html",
+      "canonical_url": "https://www.basketball-reference.com/allstar/rookie.html",
+      "md5": "af7f8fb1237e7648301893c4802b77ce",
+      "size_bytes": 147691,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "NBA Rising Stars Stats and History | Basketball-Reference.com"
+    },
+    {
+      "path": "allstar_single_game_leaders/leaders_game.html",
+      "canonical_url": "https://www.basketball-reference.com/allstar/leaders_game.html",
+      "md5": "8e1d578d20f53e8194942876821c414c",
+      "size_bytes": 226121,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "NBA All-Star Game Single Game Leaders | Basketball-Reference.com"
+    },
+    {
+      "path": "allstar_voting/NBA_2025_voting.html",
+      "canonical_url": "https://www.basketball-reference.com/allstar/NBA_2025_voting.html",
+      "md5": "c3f43ec2bd7f3b453c51a1ad6d97a8ac",
+      "size_bytes": 223318,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2025 NBA All-Star Game Voting | Basketball-Reference.com"
+    },
+    {
+      "path": "attendance/2016.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2016.html",
+      "md5": "99030aff35e1a58157a38a832d07138b",
+      "size_bytes": 804558,
+      "entity_type": "season_summary",
+      "bbr_slug": null,
+      "season_end_year": 2016,
+      "title": "2015-16 NBA Season Summary | Basketball-Reference.com"
+    },
+    {
+      "path": "attendance/2024.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2024.html",
+      "md5": "8f9cd320425fa021617a12df2a37485c",
+      "size_bytes": 805952,
+      "entity_type": "season_summary",
+      "bbr_slug": null,
+      "season_end_year": 2024,
+      "title": "2023-24 NBA Season Summary | Basketball-Reference.com"
+    },
+    {
+      "path": "awards_index/mvp.html",
+      "canonical_url": "https://www.basketball-reference.com/awards/mvp.html",
+      "md5": "3cad06c4aaa40bd3b3684b26f84652c7",
+      "size_bytes": 262843,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "NBA MVP &amp; ABA Most Valuable Player Award Winners | Basketball-Reference.com"
+    },
+    {
+      "path": "awards_player_of_the_seeding_games/player_of_the_seeding_games.html",
+      "canonical_url": "https://www.basketball-reference.com/awards/player_of_the_seeding_games.html",
+      "md5": "1fea8167220c7237363bd5d8ad126d7a",
+      "size_bytes": 154844,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "NBA &amp; ABA Player of the Seeding Games Award Winners | Basketball-Reference.com"
+    },
+    {
+      "path": "boxscore_four_factors/202606100NYK.html",
+      "canonical_url": "https://www.basketball-reference.com/boxscores/202606100NYK.html",
+      "md5": "feff170998147f0e2fdda86420d5a6fb",
+      "size_bytes": 475877,
+      "entity_type": "game_boxscore",
+      "bbr_slug": "202606100NYK",
+      "season_end_year": null,
+      "title": "2026 NBA Finals Game 4: Spurs vs Knicks, June 10, 2026 | Basketball-Reference.com"
+    },
+    {
+      "path": "boxscore_plus_minus/202606100NYK.html",
+      "canonical_url": "https://www.basketball-reference.com/boxscores/plus-minus/202606100NYK.html",
+      "md5": "f594759807cc4c8e7a7e7bbcb3ee70df",
+      "size_bytes": 146743,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2026 NBA Finals Game 4: Spurs vs Knicks, June 10, 2026 | Basketball-Reference.com"
+    },
+    {
+      "path": "boxscore_shot_chart/202606100NYK.html",
+      "canonical_url": "https://www.basketball-reference.com/boxscores/shot-chart/202606100NYK.html",
+      "md5": "91a323d296a1752189f55e2b69280763",
+      "size_bytes": 180629,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2026 NBA Finals Game 4: Spurs vs Knicks, June 10, 2026 | Basketball-Reference.com"
+    },
+    {
+      "path": "career_leaders/default.html",
+      "canonical_url": "https://www.basketball-reference.com/leaders/",
+      "md5": "9fd869e5927af6cc435592720b64b5d7",
+      "size_bytes": 284381,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "NBA & ABA Leaders and Records | Basketball-Reference.com"
+    },
+    {
+      "path": "coaches/mazzujo99c.html",
+      "canonical_url": "https://www.basketball-reference.com/coaches/mazzujo99c.html",
+      "md5": "6957bdc0c54b3f360946e2496d1f57e8",
+      "size_bytes": 145079,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Joe Mazzulla: Coaching Record, Awards | Basketball-Reference.com"
+    },
+    {
+      "path": "draft_combined_college/draft_college-duke.html",
+      "canonical_url": "https://www.basketball-reference.com/friv/draft.fcgi",
+      "md5": "8b5b4dc6dafc0f53c292f2ad0bb5fea9",
+      "size_bytes": 444703,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Draft Picks From Duke | Basketball-Reference.com"
+    },
+    {
+      "path": "draft_expansion/NBA_2004_expansion.html",
+      "canonical_url": "https://www.basketball-reference.com/draft/NBA_2004_expansion.html",
+      "md5": "a6d40cffa4337d7f36d5fe6a442acc8c",
+      "size_bytes": 129546,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2004 NBA Expansion Draft | Basketball-Reference.com"
+    },
+    {
+      "path": "draft_picks/1965.html",
+      "canonical_url": "https://www.basketball-reference.com/draft/NBA_1965.html",
+      "md5": "7d37b5833cac0fc7229a1ae80814d338",
+      "size_bytes": 388420,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1965 NBA Draft | Basketball-Reference.com"
+    },
+    {
+      "path": "draft_picks/1984.html",
+      "canonical_url": "https://www.basketball-reference.com/draft/NBA_1984.html",
+      "md5": "651fb694e78ada0715ec7c2e96e1beab",
+      "size_bytes": 535320,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1984 NBA Draft | Basketball-Reference.com"
+    },
+    {
+      "path": "draft_picks/2010.html",
+      "canonical_url": "https://www.basketball-reference.com/draft/NBA_2010.html",
+      "md5": "a60ab41f1484606bb678f979227cfa29",
+      "size_bytes": 243534,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2010 NBA Draft | Basketball-Reference.com"
+    },
+    {
+      "path": "draft_picks/2024.html",
+      "canonical_url": "https://www.basketball-reference.com/draft/NBA_2024.html",
+      "md5": "ff404ab5ddd87abc2ab46627c4ece665",
+      "size_bytes": 242452,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2024 NBA Draft | Basketball-Reference.com"
+    },
+    {
+      "path": "draft_rights/draft_rights.html",
+      "canonical_url": "https://www.basketball-reference.com/draft/draft_rights.html",
+      "md5": "c4fbd38bfdcbaa24d92f877f6ebf93e7",
+      "size_bytes": 157537,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Draft Rights | Basketball-Reference.com"
+    },
+    {
+      "path": "draft_team_picks/draft.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/ATL/draft.html",
+      "md5": "266237b34a05e8e6596c900db6bf9aa5",
+      "size_bytes": 1048750,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Atlanta Hawks Draft Picks | Basketball-Reference.com"
+    },
+    {
+      "path": "draft_year_2_rounds/BAA_1947.html",
+      "canonical_url": "https://www.basketball-reference.com/draft/BAA_1947.html",
+      "md5": "96a9a3e43146050eca7355b4136349cc",
+      "size_bytes": 287814,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1947 BAA Draft | Basketball-Reference.com"
+    },
+    {
+      "path": "errors/invalid_player_404.html",
+      "canonical_url": "https://www.basketball-reference.com/404.html",
+      "md5": "7ed725fc383097d5a82eec72eab41883",
+      "size_bytes": 91089,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Page Not Found (404 error) | Basketball-Reference.com"
+    },
+    {
+      "path": "errors/invalid_team_404.html",
+      "canonical_url": "https://www.basketball-reference.com/404.html",
+      "md5": "7ed725fc383097d5a82eec72eab41883",
+      "size_bytes": 91089,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Page Not Found (404 error) | Basketball-Reference.com"
+    },
+    {
+      "path": "executives/stevebr99x.html",
+      "canonical_url": "https://www.basketball-reference.com/executives/stevebr99x.html",
+      "md5": "850be0a2ce3a08dfa4be38240c2db1f1",
+      "size_bytes": 167897,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Brad Stevens NBA &amp; ABA Basketball Executive Record | Basketball-Reference.com"
+    },
+    {
+      "path": "executives_register/NBA_stats.html",
+      "canonical_url": "https://www.basketball-reference.com/executives/NBA_stats.html",
+      "md5": "2ef164947221b486b86e6a1d04dbf185",
+      "size_bytes": 419260,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "NBA Executive Register | Basketball-Reference.com"
+    },
+    {
+      "path": "franchise_all_star_selections/all_star.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/ATL/all_star.html",
+      "md5": "e36b62c9cbe087f50e720f06529fe72e",
+      "size_bytes": 157168,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Atlanta Hawks All-Star Game Selections | Basketball-Reference.com"
+    },
+    {
+      "path": "franchise_all_time_coaches/coaches.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/ATL/coaches.html",
+      "md5": "3fff03d9c62c5b60df1524b1c86a2c0d",
+      "size_bytes": 173025,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Atlanta Hawks Coaches | Basketball-Reference.com"
+    },
+    {
+      "path": "franchise_all_time_executives/executives.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/ATL/executives.html",
+      "md5": "f566f2b7df8ce747a3f44c989b3c030a",
+      "size_bytes": 144065,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Atlanta Hawks Executives | Basketball-Reference.com"
+    },
+    {
+      "path": "franchise_all_time_roster/players.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/ATL/players.html",
+      "md5": "0466be8d206e4950f896e34f8a75ce55",
+      "size_bytes": 1219399,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Atlanta Hawks Players | Basketball-Reference.com"
+    },
+    {
+      "path": "franchise_career_leaders/BOS_career_leaders.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/BOS/leaders_career.html",
+      "md5": "e14f1f452012d42461eac008a66754f9",
+      "size_bytes": 341156,
+      "entity_type": "franchise_leaders",
+      "bbr_slug": "BOS",
+      "season_end_year": null,
+      "title": "Boston Celtics Career Leaders | Basketball-Reference.com"
+    },
+    {
+      "path": "franchise_career_leaders/LAL_career_leaders.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/LAL/leaders_career.html",
+      "md5": "a249a6b4b1d59aec4e881e2ada9712b0",
+      "size_bytes": 342236,
+      "entity_type": "franchise_leaders",
+      "bbr_slug": "LAL",
+      "season_end_year": null,
+      "title": "Los Angeles Lakers Career Leaders | Basketball-Reference.com"
+    },
+    {
+      "path": "franchise_career_leaders/leaders_career.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/ATL/leaders_career.html",
+      "md5": "fa0a039a82b92402153e7f0b3a7f61ad",
+      "size_bytes": 342458,
+      "entity_type": "franchise_leaders",
+      "bbr_slug": "ATL",
+      "season_end_year": null,
+      "title": "Atlanta Hawks Career Leaders | Basketball-Reference.com"
+    },
+    {
+      "path": "franchise_hall_of_famers/hof.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/ATL/hof.html",
+      "md5": "1d99cd8d977f71bba7f877cb85a51a80",
+      "size_bytes": 155769,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Atlanta Hawks Hall of Fame | Basketball-Reference.com"
+    },
+    {
+      "path": "franchise_head_to_head/head2head.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/ATL/head2head.html",
+      "md5": "2854445d2e348f28b1c3a85df9dc87bd",
+      "size_bytes": 158619,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Atlanta Hawks Head-to-Head Results | Basketball-Reference.com"
+    },
+    {
+      "path": "franchise_history/BOS.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/BOS/",
+      "md5": "4a4a82248d6917b12170cffb06594f7b",
+      "size_bytes": 249546,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Boston Celtics Historical Statistics and All-Time Top Leaders | Basketball-Reference.com"
+    },
+    {
+      "path": "franchise_history/LAL.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/LAL/",
+      "md5": "025447e5f002e7d3a72d5a47e27a5e52",
+      "size_bytes": 248053,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Los Angeles Lakers Historical Statistics and All-Time Top Leaders | Basketball-Reference.com"
+    },
+    {
+      "path": "franchise_history/OKC.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/OKC/",
+      "md5": "3774d9c4d1a8bd242642416aeee53727",
+      "size_bytes": 221747,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Oklahoma City Thunder Historical Statistics and All-Time Top Leaders | Basketball-Reference.com"
+    },
+    {
+      "path": "franchise_history/SAC.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/SAC/",
+      "md5": "562818fbbcbafbc34ec0c9fd3518ad68",
+      "size_bytes": 245201,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Sacramento Kings Historical Statistics and All-Time Top Leaders | Basketball-Reference.com"
+    },
+    {
+      "path": "franchise_history/WAS.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/WAS/",
+      "md5": "028b0f5d1674982378e36f404bb48700",
+      "size_bytes": 228637,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Washington Wizards Historical Statistics and All-Time Top Leaders | Basketball-Reference.com"
+    },
+    {
+      "path": "franchise_season_leaders/leaders_season.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/ATL/leaders_season.html",
+      "md5": "8bd67a54205b0a32ed54894025b0c257",
+      "size_bytes": 412919,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Atlanta Hawks Season Leaders | Basketball-Reference.com"
+    },
+    {
+      "path": "franchise_uniform_numbers/numbers.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/ATL/numbers.html",
+      "md5": "4a68f8876ec480c90e07101d280cec49",
+      "size_bytes": 244694,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Atlanta Hawks Uniform Numbers | Basketball-Reference.com"
+    },
+    {
+      "path": "franchise_year_by_year_opp_per_game/opp_stats_per_game_totals.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/ATL/opp_stats_per_game_totals.html",
+      "md5": "cfc5728b2eb9b923ab4833522e94a79c",
+      "size_bytes": 284090,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Atlanta Hawks Opponent Stats - Per Game (Totals) | Basketball-Reference.com"
+    },
+    {
+      "path": "franchise_year_by_year_opp_totals/opp_stats_basic_totals.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/ATL/opp_stats_basic_totals.html",
+      "md5": "c1ea722d48455af5f591c26025520c2d",
+      "size_bytes": 275377,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Atlanta Hawks Opponent Stats - Basic (Totals) | Basketball-Reference.com"
+    },
+    {
+      "path": "franchise_year_by_year_ranks/stats_basic_ranks.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/ATL/stats_basic_ranks.html",
+      "md5": "b9342bacdc9bcb512fc8fadcc4537a34",
+      "size_bytes": 280072,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Atlanta Hawks Stats - Basic (Ranks) | Basketball-Reference.com"
+    },
+    {
+      "path": "franchise_year_by_year_stats_per_game/stats_per_game_totals.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/ATL/stats_per_game_totals.html",
+      "md5": "1bb8c9320c0c78811723f79f06bb9260",
+      "size_bytes": 293090,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Atlanta Hawks Stats - Per Game (Totals) | Basketball-Reference.com"
+    },
+    {
+      "path": "franchise_year_by_year_stats_totals/stats_basic_totals.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/ATL/stats_basic_totals.html",
+      "md5": "164cb35d1de89b31cfab136d8872baee",
+      "size_bytes": 283829,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Atlanta Hawks Stats - Basic (Totals) | Basketball-Reference.com"
+    },
+    {
+      "path": "franchise_year_over_year/stats_basic_yr_yr.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/ATL/stats_basic_yr_yr.html",
+      "md5": "448002900cbe16eeadaadb54241b9a4b",
+      "size_bytes": 319744,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Atlanta Hawks Stats - Basic (Year-Year) | Basketball-Reference.com"
+    },
+    {
+      "path": "friv_7_game_playoff_series_outcomes_team_is_down/7-game-playoff-series-outcomes-22111.html",
+      "canonical_url": "https://www.basketball-reference.com/friv/7-game-playoff-series-outcomes.html",
+      "md5": "2ca48a9390264d1f08de4d2d142b7cc0",
+      "size_bytes": 197360,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "7-Game Playoff Series Outcomes (Since 1984); 2-2-1-1-1 Format | Basketball-Reference.com"
+    },
+    {
+      "path": "friv_7_game_playoff_series_outcomes_team_is_tied/7-game-playoff-series-outcomes-22111.html",
+      "canonical_url": "https://www.basketball-reference.com/friv/7-game-playoff-series-outcomes.html",
+      "md5": "2ca48a9390264d1f08de4d2d142b7cc0",
+      "size_bytes": 197360,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "7-Game Playoff Series Outcomes (Since 1984); 2-2-1-1-1 Format | Basketball-Reference.com"
+    },
+    {
+      "path": "friv_7_game_playoff_series_outcomes_team_is_up/7-game-playoff-series-outcomes-22111.html",
+      "canonical_url": "https://www.basketball-reference.com/friv/7-game-playoff-series-outcomes.html",
+      "md5": "2ca48a9390264d1f08de4d2d142b7cc0",
+      "size_bytes": 197360,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "7-Game Playoff Series Outcomes (Since 1984); 2-2-1-1-1 Format | Basketball-Reference.com"
+    },
+    {
+      "path": "friv_birthdays/birthdays_day-30_month-12.html",
+      "canonical_url": "https://www.basketball-reference.com/friv/birthdays.fcgi",
+      "md5": "85a6c5a707554cd3266dffee64b3e11b",
+      "size_bytes": 177781,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "List of all the NBA, ABA and WNBA Players Born on December 30 | Basketball-Reference.com"
+    },
+    {
+      "path": "friv_birthplaces/birthplaces_country-US_state-OH.html",
+      "canonical_url": "https://www.basketball-reference.com/friv/birthplaces.fcgi",
+      "md5": "f3ad6ea1f6fc38928cfc92f6f8912d58",
+      "size_bytes": 545339,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "List of all the NBA and ABA Players Born in Ohio | Basketball-Reference.com"
+    },
+    {
+      "path": "friv_birthyears/birthyears_year-1984.html",
+      "canonical_url": "https://www.basketball-reference.com/friv/birthyears.fcgi",
+      "md5": "618c84e420eecabbf6ba26a837a97cb2",
+      "size_bytes": 258095,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "List of all the NBA and ABA Players Born in 1984 | Basketball-Reference.com"
+    },
+    {
+      "path": "friv_buzzer_beaters/buzzer-beaters.html",
+      "canonical_url": "https://www.basketball-reference.com/friv/buzzer-beaters.html",
+      "md5": "6d536bfa0a27f268ee8554abaaf8db08",
+      "size_bytes": 1425882,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Game-Winning Buzzer-Beaters | Basketball-Reference.com"
+    },
+    {
+      "path": "friv_coffee/coffee.html",
+      "canonical_url": "https://www.basketball-reference.com/friv/coffee.fcgi",
+      "md5": "732afc88b50078a55bbffc79036a85f9",
+      "size_bytes": 235151,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Cups of Coffee | Basketball-Reference.com"
+    },
+    {
+      "path": "friv_colleges/colleges_college-duke.html",
+      "canonical_url": "https://www.basketball-reference.com/friv/colleges.fcgi",
+      "md5": "e09a6584a26da696a0af97f8cb381db9",
+      "size_bytes": 463373,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Players Who Played For Duke | Basketball-Reference.com"
+    },
+    {
+      "path": "friv_continuity/continuity.html",
+      "canonical_url": "https://www.basketball-reference.com/friv/continuity.html",
+      "md5": "43a624dabd22947bbd9eb7333ed6b8bd",
+      "size_bytes": 1301604,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Roster Continuity | Basketball-Reference.com"
+    },
+    {
+      "path": "friv_daily_leaders/dailyleaders.html",
+      "canonical_url": "https://www.basketball-reference.com/friv/dailyleaders.fcgi",
+      "md5": "7501e28fc73d7ce169f9e79ecfa1ee18",
+      "size_bytes": 164411,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "NBA Daily Stats Leaders for June 10, 2026 | Basketball-Reference.com"
+    },
+    {
+      "path": "friv_east_vs_west/east_vs_west.html",
+      "canonical_url": "https://www.basketball-reference.com/friv/east_vs_west.html",
+      "md5": "b7d7a57ba2f987c692453d6ed21f9a2d",
+      "size_bytes": 170922,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "NBA Eastern vs. Western Conference Record by Season | Basketball-Reference.com"
+    },
+    {
+      "path": "friv_franchise_milestones/franchise_milestones.html",
+      "canonical_url": "https://www.basketball-reference.com/friv/milestones.fcgi",
+      "md5": "2dd743973e7cffa732fcfb574b254b46",
+      "size_bytes": 130598,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Franchise Milestones Watch: Points | Basketball-Reference.com"
+    },
+    {
+      "path": "friv_high_schools/high_schools_country-US_state-OH.html",
+      "canonical_url": "https://www.basketball-reference.com/friv/high_schools.fcgi",
+      "md5": "7af0bb986d0d40e3524a752579d72348",
+      "size_bytes": 503083,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "NBA &amp; ABA Players Who Attended High School in Ohio | Basketball-Reference.com"
+    },
+    {
+      "path": "friv_hof_index/hof.html",
+      "canonical_url": "https://www.basketball-reference.com/friv/hof.fcgi",
+      "md5": "d0b98d3944cbb739960a61647d40a173",
+      "size_bytes": 400086,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2027 Hall of Fame Candidates | Basketball-Reference.com"
+    },
+    {
+      "path": "friv_last_n_days/last_n_days_n-10.html",
+      "canonical_url": "https://www.basketball-reference.com/friv/last_n_days.fcgi",
+      "md5": "a593057150375a676baf1da64cf6d70b",
+      "size_bytes": 160174,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "NBA Daily Stats Leaders for Wed Jun 3, 2026 to Fri Jun 12, 2026 | Basketball-Reference.com"
+    },
+    {
+      "path": "friv_league_injuries/injuries.html",
+      "canonical_url": "https://www.basketball-reference.com/friv/injuries.fcgi",
+      "md5": "6085f9547da3d1bb572de3789e87bc90",
+      "size_bytes": 145926,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Injury Report | Basketball-Reference.com"
+    },
+    {
+      "path": "friv_milestones/milestones.html",
+      "canonical_url": "https://www.basketball-reference.com/friv/milestones.fcgi",
+      "md5": "4b963f9ddb489934cfe947ff6c3c8d1e",
+      "size_bytes": 139833,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "NBA Milestones Watch: Points | Basketball-Reference.com"
+    },
+    {
+      "path": "friv_most_g_no_playoffs/most_g_no_playoffs.html",
+      "canonical_url": "https://www.basketball-reference.com/friv/most_g_no_playoffs.cgi",
+      "md5": "15b7436b2963f5a6ad879ee970e8010e",
+      "size_bytes": 274848,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Most Games, No Playoffs | Basketball-Reference.com"
+    },
+    {
+      "path": "friv_mvp_tracker/mvp.html",
+      "canonical_url": "https://www.basketball-reference.com/friv/mvp.html",
+      "md5": "03b2b53f293d9a1ad5f019d8480441bf",
+      "size_bytes": 149088,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2025-26 NBA MVP Award Tracker | Basketball-Reference.com"
+    },
+    {
+      "path": "friv_numbers_index/numbers.html",
+      "canonical_url": "https://www.basketball-reference.com/friv/numbers.fcgi",
+      "md5": "23a86e059d05f510499d033bda29c9d9",
+      "size_bytes": 240123,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "NBA &amp; ABA Players Who Wore Uniform Number 23 | Basketball-Reference.com"
+    },
+    {
+      "path": "friv_on_this_date/on_this_date.html",
+      "canonical_url": "https://www.basketball-reference.com/friv/on_this_date.fcgi",
+      "md5": "d16c9a7b0dbeee5985bb220660150f23",
+      "size_bytes": 125280,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "On This Date: June 13 | Basketball-Reference.com"
+    },
+    {
+      "path": "friv_players_who_played_for_multiple_teams/players-who-played-for-multiple-teams-franchises.html",
+      "canonical_url": null,
+      "md5": "98614a6df860607534fe1c142a8a6f88",
+      "size_bytes": 139540,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Find Players Who Played for Various Franchises | Basketball-Reference.com"
+    },
+    {
+      "path": "friv_playoff_probabilities/playoff_prob.html",
+      "canonical_url": "https://www.basketball-reference.com/friv/playoff_prob.html",
+      "md5": "af3e0d5bf4868482bc90dfb507f360a4",
+      "size_bytes": 169053,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Playoff Probabilities Report | Basketball-Reference.com"
+    },
+    {
+      "path": "friv_projected_draft/proj_draft.html",
+      "canonical_url": "https://www.basketball-reference.com/friv/proj_draft.html",
+      "md5": "b91b47b0df6991279ebb00abbf2cc0fb",
+      "size_bytes": 224389,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Projected Draft Order | Basketball-Reference.com"
+    },
+    {
+      "path": "friv_projections/projections.html",
+      "canonical_url": "https://www.basketball-reference.com/friv/projections.cgi",
+      "md5": "3989edf6d647450bb1be66220246f40c",
+      "size_bytes": 941268,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2025-26 Simple Projection System | Basketball-Reference.com"
+    },
+    {
+      "path": "friv_standings_on_date/standings.html",
+      "canonical_url": "https://www.basketball-reference.com/friv/standings.fcgi",
+      "md5": "8a1fba37a0dce73f4ef17d3c9fc8d28f",
+      "size_bytes": 234823,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Historical League Standings | Basketball-Reference.com"
+    },
+    {
+      "path": "friv_teammates_and_opponents/teammates_and_opponents_idx-players_pid-jamesle01_pid_select-LeBron_James_type-t.html",
+      "canonical_url": "https://www.basketball-reference.com/friv/teammates.fcgi",
+      "md5": "5c542a5366c40c278298cc4787cb6abb",
+      "size_bytes": 353843,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "LeBron James Teammates and Opponents | Basketball-Reference.com"
+    },
+    {
+      "path": "friv_trades/trades.html",
+      "canonical_url": "https://www.basketball-reference.com/friv/trades.fcgi",
+      "md5": "3b0df088b2e1755c17da03d10c950709",
+      "size_bytes": 201193,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Trade Partners | Basketball-Reference.com"
+    },
+    {
+      "path": "friv_transactions/transactions.html",
+      "canonical_url": "https://www.basketball-reference.com/friv/transactions.fcgi",
+      "md5": "5e1eca0b5130794262ffeff71cdcdaaa",
+      "size_bytes": 131282,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Historical NBA Transactions on June 13 | Basketball-Reference.com"
+    },
+    {
+      "path": "friv_uniform_numbers/numbers_number-23.html",
+      "canonical_url": "https://www.basketball-reference.com/friv/numbers.fcgi",
+      "md5": "c5af40cc6aec8e5ea8cb7519f77ee7d8",
+      "size_bytes": 240123,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "NBA &amp; ABA Players Who Wore Uniform Number 23 | Basketball-Reference.com"
+    },
+    {
+      "path": "friv_upcoming_milestones/upcoming-milestones.html",
+      "canonical_url": "https://www.basketball-reference.com/friv/upcoming-milestones.html",
+      "md5": "6c608cd6931bf15eaeb46f5e758c5c6c",
+      "size_bytes": 165043,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "NBA Upcoming Milestones and Leaderboard Movement | Basketball-Reference.com"
+    },
+    {
+      "path": "leaders_franchise/franchise.html",
+      "canonical_url": "https://www.basketball-reference.com/leaders/franchise.html",
+      "md5": "9db02e7c62edd06484d64e4ec2492f10",
+      "size_bytes": 209320,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "List of all the NBA &amp; ABA Franchise Leaders | Basketball-Reference.com"
+    },
+    {
+      "path": "leaders_player_anniversary/player_pts.html",
+      "canonical_url": "https://www.basketball-reference.com/leaders/player_pts.html",
+      "md5": "b589a99f1cc31c2b150e3e58a4425e2e",
+      "size_bytes": 207687,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "NBA Individual Regular Season Records for Points | Basketball-Reference.com"
+    },
+    {
+      "path": "leaders_record_boards/pts_career.html",
+      "canonical_url": "https://www.basketball-reference.com/leaders/pts_career.html",
+      "md5": "58150f144202e1aab23bc027682f0b6d",
+      "size_bytes": 208665,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "NBA &amp; ABA Career Leaders and Records for Points | Basketball-Reference.com"
+    },
+    {
+      "path": "leaders_specialty_boards/hof_prob.html",
+      "canonical_url": "https://www.basketball-reference.com/leaders/hof_prob.html",
+      "md5": "2b376786b086cd64060ce87fcd62198f",
+      "size_bytes": 161641,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "NBA &amp; ABA Leaders and Records for Hall of Fame Probability | Basketball-Reference.com"
+    },
+    {
+      "path": "leaders_team_records/team_wins.html",
+      "canonical_url": "https://www.basketball-reference.com/leaders/team_wins.html",
+      "md5": "d6a96b84f78b57e46de6fea3148e69a6",
+      "size_bytes": 179763,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "NBA Longest Winning Streaks and Regular Season Records for Wins | Basketball-Reference.com"
+    },
+    {
+      "path": "league_aba_best_worst/ABA_best_records.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/ABA_best_records.html",
+      "md5": "581612ffe4edfcdab8c128a389adf74c",
+      "size_bytes": 157040,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "ABA League Averages - Best Record After x Games | Basketball-Reference.com"
+    },
+    {
+      "path": "league_best_worst_records/NBA_best_records.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_best_records.html",
+      "md5": "eff7d14103d32f4e90c088295d5b97b7",
+      "size_bytes": 156447,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "NBA League Averages - Best Record After x Games | Basketball-Reference.com"
+    },
+    {
+      "path": "league_per_100_possessions/1973.html",
+      "canonical_url": "https://www.basketball-reference.com/404.html",
+      "md5": "7ed725fc383097d5a82eec72eab41883",
+      "size_bytes": 91089,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Page Not Found (404 error) | Basketball-Reference.com"
+    },
+    {
+      "path": "league_per_100_possessions/1974.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_1974_per_poss.html",
+      "md5": "b114a79e0a3c59b6b0a134648b89ac3c",
+      "size_bytes": 752422,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1973-74 NBA Player Stats: Per 100 Possessions | Basketball-Reference.com"
+    },
+    {
+      "path": "league_per_100_possessions/2016.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2016_per_poss.html",
+      "md5": "e0e8c354d53fc1f327a224d851b1446b",
+      "size_bytes": 2118310,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2015-16 NBA Player Stats: Per 100 Possessions | Basketball-Reference.com"
+    },
+    {
+      "path": "league_per_100_possessions/2024.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2024_per_poss.html",
+      "md5": "4b4004b4662ec2386fba252a3428fba7",
+      "size_bytes": 2519335,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2023-24 NBA Player Stats: Per 100 Possessions | Basketball-Reference.com"
+    },
+    {
+      "path": "league_per_36_minutes/2015.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2015_per_minute.html",
+      "md5": "f1c5d85dbc485cecdd83dc9465040ec8",
+      "size_bytes": 2207548,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2014-15 NBA Player Stats: Per 36 Minutes | Basketball-Reference.com"
+    },
+    {
+      "path": "league_per_36_minutes/2024.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2024_per_minute.html",
+      "md5": "8b7a1f8d3bbbe7e436de66f2b96cea92",
+      "size_bytes": 2430794,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2023-24 NBA Player Stats: Per 36 Minutes | Basketball-Reference.com"
+    },
+    {
+      "path": "league_per_game_stats/1955.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_1955_per_game.html",
+      "md5": "08f5adc0b84e8b4cd992a06940d5f047",
+      "size_bytes": 404823,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1954-55 NBA Player Stats: Per Game | Basketball-Reference.com"
+    },
+    {
+      "path": "league_per_game_stats/1973.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_1973_per_game.html",
+      "md5": "1bba5d46f9a2693e2cb9f2999e2803e1",
+      "size_bytes": 686740,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1972-73 NBA Player Stats: Per Game | Basketball-Reference.com"
+    },
+    {
+      "path": "league_per_game_stats/1974.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_1974_per_game.html",
+      "md5": "6748d49694b0f9c147ee6df049995569",
+      "size_bytes": 719829,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1973-74 NBA Player Stats: Per Game | Basketball-Reference.com"
+    },
+    {
+      "path": "league_per_game_stats/1979.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_1979_per_game.html",
+      "md5": "8c6f5ab14f7a25b516bf92e4ad8861ad",
+      "size_bytes": 963289,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1978-79 NBA Player Stats: Per Game | Basketball-Reference.com"
+    },
+    {
+      "path": "league_per_game_stats/1980.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_1980_per_game.html",
+      "md5": "fc2097591e7fd024b12b3ef6d3850502",
+      "size_bytes": 1248718,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1979-80 NBA Player Stats: Per Game | Basketball-Reference.com"
+    },
+    {
+      "path": "league_per_game_stats/2010.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2010_per_game.html",
+      "md5": "568e1dcc3a77d7e26da5aee1071019e5",
+      "size_bytes": 1933495,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2009-10 NBA Player Stats: Per Game | Basketball-Reference.com"
+    },
+    {
+      "path": "league_per_game_stats/2024.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2024_per_game.html",
+      "md5": "59e5fe7c4e1ae815e997569926a65f4b",
+      "size_bytes": 2329480,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2023-24 NBA Player Stats: Per Game | Basketball-Reference.com"
+    },
+    {
+      "path": "league_play_by_play/1997.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_1997_play-by-play.html",
+      "md5": "1a9cca1960e15f4eec93b60378171cb2",
+      "size_bytes": 1352193,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1996-97 NBA Player Stats: Play-by-Play | Basketball-Reference.com"
+    },
+    {
+      "path": "league_play_by_play/2024.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2024_play-by-play.html",
+      "md5": "1fba2a098b33bfef8166aacf2f684cbd",
+      "size_bytes": 1701687,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2023-24 NBA Player Stats: Play-by-Play | Basketball-Reference.com"
+    },
+    {
+      "path": "league_preseason_odds/NBA_2026_preseason_odds.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2026_preseason_odds.html",
+      "md5": "9847dde72cc433908eca411ee19500ee",
+      "size_bytes": 145395,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2025-26 NBA Preseason Odds | Basketball-Reference.com"
+    },
+    {
+      "path": "league_ratings/NBA_2026_ratings.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2026_ratings.html",
+      "md5": "14cfa417486effad64bc9547118c0b01",
+      "size_bytes": 163325,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2025-26 NBA Team Ratings | Basketball-Reference.com"
+    },
+    {
+      "path": "league_rookies/NBA_2026_rookies.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2026_rookies.html",
+      "md5": "73734457f028534b74bc0410c69b8da8",
+      "size_bytes": 324955,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2025-26 NBA Rookies | Basketball-Reference.com"
+    },
+    {
+      "path": "league_rookies_per_season_detail/NBA_2006_rookies-season-stats.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2006_rookies.html",
+      "md5": "8b0d6d1c5b447ec5d320dd8359812e2e",
+      "size_bytes": 292241,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2005-06 NBA Rookies - Season Stats | Basketball-Reference.com"
+    },
+    {
+      "path": "league_shooting/1997.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_1997_shooting.html",
+      "md5": "0bc31357929217b9009f24bcc9f0a3f0",
+      "size_bytes": 1849988,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1996-97 NBA Player Stats: Shooting | Basketball-Reference.com"
+    },
+    {
+      "path": "league_shooting/2013.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2013_shooting.html",
+      "md5": "74783c45adf758940bb4d9e2c8a3368d",
+      "size_bytes": 1892651,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2012-13 NBA Player Stats: Shooting | Basketball-Reference.com"
+    },
+    {
+      "path": "league_shooting/2014.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2014_shooting.html",
+      "md5": "c747153286c77a35c3d973ccbdd220b3",
+      "size_bytes": 1955544,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2013-14 NBA Player Stats: Shooting | Basketball-Reference.com"
+    },
+    {
+      "path": "league_shooting/2018.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2018_shooting.html",
+      "md5": "863c64d7bce150bb9fa7b63fceae22bc",
+      "size_bytes": 2097699,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2017-18 NBA Player Stats: Shooting | Basketball-Reference.com"
+    },
+    {
+      "path": "league_shooting/2024.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2024_shooting.html",
+      "md5": "b783e8ae277710c0b58e65721df42df9",
+      "size_bytes": 2273856,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2023-24 NBA Player Stats: Shooting | Basketball-Reference.com"
+    },
+    {
+      "path": "league_shooting/2025.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2025_shooting.html",
+      "md5": "c0355a8fa3f84de046370694371372e9",
+      "size_bytes": 2288769,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2024-25 NBA Player Stats: Shooting | Basketball-Reference.com"
+    },
+    {
+      "path": "league_totals/1973.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_1973_totals.html",
+      "md5": "6de1808461260cc931656b1d382d9d88",
+      "size_bytes": 594207,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1972-73 NBA Player Stats: Totals | Basketball-Reference.com"
+    },
+    {
+      "path": "league_totals/1974.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_1974_totals.html",
+      "md5": "9439ebbedb7f927b804615c9fd7d570d",
+      "size_bytes": 600662,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1973-74 NBA Player Stats: Totals | Basketball-Reference.com"
+    },
+    {
+      "path": "league_totals/1978.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_1978_totals.html",
+      "md5": "22da61ce62b9819216301c85830bce7d",
+      "size_bytes": 834773,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1977-78 NBA Player Stats: Totals | Basketball-Reference.com"
+    },
+    {
+      "path": "league_totals/1980.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_1980_totals.html",
+      "md5": "36b6cd41a1f4b20e21b9cdd08d393eac",
+      "size_bytes": 1002999,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1979-80 NBA Player Stats: Totals | Basketball-Reference.com"
+    },
+    {
+      "path": "league_totals/2012.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2012_totals.html",
+      "md5": "603a358a2de66dec4cc85cb081a4d6eb",
+      "size_bytes": 1490442,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2011-12 NBA Player Stats: Totals | Basketball-Reference.com"
+    },
+    {
+      "path": "league_totals/2024.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2024_totals.html",
+      "md5": "6d3cf18302d08b74acb57b0c739e3883",
+      "size_bytes": 1835776,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2023-24 NBA Player Stats: Totals | Basketball-Reference.com"
+    },
+    {
+      "path": "league_transactions/2020.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2020_transactions.html",
+      "md5": "d75c6e8e7474a4c5845d6f5148735b0a",
+      "size_bytes": 477641,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2019-20 NBA Transactions | Basketball-Reference.com"
+    },
+    {
+      "path": "league_transactions/2024.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2024_transactions.html",
+      "md5": "0742e7b7fdb9b8503d7733f00e211a34",
+      "size_bytes": 328624,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2023-24 NBA Transactions | Basketball-Reference.com"
+    },
+    {
+      "path": "league_uniform_numbers/NBA_2026_numbers.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2026_numbers.html",
+      "md5": "950780e737821b48216c9cd4ed18587e",
+      "size_bytes": 252749,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2025-26 NBA Uniform Numbers | Basketball-Reference.com"
+    },
+    {
+      "path": "play_by_play/ATL_1999_11_16/199911160ATL.html",
+      "canonical_url": "https://www.basketball-reference.com/boxscores/pbp/199911160ATL.html",
+      "md5": "3638d50853870fd4df2595affdd21ca5",
+      "size_bytes": 239687,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Hornets vs Hawks, November 16, 1999 | Basketball-Reference.com"
+    },
+    {
+      "path": "play_by_play/ATL_2017_01_01/201701010ATL.html",
+      "canonical_url": "https://www.basketball-reference.com/boxscores/pbp/201701010ATL.html",
+      "md5": "0bf8a42ee490b6bba80e982153c638c7",
+      "size_bytes": 260633,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Spurs vs Hawks, January 1, 2017 | Basketball-Reference.com"
+    },
+    {
+      "path": "play_by_play/ATL_2017_01_01/index.html",
+      "canonical_url": "https://www.basketball-reference.com/boxscores/",
+      "md5": "57094d9c8e256690550322853a0df1c3",
+      "size_bytes": 151526,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "NBA Games Played on January 1, 2017 | Basketball-Reference.com"
+    },
+    {
+      "path": "play_by_play/CHI_1996_11_01/index.html",
+      "canonical_url": "https://www.basketball-reference.com/boxscores/",
+      "md5": "5e603a4eea2a7b22ee125ec6cecf3dc5",
+      "size_bytes": 165297,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "NBA Games Played on November 1, 1996 | Basketball-Reference.com"
+    },
+    {
+      "path": "play_by_play/DEN_2019_01_01/201901010DEN.html",
+      "canonical_url": "https://www.basketball-reference.com/boxscores/pbp/201901010DEN.html",
+      "md5": "5aafa5f987d2499a6c2be9fccff18a71",
+      "size_bytes": 250117,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Knicks vs Nuggets, January 1, 2019 | Basketball-Reference.com"
+    },
+    {
+      "path": "play_by_play/GSW_2018_10_16/201810160GSW.html",
+      "canonical_url": "https://www.basketball-reference.com/boxscores/pbp/201810160GSW.html",
+      "md5": "81aedd9a9476f5025e0401002ac18e1f",
+      "size_bytes": 258265,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Thunder vs Warriors, October 16, 2018 | Basketball-Reference.com"
+    },
+    {
+      "path": "play_by_play/MIL_2018_10_27/201810270MIL.html",
+      "canonical_url": "https://www.basketball-reference.com/boxscores/pbp/201810270MIL.html",
+      "md5": "57cbefd072e6df7864636d6f00d57bfa",
+      "size_bytes": 252544,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Magic vs Bucks, October 27, 2018 | Basketball-Reference.com"
+    },
+    {
+      "path": "play_by_play/SAC_2019_01_01/201901010SAC.html",
+      "canonical_url": "https://www.basketball-reference.com/boxscores/pbp/201901010SAC.html",
+      "md5": "d07051cc64b0a14f74d7a5003f7b3f84",
+      "size_bytes": 261219,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Trail Blazers vs Kings, January 1, 2019 | Basketball-Reference.com"
+    },
+    {
+      "path": "play_by_play/TOR_1996_11_01/199611010TOR.html",
+      "canonical_url": "https://www.basketball-reference.com/boxscores/pbp/199611010TOR.html",
+      "md5": "5c402e05210ce842ad35b2113b4b21b5",
+      "size_bytes": 262463,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Knicks vs Raptors, November 1, 1996 | Basketball-Reference.com"
+    },
+    {
+      "path": "play_by_play/TOR_1996_11_01/index.html",
+      "canonical_url": "https://www.basketball-reference.com/boxscores/",
+      "md5": "5e603a4eea2a7b22ee125ec6cecf3dc5",
+      "size_bytes": 165297,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "NBA Games Played on November 1, 1996 | Basketball-Reference.com"
+    },
+    {
+      "path": "play_by_play/TOR_2003_10_29/200310290TOR.html",
+      "canonical_url": "https://www.basketball-reference.com/boxscores/pbp/200310290TOR.html",
+      "md5": "c44bbceb94aa8070ff278a4fa350be01",
+      "size_bytes": 244882,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Nets vs Raptors, October 29, 2003 | Basketball-Reference.com"
+    },
+    {
+      "path": "play_by_play/TOR_2003_10_29/index.html",
+      "canonical_url": "https://www.basketball-reference.com/boxscores/",
+      "md5": "5f38afce02c25009e4bd1d711fc12d1b",
+      "size_bytes": 159230,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "NBA Games Played on October 29, 2003 | Basketball-Reference.com"
+    },
+    {
+      "path": "player_adjusted_shooting/birdla01.html",
+      "canonical_url": "https://www.basketball-reference.com/players/b/birdla01.html",
+      "md5": "b01da67e083e5daf8a7932780811ecfa",
+      "size_bytes": 1025159,
+      "entity_type": "player_career",
+      "bbr_slug": "birdla01",
+      "season_end_year": null,
+      "title": "Larry Bird Stats, Height, Weight, Position, Draft Status and more | Basketball-Reference.com"
+    },
+    {
+      "path": "player_adjusted_shooting/jamesle01.html",
+      "canonical_url": "https://www.basketball-reference.com/players/j/jamesle01.html",
+      "md5": "864a2ccf33205efe81d4dcf60436a1df",
+      "size_bytes": 1947711,
+      "entity_type": "player_career",
+      "bbr_slug": "jamesle01",
+      "season_end_year": null,
+      "title": "LeBron James Stats, Height, Weight, Position, Draft Status and more | Basketball-Reference.com"
+    },
+    {
+      "path": "player_adjusted_shooting/jordami01.html",
+      "canonical_url": "https://www.basketball-reference.com/players/j/jordami01.html",
+      "md5": "46d2462750137e9f5160eed23b723a73",
+      "size_bytes": 1240652,
+      "entity_type": "player_career",
+      "bbr_slug": "jordami01",
+      "season_end_year": null,
+      "title": "Michael Jordan Stats, Height, Weight, Position, Draft Status and more | Basketball-Reference.com"
+    },
+    {
+      "path": "player_all_star/bryanko01.html",
+      "canonical_url": "https://www.basketball-reference.com/players/b/bryanko01.html",
+      "md5": "37fee1c6db8313a102a6e4a58479dc6b",
+      "size_bytes": 1479788,
+      "entity_type": "player_career",
+      "bbr_slug": "bryanko01",
+      "season_end_year": null,
+      "title": "Kobe Bryant Stats, Height, Weight, Position, Draft Status and more | Basketball-Reference.com"
+    },
+    {
+      "path": "player_all_star/chambwi01.html",
+      "canonical_url": "https://www.basketball-reference.com/players/c/chambwi01.html",
+      "md5": "d09a12d26eff12e029909e5abb7f3eb6",
+      "size_bytes": 783108,
+      "entity_type": "player_career",
+      "bbr_slug": "chambwi01",
+      "season_end_year": null,
+      "title": "Wilt Chamberlain Stats, Height, Weight, Position, Draft Status and more | Basketball-Reference.com"
+    },
+    {
+      "path": "player_all_star/jamesle01.html",
+      "canonical_url": "https://www.basketball-reference.com/players/j/jamesle01.html",
+      "md5": "864a2ccf33205efe81d4dcf60436a1df",
+      "size_bytes": 1947711,
+      "entity_type": "player_career",
+      "bbr_slug": "jamesle01",
+      "season_end_year": null,
+      "title": "LeBron James Stats, Height, Weight, Position, Draft Status and more | Basketball-Reference.com"
+    },
+    {
+      "path": "player_box_scores/2001_01_01.html",
+      "canonical_url": "https://www.basketball-reference.com/friv/dailyleaders.fcgi",
+      "md5": "0b4f2e60b7f196a7efb17beac8be9177",
+      "size_bytes": 190916,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "NBA Daily Stats Leaders for January 1, 2001 | Basketball-Reference.com"
+    },
+    {
+      "path": "player_box_scores/2003_11_03.html",
+      "canonical_url": "https://www.basketball-reference.com/friv/dailyleaders.fcgi",
+      "md5": "54a460d9454f2fb7b40f517a98c78147",
+      "size_bytes": 364927,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "NBA Daily Stats Leaders for November 3, 2003 | Basketball-Reference.com"
+    },
+    {
+      "path": "player_box_scores/2006_11_01.html",
+      "canonical_url": "https://www.basketball-reference.com/friv/dailyleaders.fcgi",
+      "md5": "92c22ee6a3db7abb39b83aa7ddd72247",
+      "size_bytes": 570071,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "NBA Daily Stats Leaders for November 1, 2006 | Basketball-Reference.com"
+    },
+    {
+      "path": "player_box_scores/2015_12_18.html",
+      "canonical_url": "https://www.basketball-reference.com/friv/dailyleaders.fcgi",
+      "md5": "a27042db3ea0ab42a987050d53799d49",
+      "size_bytes": 534726,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "NBA Daily Stats Leaders for December 18, 2015 | Basketball-Reference.com"
+    },
+    {
+      "path": "player_box_scores/2017_01_29.html",
+      "canonical_url": "https://www.basketball-reference.com/friv/dailyleaders.fcgi",
+      "md5": "7637dae5ed4c912f77ddfe96748ae8cf",
+      "size_bytes": 405051,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "NBA Daily Stats Leaders for January 29, 2017 | Basketball-Reference.com"
+    },
+    {
+      "path": "player_box_scores/2017_12_12.html",
+      "canonical_url": "https://www.basketball-reference.com/friv/dailyleaders.fcgi",
+      "md5": "a31a1997613d22afe4069d6f0d83455f",
+      "size_bytes": 370931,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "NBA Daily Stats Leaders for December 12, 2017 | Basketball-Reference.com"
+    },
+    {
+      "path": "player_box_scores/2018_01_01.html",
+      "canonical_url": "https://www.basketball-reference.com/friv/dailyleaders.fcgi",
+      "md5": "fcd888f4e59be391e709589175754190",
+      "size_bytes": 263074,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "NBA Daily Stats Leaders for January 1, 2018 | Basketball-Reference.com"
+    },
+    {
+      "path": "player_career_stats/abdulka01.html",
+      "canonical_url": "https://www.basketball-reference.com/players/a/abdulka01.html",
+      "md5": "5839c8c95621777393d1da322ea778e4",
+      "size_bytes": 1381661,
+      "entity_type": "player_career",
+      "bbr_slug": "abdulka01",
+      "season_end_year": null,
+      "title": "Kareem Abdul-Jabbar Stats, Height, Weight, Position, Draft Status and more | Basketball-Reference.com"
+    },
+    {
+      "path": "player_career_stats/birdla01.html",
+      "canonical_url": "https://www.basketball-reference.com/players/b/birdla01.html",
+      "md5": "b01da67e083e5daf8a7932780811ecfa",
+      "size_bytes": 1025159,
+      "entity_type": "player_career",
+      "bbr_slug": "birdla01",
+      "season_end_year": null,
+      "title": "Larry Bird Stats, Height, Weight, Position, Draft Status and more | Basketball-Reference.com"
+    },
+    {
+      "path": "player_career_stats/chambwi01.html",
+      "canonical_url": "https://www.basketball-reference.com/players/c/chambwi01.html",
+      "md5": "d09a12d26eff12e029909e5abb7f3eb6",
+      "size_bytes": 783108,
+      "entity_type": "player_career",
+      "bbr_slug": "chambwi01",
+      "season_end_year": null,
+      "title": "Wilt Chamberlain Stats, Height, Weight, Position, Draft Status and more | Basketball-Reference.com"
+    },
+    {
+      "path": "player_career_stats/curryst01.html",
+      "canonical_url": "https://www.basketball-reference.com/players/c/curryst01.html",
+      "md5": "b981f1eedce945e4b97c3c7548d82902",
+      "size_bytes": 1262075,
+      "entity_type": "player_career",
+      "bbr_slug": "curryst01",
+      "season_end_year": null,
+      "title": "Stephen Curry Stats, Height, Weight, Position, Draft Status and more | Basketball-Reference.com"
+    },
+    {
+      "path": "player_career_stats/doncilu01.html",
+      "canonical_url": "https://www.basketball-reference.com/players/d/doncilu01.html",
+      "md5": "769ac22c2e8dd1e2d4ad0da651f28e99",
+      "size_bytes": 962495,
+      "entity_type": "player_career",
+      "bbr_slug": "doncilu01",
+      "season_end_year": null,
+      "title": "Luka Dončić Stats, Height, Weight, Position, Draft Status and more | Basketball-Reference.com"
+    },
+    {
+      "path": "player_career_stats/foxde01.html",
+      "canonical_url": "https://www.basketball-reference.com/players/f/foxde01.html",
+      "md5": "34a7a433c8fc4da9c9546d1c93b12bd1",
+      "size_bytes": 838057,
+      "entity_type": "player_career",
+      "bbr_slug": "foxde01",
+      "season_end_year": null,
+      "title": "De'Aaron Fox Stats, Height, Weight, Position, Draft Status and more | Basketball-Reference.com"
+    },
+    {
+      "path": "player_career_stats/gilgesh01.html",
+      "canonical_url": "https://www.basketball-reference.com/players/g/gilgesh01.html",
+      "md5": "fdc02d187ffa72319ea59d5d4b3e4c39",
+      "size_bytes": 898152,
+      "entity_type": "player_career",
+      "bbr_slug": "gilgesh01",
+      "season_end_year": null,
+      "title": "Shai Gilgeous-Alexander Stats, Height, Weight, Position, Draft Status and more | Basketball-Reference.com"
+    },
+    {
+      "path": "player_career_stats/halibty01.html",
+      "canonical_url": "https://www.basketball-reference.com/players/h/halibty01.html",
+      "md5": "ede9fccadb6a372e4ab380a890f09b63",
+      "size_bytes": 670495,
+      "entity_type": "player_career",
+      "bbr_slug": "halibty01",
+      "season_end_year": null,
+      "title": "Tyrese Haliburton Stats, Height, Weight, Position, Draft Status and more | Basketball-Reference.com"
+    },
+    {
+      "path": "player_career_stats/hardeja01.html",
+      "canonical_url": "https://www.basketball-reference.com/players/h/hardeja01.html",
+      "md5": "90fc5cbc0e9560cdedd05f087c6dae27",
+      "size_bytes": 1737661,
+      "entity_type": "player_career",
+      "bbr_slug": "hardeja01",
+      "season_end_year": null,
+      "title": "James Harden Stats, Height, Weight, Position, Draft Status and more | Basketball-Reference.com"
+    },
+    {
+      "path": "player_career_stats/jamesle01.html",
+      "canonical_url": "https://www.basketball-reference.com/players/j/jamesle01.html",
+      "md5": "864a2ccf33205efe81d4dcf60436a1df",
+      "size_bytes": 1947711,
+      "entity_type": "player_career",
+      "bbr_slug": "jamesle01",
+      "season_end_year": null,
+      "title": "LeBron James Stats, Height, Weight, Position, Draft Status and more | Basketball-Reference.com"
+    },
+    {
+      "path": "player_career_stats/jokicni01.html",
+      "canonical_url": "https://www.basketball-reference.com/players/j/jokicni01.html",
+      "md5": "909c2fb9ee77862aa453d5e458c77a31",
+      "size_bytes": 1006638,
+      "entity_type": "player_career",
+      "bbr_slug": "jokicni01",
+      "season_end_year": null,
+      "title": "Nikola Jokić Stats, Height, Weight, Position, Draft Status and more | Basketball-Reference.com"
+    },
+    {
+      "path": "player_career_stats/russebi01.html",
+      "canonical_url": "https://www.basketball-reference.com/players/r/russebi01.html",
+      "md5": "ce1ad91d3d05c13aaf014a75acf4650a",
+      "size_bytes": 654544,
+      "entity_type": "player_career",
+      "bbr_slug": "russebi01",
+      "season_end_year": null,
+      "title": "Bill Russell Stats, Height, Weight, Position, Draft Status and more | Basketball-Reference.com"
+    },
+    {
+      "path": "player_career_stats/sabondo01.html",
+      "canonical_url": "https://www.basketball-reference.com/players/s/sabondo01.html",
+      "md5": "06e6118562aab42c3d64635b45acead2",
+      "size_bytes": 940156,
+      "entity_type": "player_career",
+      "bbr_slug": "sabondo01",
+      "season_end_year": null,
+      "title": "Domantas Sabonis Stats, Height, Weight, Position, Draft Status and more | Basketball-Reference.com"
+    },
+    {
+      "path": "player_career_stats/stockjo01.html",
+      "canonical_url": "https://www.basketball-reference.com/players/s/stockjo01.html",
+      "md5": "3424832e1e6fb2a2955b7d8950cc2be9",
+      "size_bytes": 1309553,
+      "entity_type": "player_career",
+      "bbr_slug": "stockjo01",
+      "season_end_year": null,
+      "title": "John Stockton Stats, Height, Weight, Position, Draft Status and more | Basketball-Reference.com"
+    },
+    {
+      "path": "player_career_stats/tatumja01.html",
+      "canonical_url": "https://www.basketball-reference.com/players/t/tatumja01.html",
+      "md5": "70d5219827bf0f282a2305175e4b88f4",
+      "size_bytes": 938948,
+      "entity_type": "player_career",
+      "bbr_slug": "tatumja01",
+      "season_end_year": null,
+      "title": "Jayson Tatum Stats, Height, Weight, Position, Draft Status and more | Basketball-Reference.com"
+    },
+    {
+      "path": "player_career_stats/wembavi01.html",
+      "canonical_url": "https://www.basketball-reference.com/players/w/wembavi01.html",
+      "md5": "7e68291e996a0c6386d03a428a82fbb7",
+      "size_bytes": 518435,
+      "entity_type": "player_career",
+      "bbr_slug": "wembavi01",
+      "season_end_year": null,
+      "title": "Victor Wembanyama Stats, Height, Weight, Position, Draft Status and more | Basketball-Reference.com"
+    },
+    {
+      "path": "player_game_highs/birdla01.html",
+      "canonical_url": "https://www.basketball-reference.com/players/b/birdla01.html",
+      "md5": "b01da67e083e5daf8a7932780811ecfa",
+      "size_bytes": 1025159,
+      "entity_type": "player_career",
+      "bbr_slug": "birdla01",
+      "season_end_year": null,
+      "title": "Larry Bird Stats, Height, Weight, Position, Draft Status and more | Basketball-Reference.com"
+    },
+    {
+      "path": "player_game_highs/jamesle01.html",
+      "canonical_url": "https://www.basketball-reference.com/players/j/jamesle01.html",
+      "md5": "864a2ccf33205efe81d4dcf60436a1df",
+      "size_bytes": 1947711,
+      "entity_type": "player_career",
+      "bbr_slug": "jamesle01",
+      "season_end_year": null,
+      "title": "LeBron James Stats, Height, Weight, Position, Draft Status and more | Basketball-Reference.com"
+    },
+    {
+      "path": "player_game_highs/jordami01.html",
+      "canonical_url": "https://www.basketball-reference.com/players/j/jordami01.html",
+      "md5": "46d2462750137e9f5160eed23b723a73",
+      "size_bytes": 1240652,
+      "entity_type": "player_career",
+      "bbr_slug": "jordami01",
+      "season_end_year": null,
+      "title": "Michael Jordan Stats, Height, Weight, Position, Draft Status and more | Basketball-Reference.com"
+    },
+    {
+      "path": "player_high_school_exhibition/lebron-high-school-amateur-exhibition.html",
+      "canonical_url": "https://www.basketball-reference.com/players/j/jamesle01.html",
+      "md5": "c4ef96179bd2a1010481a549cf123309",
+      "size_bytes": 262866,
+      "entity_type": "player_career",
+      "bbr_slug": "jamesle01",
+      "season_end_year": null,
+      "title": "LeBron James - High School, Amateur, and Exhibition Stats | Basketball-Reference.com"
+    },
+    {
+      "path": "player_on_off/jamesle01_2024.html",
+      "canonical_url": "https://www.basketball-reference.com/players/j/jamesle01/on-off/2024",
+      "md5": "c009afd68f8837650f61befd07b128ca",
+      "size_bytes": 203425,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "LeBron James 2023-24 On Off Stats | Basketball-Reference.com"
+    },
+    {
+      "path": "player_on_off/jokicni01_2024.html",
+      "canonical_url": "https://www.basketball-reference.com/players/j/jokicni01/on-off/2024",
+      "md5": "5161c6903036e31bae664862249816fb",
+      "size_bytes": 183451,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Nikola Jokić 2023-24 On Off Stats | Basketball-Reference.com"
+    },
+    {
+      "path": "player_on_off/jordami01_1997.html",
+      "canonical_url": "https://www.basketball-reference.com/players/j/jordami01/on-off/1997",
+      "md5": "d57ddf26aca5da72971ada3f748ef5de",
+      "size_bytes": 186971,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Michael Jordan 1996-97 On Off Stats | Basketball-Reference.com"
+    },
+    {
+      "path": "player_play_by_play/jamesle01.html",
+      "canonical_url": "https://www.basketball-reference.com/players/j/jamesle01.html",
+      "md5": "864a2ccf33205efe81d4dcf60436a1df",
+      "size_bytes": 1947711,
+      "entity_type": "player_career",
+      "bbr_slug": "jamesle01",
+      "season_end_year": null,
+      "title": "LeBron James Stats, Height, Weight, Position, Draft Status and more | Basketball-Reference.com"
+    },
+    {
+      "path": "player_play_by_play/jordami01.html",
+      "canonical_url": "https://www.basketball-reference.com/players/j/jordami01.html",
+      "md5": "46d2462750137e9f5160eed23b723a73",
+      "size_bytes": 1240652,
+      "entity_type": "player_career",
+      "bbr_slug": "jordami01",
+      "season_end_year": null,
+      "title": "Michael Jordan Stats, Height, Weight, Position, Draft Status and more | Basketball-Reference.com"
+    },
+    {
+      "path": "player_play_by_play/paulch01.html",
+      "canonical_url": "https://www.basketball-reference.com/players/p/paulch01.html",
+      "md5": "9ad05d82b6dcfc411297eaaa774aac09",
+      "size_bytes": 1653772,
+      "entity_type": "player_career",
+      "bbr_slug": "paulch01",
+      "season_end_year": null,
+      "title": "Chris Paul Stats, Height, Weight, Position, Draft Status and more | Basketball-Reference.com"
+    },
+    {
+      "path": "player_playoff_series/chambwi01.html",
+      "canonical_url": "https://www.basketball-reference.com/players/c/chambwi01.html",
+      "md5": "d09a12d26eff12e029909e5abb7f3eb6",
+      "size_bytes": 783108,
+      "entity_type": "player_career",
+      "bbr_slug": "chambwi01",
+      "season_end_year": null,
+      "title": "Wilt Chamberlain Stats, Height, Weight, Position, Draft Status and more | Basketball-Reference.com"
+    },
+    {
+      "path": "player_playoff_series/duncati01.html",
+      "canonical_url": "https://www.basketball-reference.com/players/d/duncati01.html",
+      "md5": "1e70465a700e9c1731c9dcc9cc522fd6",
+      "size_bytes": 1526260,
+      "entity_type": "player_career",
+      "bbr_slug": "duncati01",
+      "season_end_year": null,
+      "title": "Tim Duncan Stats, Height, Weight, Position, Draft Status and more | Basketball-Reference.com"
+    },
+    {
+      "path": "player_playoff_series/jamesle01.html",
+      "canonical_url": "https://www.basketball-reference.com/players/j/jamesle01.html",
+      "md5": "864a2ccf33205efe81d4dcf60436a1df",
+      "size_bytes": 1947711,
+      "entity_type": "player_career",
+      "bbr_slug": "jamesle01",
+      "season_end_year": null,
+      "title": "LeBron James Stats, Height, Weight, Position, Draft Status and more | Basketball-Reference.com"
+    },
+    {
+      "path": "player_salaries/duranke01.html",
+      "canonical_url": "https://www.basketball-reference.com/players/d/duranke01.html",
+      "md5": "a868449e7a4511a2c1d908b5cbda97bb",
+      "size_bytes": 1666644,
+      "entity_type": "player_career",
+      "bbr_slug": "duranke01",
+      "season_end_year": null,
+      "title": "Kevin Durant Stats, Height, Weight, Position, Draft Status and more | Basketball-Reference.com"
+    },
+    {
+      "path": "player_salaries/jamesle01.html",
+      "canonical_url": "https://www.basketball-reference.com/players/j/jamesle01.html",
+      "md5": "864a2ccf33205efe81d4dcf60436a1df",
+      "size_bytes": 1947711,
+      "entity_type": "player_career",
+      "bbr_slug": "jamesle01",
+      "season_end_year": null,
+      "title": "LeBron James Stats, Height, Weight, Position, Draft Status and more | Basketball-Reference.com"
+    },
+    {
+      "path": "player_salaries/jordami01.html",
+      "canonical_url": "https://www.basketball-reference.com/players/j/jordami01.html",
+      "md5": "46d2462750137e9f5160eed23b723a73",
+      "size_bytes": 1240652,
+      "entity_type": "player_career",
+      "bbr_slug": "jordami01",
+      "season_end_year": null,
+      "title": "Michael Jordan Stats, Height, Weight, Position, Draft Status and more | Basketball-Reference.com"
+    },
+    {
+      "path": "player_shot_charts/curryst01_2024.html",
+      "canonical_url": "https://www.basketball-reference.com/players/c/curryst01/shooting/2024/",
+      "md5": "a3019c54f6424f22ada26244ec048831",
+      "size_bytes": 481634,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Stephen Curry 2023-24 Shooting | Basketball-Reference.com"
+    },
+    {
+      "path": "player_shot_charts/jamesle01_2024.html",
+      "canonical_url": "https://www.basketball-reference.com/players/j/jamesle01/shooting/2024/",
+      "md5": "824066eb48d51377ea990855f86f66ed",
+      "size_bytes": 481008,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "LeBron James 2023-24 Shooting | Basketball-Reference.com"
+    },
+    {
+      "path": "player_shot_charts/jordami01_1997.html",
+      "canonical_url": "https://www.basketball-reference.com/players/j/jordami01/shooting/1997/",
+      "md5": "0b1b2031f70e58e596f400e123726d25",
+      "size_bytes": 560368,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Michael Jordan 1996-97 Shooting | Basketball-Reference.com"
+    },
+    {
+      "path": "player_similarity_scores/abdulka01.html",
+      "canonical_url": "https://www.basketball-reference.com/players/a/abdulka01.html",
+      "md5": "5839c8c95621777393d1da322ea778e4",
+      "size_bytes": 1381661,
+      "entity_type": "player_career",
+      "bbr_slug": "abdulka01",
+      "season_end_year": null,
+      "title": "Kareem Abdul-Jabbar Stats, Height, Weight, Position, Draft Status and more | Basketball-Reference.com"
+    },
+    {
+      "path": "player_similarity_scores/chambwi01.html",
+      "canonical_url": "https://www.basketball-reference.com/players/c/chambwi01.html",
+      "md5": "d09a12d26eff12e029909e5abb7f3eb6",
+      "size_bytes": 783108,
+      "entity_type": "player_career",
+      "bbr_slug": "chambwi01",
+      "season_end_year": null,
+      "title": "Wilt Chamberlain Stats, Height, Weight, Position, Draft Status and more | Basketball-Reference.com"
+    },
+    {
+      "path": "player_similarity_scores/jamesle01.html",
+      "canonical_url": "https://www.basketball-reference.com/players/j/jamesle01.html",
+      "md5": "864a2ccf33205efe81d4dcf60436a1df",
+      "size_bytes": 1947711,
+      "entity_type": "player_career",
+      "bbr_slug": "jamesle01",
+      "season_end_year": null,
+      "title": "LeBron James Stats, Height, Weight, Position, Draft Status and more | Basketball-Reference.com"
+    },
+    {
+      "path": "player_splits/birdla01_1980.html",
+      "canonical_url": "https://www.basketball-reference.com/players/b/birdla01/splits//1980",
+      "md5": "1e9e25239688bb864986e6c2f714166c",
+      "size_bytes": 280827,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Larry Bird 1979-80 Splits | Basketball-Reference.com"
+    },
+    {
+      "path": "player_splits/curryst01_2023.html",
+      "canonical_url": "https://www.basketball-reference.com/players/c/curryst01/splits//2023",
+      "md5": "5b859ac98151251a2a6cbfaf6571f46d",
+      "size_bytes": 320969,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Stephen Curry 2022-23 Splits | Basketball-Reference.com"
+    },
+    {
+      "path": "player_splits/jamesle01_2024.html",
+      "canonical_url": "https://www.basketball-reference.com/players/j/jamesle01/splits//2024",
+      "md5": "9b72d9f1776913ad877f82da83811839",
+      "size_bytes": 331471,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "LeBron James 2023-24 Splits | Basketball-Reference.com"
+    },
+    {
+      "path": "players_advanced_season_totals/1974.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_1974_advanced.html",
+      "md5": "283a0d8322c173447524b1c109b64267",
+      "size_bytes": 791653,
+      "entity_type": "advanced_leaders",
+      "bbr_slug": null,
+      "season_end_year": 1974,
+      "title": "1973-74 NBA Player Stats: Advanced | Basketball-Reference.com"
+    },
+    {
+      "path": "players_advanced_season_totals/1977.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_1977_advanced.html",
+      "md5": "d21d3882eb6939e7b5ce29a6b30b29a7",
+      "size_bytes": 1071787,
+      "entity_type": "advanced_leaders",
+      "bbr_slug": null,
+      "season_end_year": 1977,
+      "title": "1976-77 NBA Player Stats: Advanced | Basketball-Reference.com"
+    },
+    {
+      "path": "players_advanced_season_totals/1978.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_1978_advanced.html",
+      "md5": "f286bc058feb8f012455a4411a747da9",
+      "size_bytes": 1173504,
+      "entity_type": "advanced_leaders",
+      "bbr_slug": null,
+      "season_end_year": 1978,
+      "title": "1977-78 NBA Player Stats: Advanced | Basketball-Reference.com"
+    },
+    {
+      "path": "players_advanced_season_totals/1985.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_1985_advanced.html",
+      "md5": "b1b56e997ecfba7db1858606609655a5",
+      "size_bytes": 1314165,
+      "entity_type": "advanced_leaders",
+      "bbr_slug": null,
+      "season_end_year": 1985,
+      "title": "1984-85 NBA Player Stats: Advanced | Basketball-Reference.com"
+    },
+    {
+      "path": "players_advanced_season_totals/1990.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_1990_advanced.html",
+      "md5": "dd0d08a8e84a2dadd10681b732b2a366",
+      "size_bytes": 1522536,
+      "entity_type": "advanced_leaders",
+      "bbr_slug": null,
+      "season_end_year": 1990,
+      "title": "1989-90 NBA Player Stats: Advanced | Basketball-Reference.com"
+    },
+    {
+      "path": "players_advanced_season_totals/2001_false.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2001_advanced.html",
+      "md5": "8c36244928bb1fe0b45439e8e03649ff",
+      "size_bytes": 1702875,
+      "entity_type": "advanced_leaders",
+      "bbr_slug": null,
+      "season_end_year": 2001,
+      "title": "2000-01 NBA Player Stats: Advanced | Basketball-Reference.com"
+    },
+    {
+      "path": "players_advanced_season_totals/2016_true.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2016_advanced.html",
+      "md5": "803b204d2e0c07ac25bc9777ead8476c",
+      "size_bytes": 1839923,
+      "entity_type": "advanced_leaders",
+      "bbr_slug": null,
+      "season_end_year": 2016,
+      "title": "2015-16 NBA Player Stats: Advanced | Basketball-Reference.com"
+    },
+    {
+      "path": "players_advanced_season_totals/2017_true.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2017_advanced.html",
+      "md5": "fa18b7dce8dceeba3cc406b4151710f0",
+      "size_bytes": 1875004,
+      "entity_type": "advanced_leaders",
+      "bbr_slug": null,
+      "season_end_year": 2017,
+      "title": "2016-17 NBA Player Stats: Advanced | Basketball-Reference.com"
+    },
+    {
+      "path": "players_advanced_season_totals/2018_false.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2018_advanced.html",
+      "md5": "b1af27a20290d64dd192d352cf00d622",
+      "size_bytes": 2015477,
+      "entity_type": "advanced_leaders",
+      "bbr_slug": null,
+      "season_end_year": 2018,
+      "title": "2017-18 NBA Player Stats: Advanced | Basketball-Reference.com"
+    },
+    {
+      "path": "players_advanced_season_totals/2019_true.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2019_advanced.html",
+      "md5": "2351f5405b4c5d3d900ef192f109abdc",
+      "size_bytes": 2116376,
+      "entity_type": "advanced_leaders",
+      "bbr_slug": null,
+      "season_end_year": 2019,
+      "title": "2018-19 NBA Player Stats: Advanced | Basketball-Reference.com"
+    },
+    {
+      "path": "players_advanced_season_totals/2024_false.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2024_advanced.html",
+      "md5": "37bf6c1f27e5c5651aa12e7e9c15a035",
+      "size_bytes": 2180011,
+      "entity_type": "advanced_leaders",
+      "bbr_slug": null,
+      "season_end_year": 2024,
+      "title": "2023-24 NBA Player Stats: Advanced | Basketball-Reference.com"
+    },
+    {
+      "path": "players_season_totals/1974.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_1974_totals.html",
+      "md5": "9439ebbedb7f927b804615c9fd7d570d",
+      "size_bytes": 600662,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1973-74 NBA Player Stats: Totals | Basketball-Reference.com"
+    },
+    {
+      "path": "players_season_totals/1975.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_1975_totals.html",
+      "md5": "2d87e35d2f1924e41fbf377b14bf071a",
+      "size_bytes": 674914,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1974-75 NBA Player Stats: Totals | Basketball-Reference.com"
+    },
+    {
+      "path": "players_season_totals/1980.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_1980_totals.html",
+      "md5": "36b6cd41a1f4b20e21b9cdd08d393eac",
+      "size_bytes": 1002999,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1979-80 NBA Player Stats: Totals | Basketball-Reference.com"
+    },
+    {
+      "path": "players_season_totals/1990.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_1990_totals.html",
+      "md5": "fe3a055e3a924602a703722d71597a71",
+      "size_bytes": 1293144,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1989-90 NBA Player Stats: Totals | Basketball-Reference.com"
+    },
+    {
+      "path": "players_season_totals/2001.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2001_totals.html",
+      "md5": "aca03fa89d763d1f6e40b63fb3a43d11",
+      "size_bytes": 1441199,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2000-01 NBA Player Stats: Totals | Basketball-Reference.com"
+    },
+    {
+      "path": "players_season_totals/2002.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2002_totals.html",
+      "md5": "bf4c57482368fa3396a2862a35806331",
+      "size_bytes": 1367217,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2001-02 NBA Player Stats: Totals | Basketball-Reference.com"
+    },
+    {
+      "path": "players_season_totals/2003.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2003_totals.html",
+      "md5": "50edd43dcc0ca93b67e448c858998d0d",
+      "size_bytes": 1339997,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2002-03 NBA Player Stats: Totals | Basketball-Reference.com"
+    },
+    {
+      "path": "players_season_totals/2004.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2004_totals.html",
+      "md5": "aa43dda3cfaf7a893589b43b8e784d42",
+      "size_bytes": 1524262,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2003-04 NBA Player Stats: Totals | Basketball-Reference.com"
+    },
+    {
+      "path": "players_season_totals/2005.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2005_totals.html",
+      "md5": "c3306142a99dd304f2cebd1792f74e30",
+      "size_bytes": 1523555,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2004-05 NBA Player Stats: Totals | Basketball-Reference.com"
+    },
+    {
+      "path": "players_season_totals/2006.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2006_totals.html",
+      "md5": "58f36ced965f485bd613cbc99619e82c",
+      "size_bytes": 1496627,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2005-06 NBA Player Stats: Totals | Basketball-Reference.com"
+    },
+    {
+      "path": "players_season_totals/2007.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2007_totals.html",
+      "md5": "895d70bf92cca822648b91d3d9bb30ce",
+      "size_bytes": 1406622,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2006-07 NBA Player Stats: Totals | Basketball-Reference.com"
+    },
+    {
+      "path": "players_season_totals/2008.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2008_totals.html",
+      "md5": "b5a6949e83b57596f93ccfff86be9a3f",
+      "size_bytes": 1565472,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2007-08 NBA Player Stats: Totals | Basketball-Reference.com"
+    },
+    {
+      "path": "players_season_totals/2009.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2009_totals.html",
+      "md5": "663d423de353977d8b63ee3d59dfa3cd",
+      "size_bytes": 1536812,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2008-09 NBA Player Stats: Totals | Basketball-Reference.com"
+    },
+    {
+      "path": "players_season_totals/2010.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2010_totals.html",
+      "md5": "12c56511584d1c8b25c87cb2d06fe53a",
+      "size_bytes": 1530924,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2009-10 NBA Player Stats: Totals | Basketball-Reference.com"
+    },
+    {
+      "path": "players_season_totals/2011.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2011_totals.html",
+      "md5": "0a2083e9b7feb341a477c3fab6a98006",
+      "size_bytes": 1604489,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2010-11 NBA Player Stats: Totals | Basketball-Reference.com"
+    },
+    {
+      "path": "players_season_totals/2012.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2012_totals.html",
+      "md5": "567ae93de55eb93636ebbb1fe3b30f79",
+      "size_bytes": 1490442,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2011-12 NBA Player Stats: Totals | Basketball-Reference.com"
+    },
+    {
+      "path": "players_season_totals/2013.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2013_totals.html",
+      "md5": "caf62eceaabcb50525a4075f492f8f03",
+      "size_bytes": 1538903,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2012-13 NBA Player Stats: Totals | Basketball-Reference.com"
+    },
+    {
+      "path": "players_season_totals/2014.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2014_totals.html",
+      "md5": "3acde8527bfa32b1eae5bd0bb20e76ec",
+      "size_bytes": 1596881,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2013-14 NBA Player Stats: Totals | Basketball-Reference.com"
+    },
+    {
+      "path": "players_season_totals/2015.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2015_totals.html",
+      "md5": "ba6bc0362215f8d1f7797f3b4ec0f146",
+      "size_bytes": 1676719,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2014-15 NBA Player Stats: Totals | Basketball-Reference.com"
+    },
+    {
+      "path": "players_season_totals/2016.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2016_totals.html",
+      "md5": "88c6ef31210481b72660c2cf14040c7b",
+      "size_bytes": 1559704,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2015-16 NBA Player Stats: Totals | Basketball-Reference.com"
+    },
+    {
+      "path": "players_season_totals/2017.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2017_totals.html",
+      "md5": "614fb9c7c4d819635d1cc11fff0c3a05",
+      "size_bytes": 1589831,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2016-17 NBA Player Stats: Totals | Basketball-Reference.com"
+    },
+    {
+      "path": "players_season_totals/2018.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2018_totals.html",
+      "md5": "1b1ffb6c256ab7c1719a23cefdfc2c22",
+      "size_bytes": 1701981,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2017-18 NBA Player Stats: Totals | Basketball-Reference.com"
+    },
+    {
+      "path": "players_season_totals/2019.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2019_totals.html",
+      "md5": "d33cb498e28d6a059bc69d72b0ef9499",
+      "size_bytes": 1785678,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2018-19 NBA Player Stats: Totals | Basketball-Reference.com"
+    },
+    {
+      "path": "players_season_totals/2024.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2024_totals.html",
+      "md5": "6d3cf18302d08b74acb57b0c739e3883",
+      "size_bytes": 1835776,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2023-24 NBA Player Stats: Totals | Basketball-Reference.com"
+    },
+    {
+      "path": "playoff_bracket/1974.html",
+      "canonical_url": "https://www.basketball-reference.com/playoffs/NBA_1974.html",
+      "md5": "e081e9f189fb7b9864fab7e2f69dc015",
+      "size_bytes": 377896,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1974 NBA Playoffs Summary | Basketball-Reference.com"
+    },
+    {
+      "path": "playoff_bracket/2015.html",
+      "canonical_url": "https://www.basketball-reference.com/playoffs/NBA_2015.html",
+      "md5": "55b482679a2285b98832783f03773897",
+      "size_bytes": 554814,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2015 NBA Playoffs Summary | Basketball-Reference.com"
+    },
+    {
+      "path": "playoff_bracket/2024.html",
+      "canonical_url": "https://www.basketball-reference.com/playoffs/NBA_2024.html",
+      "md5": "37e5e6d556b2b3ed41022feba6bc85b0",
+      "size_bytes": 555553,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2024 NBA Playoffs Summary | Basketball-Reference.com"
+    },
+    {
+      "path": "playoff_historical_series_index/series.html",
+      "canonical_url": "https://www.basketball-reference.com/playoffs/series/",
+      "md5": "ecf291182899d4e2dd348ea9b76a2ace",
+      "size_bytes": 1176532,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "NBA &amp; ABA Playoffs Series History | Basketball-Reference.com"
+    },
+    {
+      "path": "playoff_per_game/1980.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_1980_per_game.html",
+      "md5": "fc2097591e7fd024b12b3ef6d3850502",
+      "size_bytes": 1248718,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1979-80 NBA Player Stats: Per Game | Basketball-Reference.com"
+    },
+    {
+      "path": "playoff_per_game/2019.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2019_per_game.html",
+      "md5": "70983ee71692de94c75cb19cce8a76a4",
+      "size_bytes": 2259851,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2018-19 NBA Player Stats: Per Game | Basketball-Reference.com"
+    },
+    {
+      "path": "playoff_per_game/2024.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2024_per_game.html",
+      "md5": "59e5fe7c4e1ae815e997569926a65f4b",
+      "size_bytes": 2329480,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2023-24 NBA Player Stats: Per Game | Basketball-Reference.com"
+    },
+    {
+      "path": "playoff_player_box_scores/antetgi01_2020.html",
+      "canonical_url": "https://www.basketball-reference.com/players/a/antetgi01/gamelog/2020/",
+      "md5": "35d9418f852519d8db57e887d7449d72",
+      "size_bytes": 387329,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Giannis Antetokounmpo 2019-20 Game Log | Basketball-Reference.com"
+    },
+    {
+      "path": "playoff_player_box_scores/curryst01_2023.html",
+      "canonical_url": "https://www.basketball-reference.com/players/c/curryst01/gamelog/2023/",
+      "md5": "ddbb03b769a788cea89d8997e9bb5e5c",
+      "size_bytes": 391723,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Stephen Curry 2022-23 Game Log | Basketball-Reference.com"
+    },
+    {
+      "path": "playoff_player_box_scores/doncilu01_2024.html",
+      "canonical_url": "https://www.basketball-reference.com/players/d/doncilu01/gamelog/2024/",
+      "md5": "4540c3377719a2cd8a2eeb5677f43df7",
+      "size_bytes": 426644,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Luka Dončić 2023-24 Game Log | Basketball-Reference.com"
+    },
+    {
+      "path": "playoff_player_box_scores/jamesle01_2023.html",
+      "canonical_url": "https://www.basketball-reference.com/players/j/jamesle01/gamelog/2023/",
+      "md5": "db90fc536a0c970fed338b36519c9b1d",
+      "size_bytes": 411463,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "LeBron James 2022-23 Game Log | Basketball-Reference.com"
+    },
+    {
+      "path": "playoff_player_box_scores/westbru01_2019.html",
+      "canonical_url": "https://www.basketball-reference.com/players/w/westbru01/gamelog/2019/",
+      "md5": "dd221bb1abff1ffd6e82f12b418ddde0",
+      "size_bytes": 401775,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Russell Westbrook 2018-19 Game Log | Basketball-Reference.com"
+    },
+    {
+      "path": "playoff_player_box_scores/westbru01_2020.html",
+      "canonical_url": "https://www.basketball-reference.com/players/w/westbru01/gamelog/2020/",
+      "md5": "263b999b782d0ce436f377785b9a814a",
+      "size_bytes": 386756,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Russell Westbrook 2019-20 Game Log | Basketball-Reference.com"
+    },
+    {
+      "path": "playoff_series_matchup/2026-nba-eastern-conference-first-round-76ers-vs-celtics.html",
+      "canonical_url": "https://www.basketball-reference.com/playoffs/2026-nba-eastern-conference-first-round-76ers-vs-celtics.html",
+      "md5": "5f7ebaca1d4f9b4be552d401dae75ab9",
+      "size_bytes": 262890,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2026 NBA Eastern Conference First Round - 76ers vs. Celtics | Basketball-Reference.com"
+    },
+    {
+      "path": "playoff_totals/1974.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_1974_totals.html",
+      "md5": "9439ebbedb7f927b804615c9fd7d570d",
+      "size_bytes": 600662,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1973-74 NBA Player Stats: Totals | Basketball-Reference.com"
+    },
+    {
+      "path": "playoff_totals/2018.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2018_totals.html",
+      "md5": "1b1ffb6c256ab7c1719a23cefdfc2c22",
+      "size_bytes": 1701981,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2017-18 NBA Player Stats: Totals | Basketball-Reference.com"
+    },
+    {
+      "path": "playoff_totals/2024.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2024_totals.html",
+      "md5": "6d3cf18302d08b74acb57b0c739e3883",
+      "size_bytes": 1835776,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2023-24 NBA Player Stats: Totals | Basketball-Reference.com"
+    },
+    {
+      "path": "playoff_year_games/NBA_2026_games.html",
+      "canonical_url": "https://www.basketball-reference.com/playoffs/NBA_2026.html",
+      "md5": "ba6eba77eb4e4756873523547a1b8636",
+      "size_bytes": 225808,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2026 NBA Playoffs Schedule and Results | Basketball-Reference.com"
+    },
+    {
+      "path": "playoff_year_leaders/NBA_2026_leaders.html",
+      "canonical_url": "https://www.basketball-reference.com/playoffs/NBA_2026.html",
+      "md5": "f24d200f50cc8ba6995dd5f88c93f417",
+      "size_bytes": 390592,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2026 NBA Playoffs Leaders | Basketball-Reference.com"
+    },
+    {
+      "path": "playoff_year_player_advanced/NBA_2026_advanced.html",
+      "canonical_url": "https://www.basketball-reference.com/playoffs/NBA_2026.html",
+      "md5": "c87a861576b99729b4cfb033598a35ff",
+      "size_bytes": 587030,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2026 NBA Playoffs Stats: Advanced | Basketball-Reference.com"
+    },
+    {
+      "path": "playoff_year_player_per_game/NBA_2026_per_game.html",
+      "canonical_url": "https://www.basketball-reference.com/playoffs/NBA_2026.html",
+      "md5": "8010726ea53485dd63544b974c4b945f",
+      "size_bytes": 599544,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2026 NBA Playoffs Stats: Per Game | Basketball-Reference.com"
+    },
+    {
+      "path": "playoff_year_player_per_minute/NBA_2026_per_minute.html",
+      "canonical_url": "https://www.basketball-reference.com/playoffs/NBA_2026.html",
+      "md5": "6bf3950e100fde4d630fc58d450f8b12",
+      "size_bytes": 584139,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2026 NBA Playoffs Stats: Per 36 Minutes | Basketball-Reference.com"
+    },
+    {
+      "path": "playoff_year_player_per_poss/NBA_2026_per_poss.html",
+      "canonical_url": "https://www.basketball-reference.com/playoffs/NBA_2026.html",
+      "md5": "e15f831b8f0b13b8c9d1919e8e38fc8c",
+      "size_bytes": 633679,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2026 NBA Playoffs Stats: Per 100 Possessions | Basketball-Reference.com"
+    },
+    {
+      "path": "playoff_year_player_totals/NBA_2026_totals.html",
+      "canonical_url": "https://www.basketball-reference.com/playoffs/NBA_2026.html",
+      "md5": "73312fffc662a71e684121ae979d3d48",
+      "size_bytes": 537736,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2026 NBA Playoffs Stats: Totals | Basketball-Reference.com"
+    },
+    {
+      "path": "playoff_year_standings/NBA_2026_standings.html",
+      "canonical_url": "https://www.basketball-reference.com/playoffs/NBA_2026.html",
+      "md5": "82bde25ff33307076266d871b6a8babb",
+      "size_bytes": 178444,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2026 NBA Playoffs Standings | Basketball-Reference.com"
+    },
+    {
+      "path": "referees/kirklco99r.html",
+      "canonical_url": "https://www.basketball-reference.com/referees/kirklco99r.html",
+      "md5": "0e0bad9b6c8a36cfa68b1e6daa0648b2",
+      "size_bytes": 269160,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Courtney Kirkland | Basketball-Reference.com"
+    },
+    {
+      "path": "regular_season_player_box_scores/antetgi01_2020.html",
+      "canonical_url": "https://www.basketball-reference.com/players/a/antetgi01/gamelog/2020/",
+      "md5": "768d0b2edbe391a70911939ca0112136",
+      "size_bytes": 387329,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Giannis Antetokounmpo 2019-20 Game Log | Basketball-Reference.com"
+    },
+    {
+      "path": "regular_season_player_box_scores/bradlav01_2019.html",
+      "canonical_url": "https://www.basketball-reference.com/players/b/bradlav01/gamelog/2019/",
+      "md5": "742d432ae8a78065641e3f23575ae3bd",
+      "size_bytes": 357282,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Avery Bradley 2018-19 Game Log | Basketball-Reference.com"
+    },
+    {
+      "path": "regular_season_player_box_scores/brownja01_2015.html",
+      "canonical_url": "https://www.basketball-reference.com/players/b/brownja01/gamelog/2015/",
+      "md5": "d4f9ce1137ad9fff914a6d563c732862",
+      "size_bytes": 204465,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Jabari Brown 2014-15 Game Log | Basketball-Reference.com"
+    },
+    {
+      "path": "regular_season_player_box_scores/foobar_2020.html",
+      "canonical_url": "https://www.basketball-reference.com/players/",
+      "md5": "2d78c756676af087a127acd20aea41d5",
+      "size_bytes": 133886,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "List of all the NBA and ABA Players | Basketball-Reference.com"
+    },
+    {
+      "path": "regular_season_player_box_scores/jokicni01_2024.html",
+      "canonical_url": "https://www.basketball-reference.com/players/j/jokicni01/gamelog/2024/",
+      "md5": "f435a7059e34973add96c4fc01b23efc",
+      "size_bytes": 417454,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Nikola Jokić 2023-24 Game Log | Basketball-Reference.com"
+    },
+    {
+      "path": "regular_season_player_box_scores/westbru01_2019.html",
+      "canonical_url": "https://www.basketball-reference.com/players/w/westbru01/gamelog/2019/",
+      "md5": "758665f4920921c09612fe2ae5ad9803",
+      "size_bytes": 401775,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Russell Westbrook 2018-19 Game Log | Basketball-Reference.com"
+    },
+    {
+      "path": "regular_season_player_box_scores/westbru01_2020.html",
+      "canonical_url": "https://www.basketball-reference.com/players/w/westbru01/gamelog/2020/",
+      "md5": "263b999b782d0ce436f377785b9a814a",
+      "size_bytes": 386756,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Russell Westbrook 2019-20 Game Log | Basketball-Reference.com"
+    },
+    {
+      "path": "rookie_stats/1980.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_1980_rookies.html",
+      "md5": "9952c6fe6b42ea64aab2293be12eabfb",
+      "size_bytes": 232546,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1979-80 NBA Rookies | Basketball-Reference.com"
+    },
+    {
+      "path": "rookie_stats/2019.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2019_rookies.html",
+      "md5": "0939549cf1cebca9cf2ffb4276247d0a",
+      "size_bytes": 329318,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2018-19 NBA Rookies | Basketball-Reference.com"
+    },
+    {
+      "path": "rookie_stats/2024.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2024_rookies.html",
+      "md5": "ff44b8c829d2a837fee21a0643e7fb31",
+      "size_bytes": 322648,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2023-24 NBA Rookies | Basketball-Reference.com"
+    },
+    {
+      "path": "search/Alonz.html",
+      "canonical_url": "https://www.basketball-reference.com/search/search.fcgi",
+      "md5": "0b3c0ae1636469b919c86caa713d9f35",
+      "size_bytes": 104532,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Search Results | Basketball-Reference.com"
+    },
+    {
+      "path": "search/alonzo_mourning.html",
+      "canonical_url": "https://www.basketball-reference.com/search/search.fcgi",
+      "md5": "b1ff5d9304f6766ace62cd9d5f3b9ce0",
+      "size_bytes": 92792,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Search Results | Basketball-Reference.com"
+    },
+    {
+      "path": "search/dominique_wilkins.html",
+      "canonical_url": "https://www.basketball-reference.com/search/search.fcgi",
+      "md5": "861e465f0d1e9626182501a352d04de5",
+      "size_bytes": 92169,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Search Results | Basketball-Reference.com"
+    },
+    {
+      "path": "search/ja_page_0.html",
+      "canonical_url": "https://www.basketball-reference.com/search/search.fcgi",
+      "md5": "c4c7f8747bb77025939c78d0cc2867c2",
+      "size_bytes": 310999,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Search Results | Basketball-Reference.com"
+    },
+    {
+      "path": "search/ja_page_1.html",
+      "canonical_url": "https://www.basketball-reference.com/search/search.fcgi",
+      "md5": "350a0fbc7d199bb8c3f38beb926b2fc7",
+      "size_bytes": 235217,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Search Results | Basketball-Reference.com"
+    },
+    {
+      "path": "search/ja_page_3.html",
+      "canonical_url": "https://www.basketball-reference.com/search/search.fcgi",
+      "md5": "5d066aeaeceaf7dea618e4848f27234c",
+      "size_bytes": 213829,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Search Results | Basketball-Reference.com"
+    },
+    {
+      "path": "search/ja_page_6.html",
+      "canonical_url": "https://www.basketball-reference.com/search/search.fcgi",
+      "md5": "69f149f8b975c0fc781575e7aa5ea827",
+      "size_bytes": 165493,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Search Results | Basketball-Reference.com"
+    },
+    {
+      "path": "search/ja_page_7.html",
+      "canonical_url": "https://www.basketball-reference.com/search/search.fcgi",
+      "md5": "0047a39119556e034e39454f64b1f251",
+      "size_bytes": 142755,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Search Results | Basketball-Reference.com"
+    },
+    {
+      "path": "search/ja_page_8.html",
+      "canonical_url": "https://www.basketball-reference.com/search/search.fcgi",
+      "md5": "78d814581636969c2215d181d3217263",
+      "size_bytes": 140440,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Search Results | Basketball-Reference.com"
+    },
+    {
+      "path": "search/jaebaebae.html",
+      "canonical_url": "https://www.basketball-reference.com/search/search.fcgi",
+      "md5": "fc9ccbf8b5f87c9c4e9387d1ae024605",
+      "size_bytes": 90450,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Search Results | Basketball-Reference.com"
+    },
+    {
+      "path": "search/kobe.html",
+      "canonical_url": "https://www.basketball-reference.com/search/search.fcgi",
+      "md5": "c64df3aba677e18dec6095c4ae44d10b",
+      "size_bytes": 102153,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Search Results | Basketball-Reference.com"
+    },
+    {
+      "path": "search/kobe_bryant.html",
+      "canonical_url": "https://www.basketball-reference.com/search/search.fcgi",
+      "md5": "153a0ec97802b54bd5dbb401189e5ea0",
+      "size_bytes": 93017,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Search Results | Basketball-Reference.com"
+    },
+    {
+      "path": "search/no_results.html",
+      "canonical_url": "https://www.basketball-reference.com/search/search.fcgi",
+      "md5": "2777d58d02d66c6205d0f4fa9adc8272",
+      "size_bytes": 90707,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Search Results | Basketball-Reference.com"
+    },
+    {
+      "path": "search/rick_barry.html",
+      "canonical_url": "https://www.basketball-reference.com/search/search.fcgi",
+      "md5": "65ff48e72cf5f6b92f483b3158ad00d0",
+      "size_bytes": 92076,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Search Results | Basketball-Reference.com"
+    },
+    {
+      "path": "season_awards/1974.html",
+      "canonical_url": "https://www.basketball-reference.com/awards/awards_1974.html",
+      "md5": "8d9a93bb58b32b3c1f276a2876a5e01a",
+      "size_bytes": 274995,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1973-74 NBA & ABA Awards Voting | Basketball-Reference.com"
+    },
+    {
+      "path": "season_awards/2015.html",
+      "canonical_url": "https://www.basketball-reference.com/awards/awards_2015.html",
+      "md5": "7eac29da49824d13dcf765ef95ec9813",
+      "size_bytes": 462236,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2014-15 NBA Awards Voting | Basketball-Reference.com"
+    },
+    {
+      "path": "season_awards/2024.html",
+      "canonical_url": "https://www.basketball-reference.com/awards/awards_2024.html",
+      "md5": "0e58592ac1b11e9fcea27e7312be33fc",
+      "size_bytes": 400524,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2023-24 NBA Awards Voting | Basketball-Reference.com"
+    },
+    {
+      "path": "season_awards_voting/awards_2025.html",
+      "canonical_url": "https://www.basketball-reference.com/awards/awards_2025.html",
+      "md5": "52c88974d77c0019242e501b89a1244e",
+      "size_bytes": 383278,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2024-25 NBA Awards Voting | Basketball-Reference.com"
+    },
+    {
+      "path": "season_leaders/default.html",
+      "canonical_url": "https://www.basketball-reference.com/leaders/per_season.html",
+      "md5": "e74fc9d79689580942b565863a92e27c",
+      "size_bytes": 245229,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "NBA &amp; ABA Single Season Leaders and Records for Player Efficiency Rating | Basketball-Reference.com"
+    },
+    {
+      "path": "season_leaders/NBA_2024_leaders.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2024_leaders.html",
+      "md5": "7766fa8e3c6d1e3f472a4deccc0d2367",
+      "size_bytes": 596962,
+      "entity_type": "season_leaders",
+      "bbr_slug": null,
+      "season_end_year": 2024,
+      "title": "2023-24 NBA Leaders | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/1980/april.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_1980_games.html",
+      "md5": "dc9c47ec7d5c60fc87bc58e9ae795d12",
+      "size_bytes": 201234,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1979-80 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/1980/december.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_1980_games.html",
+      "md5": "24fef8d79d2502b043dae3ae0985fa77",
+      "size_bytes": 382149,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1979-80 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/1980/february.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_1980_games.html",
+      "md5": "2cb7770063f04cf8872af8d621a36274",
+      "size_bytes": 338770,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1979-80 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/1980/index.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_1980_games.html",
+      "md5": "d9b7c06a48a814c5f129715fd7d1d26e",
+      "size_bytes": 305169,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1979-80 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/1980/january.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_1980_games.html",
+      "md5": "abcef0202d6fecf9188869130cb21c90",
+      "size_bytes": 402123,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1979-80 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/1980/march.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_1980_games.html",
+      "md5": "1ec1c344b68ad6326c01929d585388e8",
+      "size_bytes": 402054,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1979-80 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/1980/may.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_1980_games.html",
+      "md5": "750f8ce057433e09e38385b9d3cbb5f2",
+      "size_bytes": 145702,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1979-80 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/1980/november.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_1980_games.html",
+      "md5": "1fa6c6dc872c77f32aff2919053d4941",
+      "size_bytes": 382253,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1979-80 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/1980/october.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_1980_games.html",
+      "md5": "d9b7c06a48a814c5f129715fd7d1d26e",
+      "size_bytes": 305169,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1979-80 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/1999/april.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_1999_games.html",
+      "md5": "02048500ebe235a36797c39cfefd8e51",
+      "size_bytes": 515763,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1998-99 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/1999/index.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_1999_games.html",
+      "md5": "d0b8d3bb7713e92fec016aad2b2916a6",
+      "size_bytes": 424880,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1998-99 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/1999/june.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_1999_games.html",
+      "md5": "991e4549578df6a7c7d6dbf00434aca2",
+      "size_bytes": 155445,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1998-99 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/1999/march.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_1999_games.html",
+      "md5": "211ab15285d23c8265608db3e9fc15d3",
+      "size_bytes": 523678,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1998-99 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/1999/may.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_1999_games.html",
+      "md5": "4f2da27e4411213b183678bf0c4f4b83",
+      "size_bytes": 288089,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1998-99 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2000/april.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2000_games.html",
+      "md5": "5f28a7b5d372684319515d122f7388f2",
+      "size_bytes": 402763,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1999-00 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2000/december.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2000_games.html",
+      "md5": "98a721cd9be1b85703f53093a1b2adae",
+      "size_bytes": 466490,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1999-00 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2000/february.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2000_games.html",
+      "md5": "e22f77179172273d6f12a2c1fac4a6ab",
+      "size_bytes": 427751,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1999-00 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2000/index.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2000_games.html",
+      "md5": "f5a861e99a645690a1ece142721e38a5",
+      "size_bytes": 460028,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1999-00 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2000/january.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2000_games.html",
+      "md5": "8026adf7454f8b2060633c53b999c1ae",
+      "size_bytes": 452200,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1999-00 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2000/june.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2000_games.html",
+      "md5": "973bf244a407ad959678a3b0e53a3016",
+      "size_bytes": 151128,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1999-00 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2000/march.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2000_games.html",
+      "md5": "13d043a4afcddc4de2081bd0af86de3f",
+      "size_bytes": 487852,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1999-00 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2000/may.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2000_games.html",
+      "md5": "c06f2055da9fd304525cef8a8dc29339",
+      "size_bytes": 201991,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1999-00 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2000/november.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2000_games.html",
+      "md5": "f5a861e99a645690a1ece142721e38a5",
+      "size_bytes": 460028,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1999-00 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2001/april.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2001_games.html",
+      "md5": "c3968d94396ed7e0df98ac55e6f97768",
+      "size_bytes": 396912,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2000-01 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2001/december.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2001_games.html",
+      "md5": "338bf31bac7ee4f4e17144a8a38b38d9",
+      "size_bytes": 485310,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2000-01 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2001/february.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2001_games.html",
+      "md5": "dc59bdd9d67ece565ed1750bc9814205",
+      "size_bytes": 422732,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2000-01 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2001/index.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2001_games.html",
+      "md5": "7a40a7cd0f2696b23beb56241c66f85b",
+      "size_bytes": 158221,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2000-01 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2001/january.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2001_games.html",
+      "md5": "365a01d74b760a49e7be58575455c196",
+      "size_bytes": 480370,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2000-01 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2001/june.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2001_games.html",
+      "md5": "af87e77e59cc0056be8d5b5713725e68",
+      "size_bytes": 148593,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2000-01 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2001/march.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2001_games.html",
+      "md5": "ba8d3865265e25484a94af4d8c9e05df",
+      "size_bytes": 491330,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2000-01 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2001/may.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2001_games.html",
+      "md5": "25aa162380c53ceef681aa74aa10cd8a",
+      "size_bytes": 199722,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2000-01 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2001/november.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2001_games.html",
+      "md5": "2961dc9f9278aa0b942cef409d659c2a",
+      "size_bytes": 472455,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2000-01 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2012/april.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2012_games.html",
+      "md5": "bcaa1ad6e262c62db81a23b4950bf5e5",
+      "size_bytes": 498655,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2011-12 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2012/december.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2012_games.html",
+      "md5": "d6dd3248063bd0508e252fc114b88b82",
+      "size_bytes": 227164,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2011-12 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2012/february.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2012_games.html",
+      "md5": "0cf0330c3960b3ba4ced46b780bd7c97",
+      "size_bytes": 472843,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2011-12 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2012/index.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2012_games.html",
+      "md5": "d6dd3248063bd0508e252fc114b88b82",
+      "size_bytes": 227164,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2011-12 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2012/january.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2012_games.html",
+      "md5": "366cafa5fa7c7d32987941ef6f75a7a6",
+      "size_bytes": 551425,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2011-12 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2012/june.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2012_games.html",
+      "md5": "f8ee5574d365be1f4228a54c0a42d95d",
+      "size_bytes": 157908,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2011-12 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2012/march.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2012_games.html",
+      "md5": "dd8516ff95a0c09aa0838edced96b3db",
+      "size_bytes": 543570,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2011-12 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2012/may.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2012_games.html",
+      "md5": "77e18e42238bf25d8965c4aa97819d5b",
+      "size_bytes": 233167,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2011-12 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2018/april.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2018_games.html",
+      "md5": "a13470778e0a666e0b0ea7b6974dab19",
+      "size_bytes": 355935,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2017-18 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2018/december.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2018_games.html",
+      "md5": "cf36d2a4c3acff3dd57b8f3c28b2e2fb",
+      "size_bytes": 502284,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2017-18 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2018/february.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2018_games.html",
+      "md5": "3ef1616de8b403c643244abd8835019a",
+      "size_bytes": 394349,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2017-18 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2018/index.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2018_games.html",
+      "md5": "4e85ecd44e026dac8c67a56dac531ae7",
+      "size_bytes": 304747,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2017-18 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2018/january.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2018_games.html",
+      "md5": "32aaf969488401227958581e699c0811",
+      "size_bytes": 484344,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2017-18 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2018/june.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2018_games.html",
+      "md5": "db780a58f1fe7ed653cb78d7a656f660",
+      "size_bytes": 142206,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2017-18 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2018/march.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2018_games.html",
+      "md5": "84b40282edbc2d4fac384ae3fb8ee2ac",
+      "size_bytes": 494017,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2017-18 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2018/may.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2018_games.html",
+      "md5": "dde6a9a6d8dc0af6e2ffee4b64093faa",
+      "size_bytes": 187138,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2017-18 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2018/november.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2018_games.html",
+      "md5": "26fe01f6fa1a5e28c43c607c7a6557d0",
+      "size_bytes": 479660,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2017-18 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2018/october.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2018_games.html",
+      "md5": "4e85ecd44e026dac8c67a56dac531ae7",
+      "size_bytes": 304747,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2017-18 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2020/august.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2020_games.html",
+      "md5": "37563f9ac081d0e1fc42d9bfac0f7fea",
+      "size_bytes": 333182,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2019-20 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2020/december.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2020_games.html",
+      "md5": "adac30e9324279c5b1a8ab59ffcbbdf7",
+      "size_bytes": 491030,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2019-20 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2020/february.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2020_games.html",
+      "md5": "42cd74b89caaeed1784a8253f68ee562",
+      "size_bytes": 407309,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2019-20 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2020/index.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2020_games.html",
+      "md5": "37dc08082e89f4e2e257526123ea742a",
+      "size_bytes": 246835,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2019-20 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2020/january.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2020_games.html",
+      "md5": "9374598577ccefa531a5f7e2b460ce09",
+      "size_bytes": 494160,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2019-20 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2020/july.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2020_games.html",
+      "md5": "e53c6dd9ce70cbc1260c08bb14f6f94a",
+      "size_bytes": 150191,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2019-20 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2020/march.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2020_games.html",
+      "md5": "9235231e9cef89573cc1a5ce9b16c82a",
+      "size_bytes": 262604,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2019-20 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2020/november.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2020_games.html",
+      "md5": "e1a17c6d0a4915b42b74c78bef91e4a5",
+      "size_bytes": 483210,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2019-20 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2020/october-2020.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2020_games.html",
+      "md5": "b76cb050e770a86447a42c41d2f8fa4f",
+      "size_bytes": 185904,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2019-20 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2020/september.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2020_games.html",
+      "md5": "4b092e7677d200ed02af48c6e0fdf67d",
+      "size_bytes": 194286,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2019-20 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2021/april.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2021_games.html",
+      "md5": "fb70895358b1b188853e4abc3846448d",
+      "size_bytes": 522244,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2020-21 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2021/february.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2021_games.html",
+      "md5": "b527f836032e853dabe1744af53e782b",
+      "size_bytes": 477358,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2020-21 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2021/index.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2021_games.html",
+      "md5": "99d20d1ff433c8d9fefc311b80938de5",
+      "size_bytes": 244803,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2020-21 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2021/january.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2021_games.html",
+      "md5": "f27920d0067f0dd487bb4f3c92eb2b70",
+      "size_bytes": 492902,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2020-21 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2021/july.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2021_games.html",
+      "md5": "4e08a0b96f6b5777191d36b093d83d14",
+      "size_bytes": 149866,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2020-21 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2021/june.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2021_games.html",
+      "md5": "7c49c134cf4d0c2f4713eabb61272efb",
+      "size_bytes": 209047,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2020-21 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2021/march.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2021_games.html",
+      "md5": "63e8fcb8e51c0d43d1f834713d2b599a",
+      "size_bytes": 464237,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2020-21 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2021/may.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2021_games.html",
+      "md5": "9fa5cbeef9548b3337105fdcae91598d",
+      "size_bytes": 414641,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2020-21 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2024/april.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2024_games.html",
+      "md5": "010fceb71772d9ffd58f6bd78e2c423a",
+      "size_bytes": 389218,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2023-24 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2024/december.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2024_games.html",
+      "md5": "fc98ebf01a61f6803adc03e77c4ecad8",
+      "size_bytes": 471204,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2023-24 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2024/february.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2024_games.html",
+      "md5": "e05504e825bc573fd32d40dce5e7c4f7",
+      "size_bytes": 416470,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2023-24 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2024/index.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2024_games.html",
+      "md5": "f2231ec04a3964141072933f637d952d",
+      "size_bytes": 224061,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2023-24 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2024/january.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2024_games.html",
+      "md5": "71991050e8e8a5a2ad3c8b8b75ba7a3c",
+      "size_bytes": 508034,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2023-24 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2024/june.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2024_games.html",
+      "md5": "fb51b63d9eb366a4d3dd77e3ece8ea4b",
+      "size_bytes": 145274,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2023-24 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2024/march.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2024_games.html",
+      "md5": "7dbe81f427f1998904ae5e3b32291696",
+      "size_bytes": 506336,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2023-24 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2024/may.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2024_games.html",
+      "md5": "5693064e11c2d3231d12918b23b9b1c7",
+      "size_bytes": 203388,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2023-24 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2024/november.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2024_games.html",
+      "md5": "e14e50d107aba438f807b4f8c0ddf860",
+      "size_bytes": 490049,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2023-24 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/2024/october.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2024_games.html",
+      "md5": "f2231ec04a3964141072933f637d952d",
+      "size_bytes": 224061,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2023-24 NBA Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "season_schedule/not_found.html",
+      "canonical_url": null,
+      "md5": "1208034c7665b4dc5a6db970564fb28e",
+      "size_bytes": 275,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Page Not Found | Basketball-Reference.com"
+    },
+    {
+      "path": "standings/1974.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_1974.html",
+      "md5": "4f17f42460ae6fbfc70c22fa73cdce72",
+      "size_bytes": 486608,
+      "entity_type": "season_summary",
+      "bbr_slug": null,
+      "season_end_year": 1974,
+      "title": "1973-74 NBA Season Summary | Basketball-Reference.com"
+    },
+    {
+      "path": "standings/1980.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_1980.html",
+      "md5": "60722ff1b4a7e41a1b374f08f65edbfa",
+      "size_bytes": 565178,
+      "entity_type": "season_summary",
+      "bbr_slug": null,
+      "season_end_year": 1980,
+      "title": "1979-80 NBA Season Summary | Basketball-Reference.com"
+    },
+    {
+      "path": "standings/2000.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2000.html",
+      "md5": "3ec2ad59defcc6872958335b20e76874",
+      "size_bytes": 756465,
+      "entity_type": "season_summary",
+      "bbr_slug": null,
+      "season_end_year": 2000,
+      "title": "1999-00 NBA Season Summary | Basketball-Reference.com"
+    },
+    {
+      "path": "standings/2001.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2001.html",
+      "md5": "1e038c6c98460655a577aa2777a93d77",
+      "size_bytes": 755933,
+      "entity_type": "season_summary",
+      "bbr_slug": null,
+      "season_end_year": 2001,
+      "title": "2000-01 NBA Season Summary | Basketball-Reference.com"
+    },
+    {
+      "path": "standings/2002.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2002.html",
+      "md5": "45aea4eb6762060b70d9057e8e0b8ef9",
+      "size_bytes": 768833,
+      "entity_type": "season_summary",
+      "bbr_slug": null,
+      "season_end_year": 2002,
+      "title": "2001-02 NBA Season Summary | Basketball-Reference.com"
+    },
+    {
+      "path": "standings/2005.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2005.html",
+      "md5": "8be547b09f0e7207f60ca05d1f5b1c71",
+      "size_bytes": 783693,
+      "entity_type": "season_summary",
+      "bbr_slug": null,
+      "season_end_year": 2005,
+      "title": "2004-05 NBA Season Summary | Basketball-Reference.com"
+    },
+    {
+      "path": "standings/2010.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2010.html",
+      "md5": "a898654ea697129d367c72f8827c746c",
+      "size_bytes": 784288,
+      "entity_type": "season_summary",
+      "bbr_slug": null,
+      "season_end_year": 2010,
+      "title": "2009-10 NBA Season Summary | Basketball-Reference.com"
+    },
+    {
+      "path": "standings/2019.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2019.html",
+      "md5": "e25a7a2efab63ec4d4449fae91cb4027",
+      "size_bytes": 803794,
+      "entity_type": "season_summary",
+      "bbr_slug": null,
+      "season_end_year": 2019,
+      "title": "2018-19 NBA Season Summary | Basketball-Reference.com"
+    },
+    {
+      "path": "standings/2020.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2020.html",
+      "md5": "ef5774a943865e6b2c35ce2e3369223a",
+      "size_bytes": 804885,
+      "entity_type": "season_summary",
+      "bbr_slug": null,
+      "season_end_year": 2020,
+      "title": "2019-20 NBA Season Summary | Basketball-Reference.com"
+    },
+    {
+      "path": "standings/2021.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2021.html",
+      "md5": "06d940c7ed1d687c383503a309567162",
+      "size_bytes": 803427,
+      "entity_type": "season_summary",
+      "bbr_slug": null,
+      "season_end_year": 2021,
+      "title": "2020-21 NBA Season Summary | Basketball-Reference.com"
+    },
+    {
+      "path": "standings/2024.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2024.html",
+      "md5": "8f9cd320425fa021617a12df2a37485c",
+      "size_bytes": 805952,
+      "entity_type": "season_summary",
+      "bbr_slug": null,
+      "season_end_year": 2024,
+      "title": "2023-24 NBA Season Summary | Basketball-Reference.com"
+    },
+    {
+      "path": "standings_by_date/2018_eastern_conference.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2018_standings_by_date.html",
+      "md5": "23c92e4ed5e03af1c745c8aeaa2d58b9",
+      "size_bytes": 444883,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Standings by Date | Basketball-Reference.com"
+    },
+    {
+      "path": "standings_by_date/2018_western_conference.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2018_standings_by_date.html",
+      "md5": "50f7c7491133fb61ddce0715d482830b",
+      "size_bytes": 445721,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Standings by Date | Basketball-Reference.com"
+    },
+    {
+      "path": "standings_by_date/2024_eastern_conference.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2024_standings_by_date.html",
+      "md5": "9d06c4c2259f7c71c9f8d93dd5308200",
+      "size_bytes": 430225,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Standings by Date | Basketball-Reference.com"
+    },
+    {
+      "path": "standings_by_date/2024_western_conference.html",
+      "canonical_url": "https://www.basketball-reference.com/leagues/NBA_2024_standings_by_date.html",
+      "md5": "dd4bcef4143cb701f5e5fb2d1dcdf56b",
+      "size_bytes": 430185,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Standings by Date | Basketball-Reference.com"
+    },
+    {
+      "path": "team_and_opponent/BOS_1974.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/BOS/1974.html",
+      "md5": "2fe81271dc563bb87b5e138cd808f3fd",
+      "size_bytes": 548034,
+      "entity_type": "team_season",
+      "bbr_slug": "BOS",
+      "season_end_year": 1974,
+      "title": "1973-74 Boston Celtics Roster and Stats | Basketball-Reference.com"
+    },
+    {
+      "path": "team_and_opponent/BOS_2024.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/BOS/2024.html",
+      "md5": "555ebf4f500908c944fc78007620f574",
+      "size_bytes": 927579,
+      "entity_type": "team_season",
+      "bbr_slug": "BOS",
+      "season_end_year": 2024,
+      "title": "2023-24 Boston Celtics Roster and Stats | Basketball-Reference.com"
+    },
+    {
+      "path": "team_and_opponent/BRK_2013.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/BRK/2013.html",
+      "md5": "1007d21b62631728f47e67f337fdf4a4",
+      "size_bytes": 860126,
+      "entity_type": "team_season",
+      "bbr_slug": "BRK",
+      "season_end_year": 2013,
+      "title": "2012-13 Brooklyn Nets Roster and Stats | Basketball-Reference.com"
+    },
+    {
+      "path": "team_and_opponent/GSW_2023.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/GSW/2023.html",
+      "md5": "91983c684e061d71917427e6a38e43cd",
+      "size_bytes": 879597,
+      "entity_type": "team_season",
+      "bbr_slug": "GSW",
+      "season_end_year": 2023,
+      "title": "2022-23 Golden State Warriors Roster and Stats | Basketball-Reference.com"
+    },
+    {
+      "path": "team_box_scores/1962_03_02/196203020NYK.html",
+      "canonical_url": "https://www.basketball-reference.com/boxscores/196203020NYK.html",
+      "md5": "6d2d80e2df6d81fb369275086e76a8f8",
+      "size_bytes": 167036,
+      "entity_type": "game_boxscore",
+      "bbr_slug": "196203020NYK",
+      "season_end_year": null,
+      "title": "Warriors vs Knicks, March 2, 1962 | Basketball-Reference.com"
+    },
+    {
+      "path": "team_box_scores/2001_01_01/200101010MIN.html",
+      "canonical_url": "https://www.basketball-reference.com/boxscores/200101010MIN.html",
+      "md5": "14c99f75bd53a2053c51b6579fd6ddfe",
+      "size_bytes": 449291,
+      "entity_type": "game_boxscore",
+      "bbr_slug": "200101010MIN",
+      "season_end_year": null,
+      "title": "Rockets vs Timberwolves, January 1, 2001 | Basketball-Reference.com"
+    },
+    {
+      "path": "team_box_scores/2001_01_01/200101010POR.html",
+      "canonical_url": "https://www.basketball-reference.com/boxscores/200101010POR.html",
+      "md5": "34c14588a0a3edfb67e209b70ef4da6a",
+      "size_bytes": 456741,
+      "entity_type": "game_boxscore",
+      "bbr_slug": "200101010POR",
+      "season_end_year": null,
+      "title": "Hornets vs Trail Blazers, January 1, 2001 | Basketball-Reference.com"
+    },
+    {
+      "path": "team_box_scores/2001_01_01/index.html",
+      "canonical_url": "https://www.basketball-reference.com/boxscores/",
+      "md5": "40468afcc0db2bc832b40b982bb271bb",
+      "size_bytes": 146529,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "NBA Games Played on January 1, 2001 | Basketball-Reference.com"
+    },
+    {
+      "path": "team_box_scores/2006_01_22/200601220LAL.html",
+      "canonical_url": "https://www.basketball-reference.com/boxscores/200601220LAL.html",
+      "md5": "82c3a6e0a19dec70be607136152dc05b",
+      "size_bytes": 455919,
+      "entity_type": "game_boxscore",
+      "bbr_slug": "200601220LAL",
+      "season_end_year": null,
+      "title": "Raptors vs Lakers, January 22, 2006 | Basketball-Reference.com"
+    },
+    {
+      "path": "team_box_scores/2017_01_01/201701010ATL.html",
+      "canonical_url": "https://www.basketball-reference.com/boxscores/201701010ATL.html",
+      "md5": "7a311d44f2017de60f6b784869f02d10",
+      "size_bytes": 505093,
+      "entity_type": "game_boxscore",
+      "bbr_slug": "201701010ATL",
+      "season_end_year": null,
+      "title": "Spurs vs Hawks, January 1, 2017 | Basketball-Reference.com"
+    },
+    {
+      "path": "team_box_scores/2017_01_01/index.html",
+      "canonical_url": "https://www.basketball-reference.com/boxscores/",
+      "md5": "57094d9c8e256690550322853a0df1c3",
+      "size_bytes": 151526,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "NBA Games Played on January 1, 2017 | Basketball-Reference.com"
+    },
+    {
+      "path": "team_box_scores/2018_01_01/201801010BRK.html",
+      "canonical_url": "https://www.basketball-reference.com/boxscores/201801010BRK.html",
+      "md5": "5b5139002fa468afca44cba68e696df1",
+      "size_bytes": 463382,
+      "entity_type": "game_boxscore",
+      "bbr_slug": "201801010BRK",
+      "season_end_year": null,
+      "title": "Magic vs Nets, January 1, 2018 | Basketball-Reference.com"
+    },
+    {
+      "path": "team_box_scores/2018_01_01/201801010CHI.html",
+      "canonical_url": "https://www.basketball-reference.com/boxscores/201801010CHI.html",
+      "md5": "787480512addb86b3700f0935a309e5f",
+      "size_bytes": 493199,
+      "entity_type": "game_boxscore",
+      "bbr_slug": "201801010CHI",
+      "season_end_year": null,
+      "title": "Trail Blazers vs Bulls, January 1, 2018 | Basketball-Reference.com"
+    },
+    {
+      "path": "team_box_scores/2018_01_01/201801010MIN.html",
+      "canonical_url": "https://www.basketball-reference.com/boxscores/201801010MIN.html",
+      "md5": "2893222a3da6e4b3c153bfcec2e46be6",
+      "size_bytes": 473416,
+      "entity_type": "game_boxscore",
+      "bbr_slug": "201801010MIN",
+      "season_end_year": null,
+      "title": "Lakers vs Timberwolves, January 1, 2018 | Basketball-Reference.com"
+    },
+    {
+      "path": "team_box_scores/2018_01_01/201801010TOR.html",
+      "canonical_url": "https://www.basketball-reference.com/boxscores/201801010TOR.html",
+      "md5": "e54ce016ca7794a81ce5d6589abaa0e3",
+      "size_bytes": 492630,
+      "entity_type": "game_boxscore",
+      "bbr_slug": "201801010TOR",
+      "season_end_year": null,
+      "title": "Bucks vs Raptors, January 1, 2018 | Basketball-Reference.com"
+    },
+    {
+      "path": "team_box_scores/2018_01_01/index.html",
+      "canonical_url": "https://www.basketball-reference.com/boxscores/",
+      "md5": "acd71244eb04af408da162b4aaf5454f",
+      "size_bytes": 150054,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "NBA Games Played on January 1, 2018 | Basketball-Reference.com"
+    },
+    {
+      "path": "team_box_scores/2024_07_04/index.html",
+      "canonical_url": "https://www.basketball-reference.com/boxscores/",
+      "md5": "503b1f1c3c31f7348c58969e896501d1",
+      "size_bytes": 126562,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "NBA Games Played on July 4, 2024 | Basketball-Reference.com"
+    },
+    {
+      "path": "team_contracts/BOS.html",
+      "canonical_url": "https://www.basketball-reference.com/contracts/BOS.html",
+      "md5": "2e9b8ee1d5d5d7637395a85a39c97a27",
+      "size_bytes": 153386,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Boston Celtics Team Payroll | Basketball-Reference.com"
+    },
+    {
+      "path": "team_contracts/LAL.html",
+      "canonical_url": "https://www.basketball-reference.com/contracts/LAL.html",
+      "md5": "8be5e1628412f303c2b2a581e5e5aaba",
+      "size_bytes": 152121,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Los Angeles Lakers Team Payroll | Basketball-Reference.com"
+    },
+    {
+      "path": "team_injury_report/default.html",
+      "canonical_url": "https://www.basketball-reference.com/friv/injuries.fcgi",
+      "md5": "da82c7f2193230e02f99676329412fee",
+      "size_bytes": 145417,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Injury Report | Basketball-Reference.com"
+    },
+    {
+      "path": "team_injury_report/offseason.html",
+      "canonical_url": "https://www.basketball-reference.com/friv/injuries.fcgi",
+      "md5": "da82c7f2193230e02f99676329412fee",
+      "size_bytes": 145417,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "Injury Report | Basketball-Reference.com"
+    },
+    {
+      "path": "team_lineups/BOS_2024.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/BOS/2024/lineups/",
+      "md5": "e2a116bac9c74b604440eaad4e9f36b3",
+      "size_bytes": 415505,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2023-24 Boston Celtics Team Lineups | Basketball-Reference.com"
+    },
+    {
+      "path": "team_lineups/CHI_1997.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/CHI/1997/lineups/",
+      "md5": "55c69e8aaf31d0417d4b2c180969d237",
+      "size_bytes": 415636,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1996-97 Chicago Bulls Team Lineups | Basketball-Reference.com"
+    },
+    {
+      "path": "team_lineups/DEN_2024.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/DEN/2024/lineups/",
+      "md5": "092c661553db34ad77229a856f332ce1",
+      "size_bytes": 415390,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2023-24 Denver Nuggets Team Lineups | Basketball-Reference.com"
+    },
+    {
+      "path": "team_misc_four_factors/BOS_1974.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/BOS/1974.html",
+      "md5": "2fe81271dc563bb87b5e138cd808f3fd",
+      "size_bytes": 548034,
+      "entity_type": "team_season",
+      "bbr_slug": "BOS",
+      "season_end_year": 1974,
+      "title": "1973-74 Boston Celtics Roster and Stats | Basketball-Reference.com"
+    },
+    {
+      "path": "team_misc_four_factors/BOS_2024.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/BOS/2024.html",
+      "md5": "555ebf4f500908c944fc78007620f574",
+      "size_bytes": 927579,
+      "entity_type": "team_season",
+      "bbr_slug": "BOS",
+      "season_end_year": 2024,
+      "title": "2023-24 Boston Celtics Roster and Stats | Basketball-Reference.com"
+    },
+    {
+      "path": "team_misc_four_factors/MIA_2023.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/MIA/2023.html",
+      "md5": "ab4ae5383d32b57fd99c84a53ea447a2",
+      "size_bytes": 941469,
+      "entity_type": "team_season",
+      "bbr_slug": "MIA",
+      "season_end_year": 2023,
+      "title": "2022-23 Miami Heat Roster and Stats | Basketball-Reference.com"
+    },
+    {
+      "path": "team_on_off/BOS_2024.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/BOS/2024/on-off/",
+      "md5": "184fbd3ec60072b02474420d34e63e2e",
+      "size_bytes": 374743,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2023-24 Boston Celtics On/Off | Basketball-Reference.com"
+    },
+    {
+      "path": "team_on_off/CHI_1997.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/CHI/1997/on-off/",
+      "md5": "8c70ef74835dee2ca7e9fabb00dc67c0",
+      "size_bytes": 329561,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1996-97 Chicago Bulls On/Off | Basketball-Reference.com"
+    },
+    {
+      "path": "team_on_off/MIL_2023.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/MIL/2023/on-off/",
+      "md5": "d57e197a5f8b71bd140f606d8df9854b",
+      "size_bytes": 392359,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2022-23 Milwaukee Bucks On/Off | Basketball-Reference.com"
+    },
+    {
+      "path": "team_opponent_stats/BOS_2024.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/BOS/2024.html",
+      "md5": "555ebf4f500908c944fc78007620f574",
+      "size_bytes": 927579,
+      "entity_type": "team_season",
+      "bbr_slug": "BOS",
+      "season_end_year": 2024,
+      "title": "2023-24 Boston Celtics Roster and Stats | Basketball-Reference.com"
+    },
+    {
+      "path": "team_opponent_stats/DEN_2024.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/DEN/2024.html",
+      "md5": "30531873c8e94c5f16301f66a9db86e7",
+      "size_bytes": 883523,
+      "entity_type": "team_season",
+      "bbr_slug": "DEN",
+      "season_end_year": 2024,
+      "title": "2023-24 Denver Nuggets Roster and Stats | Basketball-Reference.com"
+    },
+    {
+      "path": "team_referees/2026_referees.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/BOS/2026_referees.html",
+      "md5": "6a0780f04526473f165c71cb9fc496fa",
+      "size_bytes": 239702,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2025-26 Boston Celtics Referee Summary | Basketball-Reference.com"
+    },
+    {
+      "path": "team_roster/BOS_1974.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/BOS/1974.html",
+      "md5": "2fe81271dc563bb87b5e138cd808f3fd",
+      "size_bytes": 548034,
+      "entity_type": "team_season",
+      "bbr_slug": "BOS",
+      "season_end_year": 1974,
+      "title": "1973-74 Boston Celtics Roster and Stats | Basketball-Reference.com"
+    },
+    {
+      "path": "team_roster/BOS_1980.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/BOS/1980.html",
+      "md5": "e4eae7f6362c61c3dc4c6eea98303fbc",
+      "size_bytes": 632739,
+      "entity_type": "team_season",
+      "bbr_slug": "BOS",
+      "season_end_year": 1980,
+      "title": "1979-80 Boston Celtics Roster and Stats | Basketball-Reference.com"
+    },
+    {
+      "path": "team_roster/BOS_2024.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/BOS/2024.html",
+      "md5": "555ebf4f500908c944fc78007620f574",
+      "size_bytes": 927579,
+      "entity_type": "team_season",
+      "bbr_slug": "BOS",
+      "season_end_year": 2024,
+      "title": "2023-24 Boston Celtics Roster and Stats | Basketball-Reference.com"
+    },
+    {
+      "path": "team_roster/BRK_2013.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/BRK/2013.html",
+      "md5": "1007d21b62631728f47e67f337fdf4a4",
+      "size_bytes": 860126,
+      "entity_type": "team_season",
+      "bbr_slug": "BRK",
+      "season_end_year": 2013,
+      "title": "2012-13 Brooklyn Nets Roster and Stats | Basketball-Reference.com"
+    },
+    {
+      "path": "team_roster/CHA_2005.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/CHA/2005.html",
+      "md5": "2343ad2046ceef6919a292a8fb70bd57",
+      "size_bytes": 611431,
+      "entity_type": "team_season",
+      "bbr_slug": "CHA",
+      "season_end_year": 2005,
+      "title": "2004-05 Charlotte Bobcats Roster and Stats | Basketball-Reference.com"
+    },
+    {
+      "path": "team_roster/CHH_1989.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/CHH/1989.html",
+      "md5": "be7b91a8b6110ca7fe22c286d3e54b87",
+      "size_bytes": 503177,
+      "entity_type": "team_season",
+      "bbr_slug": "CHH",
+      "season_end_year": 1989,
+      "title": "1988-89 Charlotte Hornets Roster and Stats | Basketball-Reference.com"
+    },
+    {
+      "path": "team_roster/CHI_1996.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/CHI/1996.html",
+      "md5": "095b58d90abfc65c4b3a422af43a9016",
+      "size_bytes": 697380,
+      "entity_type": "team_season",
+      "bbr_slug": "CHI",
+      "season_end_year": 1996,
+      "title": "1995-96 Chicago Bulls Roster and Stats | Basketball-Reference.com"
+    },
+    {
+      "path": "team_roster/CHO_2015.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/CHO/2015.html",
+      "md5": "60f1ab748041c923254a771ad9c40dc7",
+      "size_bytes": 583423,
+      "entity_type": "team_season",
+      "bbr_slug": "CHO",
+      "season_end_year": 2015,
+      "title": "2014-15 Charlotte Hornets Roster and Stats | Basketball-Reference.com"
+    },
+    {
+      "path": "team_roster/GSW_2016.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/GSW/2016.html",
+      "md5": "7e752411545496c2d6ecab5f0a21d468",
+      "size_bytes": 877957,
+      "entity_type": "team_season",
+      "bbr_slug": "GSW",
+      "season_end_year": 2016,
+      "title": "2015-16 Golden State Warriors Roster and Stats | Basketball-Reference.com"
+    },
+    {
+      "path": "team_roster/KCK_1984.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/KCK/1984.html",
+      "md5": "5fd049094f874f22c4c0f09e3f2b05a8",
+      "size_bytes": 656170,
+      "entity_type": "team_season",
+      "bbr_slug": "KCK",
+      "season_end_year": 1984,
+      "title": "1983-84 Kansas City Kings Roster and Stats | Basketball-Reference.com"
+    },
+    {
+      "path": "team_roster/LAL_1972.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/LAL/1972.html",
+      "md5": "646a9ab42f8cd3b756cfdc02d185da8d",
+      "size_bytes": 434663,
+      "entity_type": "team_season",
+      "bbr_slug": "LAL",
+      "season_end_year": 1972,
+      "title": "1971-72 Los Angeles Lakers Roster and Stats | Basketball-Reference.com"
+    },
+    {
+      "path": "team_roster/LAL_2023.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/LAL/2023.html",
+      "md5": "86fe50a275ed6ae83fc32e222e406f20",
+      "size_bytes": 1002428,
+      "entity_type": "team_season",
+      "bbr_slug": "LAL",
+      "season_end_year": 2023,
+      "title": "2022-23 Los Angeles Lakers Roster and Stats | Basketball-Reference.com"
+    },
+    {
+      "path": "team_roster/MEM_2002.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/MEM/2002.html",
+      "md5": "42ae53e041b65d9723511d2165774159",
+      "size_bytes": 582357,
+      "entity_type": "team_season",
+      "bbr_slug": "MEM",
+      "season_end_year": 2002,
+      "title": "2001-02 Memphis Grizzlies Roster and Stats | Basketball-Reference.com"
+    },
+    {
+      "path": "team_roster/NOH_2003.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/NOH/2003.html",
+      "md5": "6064ddce558422e48837267a336760e3",
+      "size_bytes": 813819,
+      "entity_type": "team_season",
+      "bbr_slug": "NOH",
+      "season_end_year": 2003,
+      "title": "2002-03 New Orleans Hornets Roster and Stats | Basketball-Reference.com"
+    },
+    {
+      "path": "team_roster/NOK_2006.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/NOK/2006.html",
+      "md5": "df8087807e49e0bace2974a6b09c48ff",
+      "size_bytes": 615048,
+      "entity_type": "team_season",
+      "bbr_slug": "NOK",
+      "season_end_year": 2006,
+      "title": "2005-06 New Orleans/Oklahoma City Hornets Roster and Stats | Basketball-Reference.com"
+    },
+    {
+      "path": "team_roster/NOP_2014.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/NOP/2014.html",
+      "md5": "123b79ef218071019439bac6c720cd77",
+      "size_bytes": 651220,
+      "entity_type": "team_season",
+      "bbr_slug": "NOP",
+      "season_end_year": 2014,
+      "title": "2013-14 New Orleans Pelicans Roster and Stats | Basketball-Reference.com"
+    },
+    {
+      "path": "team_roster/SAC_1986.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/SAC/1986.html",
+      "md5": "cd6218f87adc1c741a105aec9054cc86",
+      "size_bytes": 657737,
+      "entity_type": "team_season",
+      "bbr_slug": "SAC",
+      "season_end_year": 1986,
+      "title": "1985-86 Sacramento Kings Roster and Stats | Basketball-Reference.com"
+    },
+    {
+      "path": "team_roster/VAN_1996.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/VAN/1996.html",
+      "md5": "1a5fe80bbb976831f95757171333035e",
+      "size_bytes": 509944,
+      "entity_type": "team_season",
+      "bbr_slug": "VAN",
+      "season_end_year": 1996,
+      "title": "1995-96 Vancouver Grizzlies Roster and Stats | Basketball-Reference.com"
+    },
+    {
+      "path": "team_roster/WAS_1998.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/WAS/1998.html",
+      "md5": "690595af7c13834d1317141d5c1dfcdc",
+      "size_bytes": 582861,
+      "entity_type": "team_season",
+      "bbr_slug": "WAS",
+      "season_end_year": 1998,
+      "title": "1997-98 Washington Wizards Roster and Stats | Basketball-Reference.com"
+    },
+    {
+      "path": "team_roster/WSB_1997.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/WSB/1997.html",
+      "md5": "f4e1be4c8175e62eab5ac8a129fb2d26",
+      "size_bytes": 784965,
+      "entity_type": "team_season",
+      "bbr_slug": "WSB",
+      "season_end_year": 1997,
+      "title": "1996-97 Washington Bullets Roster and Stats | Basketball-Reference.com"
+    },
+    {
+      "path": "team_schedule/BOS_2024.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/BOS/2024_games.html",
+      "md5": "723de71cc56f2d8ba16c6b0dbf7acc6e",
+      "size_bytes": 264313,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2023-24 Boston Celtics Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "team_schedule/LAL_2023.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/LAL/2023_games.html",
+      "md5": "590ac33261b50f01f9ac0ec6226cfa86",
+      "size_bytes": 260550,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2022-23 Los Angeles Lakers Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "team_schedule/SEA_2008.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/SEA/2008_games.html",
+      "md5": "0794cb879e5dcfe9a701dd3a2e76688a",
+      "size_bytes": 233700,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2007-08 Seattle SuperSonics Schedule | Basketball-Reference.com"
+    },
+    {
+      "path": "team_splits/BOS_1980.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/BOS/1980/splits/",
+      "md5": "8c4e05887c14af8d1068702216ee2cfe",
+      "size_bytes": 292122,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "1979-80 Boston Celtics Team Splits | Basketball-Reference.com"
+    },
+    {
+      "path": "team_splits/BOS_2024.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/BOS/2024/splits/",
+      "md5": "7a202fd3a5bc4b41a5e1ba41bf53b19b",
+      "size_bytes": 319284,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2023-24 Boston Celtics Team Splits | Basketball-Reference.com"
+    },
+    {
+      "path": "team_splits/GSW_2023.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/GSW/2023/splits/",
+      "md5": "97ec37fea960666a4d2ae8c7d0b68ad9",
+      "size_bytes": 318663,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2022-23 Golden State Warriors Team Splits | Basketball-Reference.com"
+    },
+    {
+      "path": "team_starting_lineups/BOS_2024.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/BOS/2024_start.html",
+      "md5": "d1903cd4e30acbcb0fe645324e090ee7",
+      "size_bytes": 282903,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2023-24 Boston Celtics Starting Lineups | Basketball-Reference.com"
+    },
+    {
+      "path": "team_starting_lineups/PHO_2024.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/PHO/2024_start.html",
+      "md5": "998ab08838cc4a9a27c26337df27ccf8",
+      "size_bytes": 260955,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2023-24 Phoenix Suns Starting Lineups | Basketball-Reference.com"
+    },
+    {
+      "path": "team_transactions/BOS_2024.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/BOS/2024_transactions.html",
+      "md5": "ccd829722aca548f0500d85e4a24ccd2",
+      "size_bytes": 144972,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2023-24 Boston Celtics Transactions | Basketball-Reference.com"
+    },
+    {
+      "path": "team_transactions/DAL_2024.html",
+      "canonical_url": "https://www.basketball-reference.com/teams/DAL/2024_transactions.html",
+      "md5": "8259ebb080c320718dc047f95c1b376d",
+      "size_bytes": 144742,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "2023-24 Dallas Mavericks Transactions | Basketball-Reference.com"
+    },
+    {
+      "path": "trailers/per_season.html",
+      "canonical_url": "https://www.basketball-reference.com/trailers/per_season.html",
+      "md5": "2e8b91b9a8cafe5190470d142b99dc5c",
+      "size_bytes": 257990,
+      "entity_type": "other",
+      "bbr_slug": null,
+      "season_end_year": null,
+      "title": "NBA &amp; ABA Single Season Trailers for Player Efficiency Rating | Basketball-Reference.com"
+    }
+  ]
+}
