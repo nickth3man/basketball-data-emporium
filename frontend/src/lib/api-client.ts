@@ -1,18 +1,18 @@
 /**
- * Promoted, hardened HTTP client for the Courtside Data API.
+ * Promoted, hardened HTTP client for the Basketball Data Emporium API.
  *
  * Replaces the original 86-line `apiFetch` in
  * `ui/src/features/player-hub/api/client.ts`. The player-hub module is now
  * a thin compatibility shim that re-exports from here.
  */
 import { parseApiError, TypedApiError } from "@/lib/api-errors";
+import type { paths } from "@/lib/openapi-types";
 
 export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_COURTSIDE_API_URL ?? "http://127.0.0.1:8765";
+  process.env.NEXT_PUBLIC_BASKETBALL_DATA_API_URL ?? "http://127.0.0.1:8765";
 
-// TODO P0-BE-01: once backend CORS is configured, add a browser-level E2E test
-// that calls this URL from the Next origin and proves the response is not
-// blocked by the browser. Unit tests and server-side tests cannot catch CORS.
+type OpenApiPath = keyof paths & string;
+type ApiPath = OpenApiPath | (string & {});
 
 export interface ApiFetchOptions {
   /** Total request timeout in milliseconds. Defaults to 10s. */
@@ -97,13 +97,9 @@ async function safeJson(response: Response): Promise<unknown> {
 }
 
 export async function apiFetch<T>(
-  path: string,
+  path: ApiPath,
   opts: ApiFetchOptions = {},
 ): Promise<T> {
-  // TODO P2-FE-01: replace hand-written string paths with generated
-  // operation-aware helpers. `openapi-types.ts` now has every path/operation,
-  // but this client still accepts arbitrary strings and trusts callers to match
-  // parameters and response types manually.
   const normalized = normalizeOptions(opts);
   let retried = false;
 
@@ -173,10 +169,6 @@ export function csvExportUrl(
   seasonEndYear?: number,
   includeInactiveGames = false,
 ): string {
-  // TODO P1-FE-03: anchor-based CSV downloads bypass `apiFetch`, so typed API
-  // errors render as raw browser behavior. Replace this URL-only helper with a
-  // download action that fetches the CSV, checks `Content-Type`, handles
-  // `ApiError` envelopes, and then creates a blob URL for successful exports.
   const params = new URLSearchParams({ dataset });
   const overlay = buildDatasetParams({ seasonEndYear, includeInactiveGames });
   for (const [key, value] of overlay) {
@@ -192,12 +184,53 @@ export function teamCsvExportUrl(
   seasonEndYear?: number,
   includeInactiveGames = false,
 ): string {
-  // TODO P1-FE-03: keep player/team export behavior aligned when moving from
-  // anchor URLs to an in-app download handler.
   const params = new URLSearchParams({ dataset });
   const overlay = buildDatasetParams({ seasonEndYear, includeInactiveGames });
   for (const [key, value] of overlay) {
     params.set(key, value);
   }
   return `${API_BASE_URL}/api/teams/${identifier}/export?${params.toString()}`;
+}
+
+export async function downloadCsv(url: string, filename: string): Promise<void> {
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      headers: { Accept: "text/csv, application/json" },
+    });
+  } catch (error) {
+    throw new TypedApiError({
+      code: "internal_error",
+      status: 0,
+      detail: {
+        error_type: "network",
+        reason: error instanceof Error ? error.message : String(error),
+      },
+      message: error instanceof Error ? error.message : "Network error",
+    });
+  }
+
+  if (!response.ok) {
+    throw parseApiError(response, await safeJson(response));
+  }
+
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!contentType.toLowerCase().includes("text/csv")) {
+    throw new TypedApiError({
+      code: "internal_error",
+      status: response.status,
+      detail: { content_type: contentType },
+      message: "CSV export returned an unexpected content type",
+    });
+  }
+
+  const blob = await response.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = objectUrl;
+  anchor.download = filename;
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(objectUrl);
 }

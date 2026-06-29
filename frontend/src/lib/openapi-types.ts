@@ -313,6 +313,11 @@ export interface components {
              * @default true
              */
             supports_export: boolean;
+            /**
+             * Supports Include Inactive Games
+             * @default false
+             */
+            supports_include_inactive_games: boolean;
         };
         /**
          * EndpointRowsResponse
@@ -476,6 +481,25 @@ export interface components {
             ok: boolean;
             /** Endpoint Count */
             endpoint_count: number;
+            /**
+             * Data State
+             * @enum {string}
+             */
+            data_state: "passed" | "failed" | "stale" | "unverified";
+            /** Data Verified */
+            data_verified: boolean;
+            /** Data Stale */
+            data_stale: boolean;
+            /** Latest Pipeline Run Id */
+            latest_pipeline_run_id?: string | null;
+            /** Latest Pipeline Stage */
+            latest_pipeline_stage?: string | null;
+            /** Latest Pipeline Status */
+            latest_pipeline_status?: string | null;
+            /** Latest Pipeline Started At */
+            latest_pipeline_started_at?: string | null;
+            /** Latest Dq Status */
+            latest_dq_status?: string | null;
         };
         /**
          * TeamDatasetCatalogEntry
@@ -504,6 +528,11 @@ export interface components {
              * @default true
              */
             supports_export: boolean;
+            /**
+             * Supports Include Inactive Games
+             * @default false
+             */
+            supports_include_inactive_games: boolean;
         };
         /**
          * TeamHeroStats

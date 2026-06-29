@@ -21,7 +21,7 @@ def _resolve_db_path() -> Path:
     """Resolve the DuckDB file path.
 
     Honors the `DUCKDB_PATH` env var (matching the sidecar's own
-    convention in `courtside_data.db.pool`) and falls back to the
+    convention in `basketball_data_emporium.db.pool`) and falls back to the
     default `../data/nba.duckdb` relative to the `backend/` CWD.
     """
     raw = os.environ.get("DUCKDB_PATH", "../data/nba.duckdb")

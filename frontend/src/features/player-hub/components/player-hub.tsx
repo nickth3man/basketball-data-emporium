@@ -17,6 +17,7 @@ import { Overview } from "@/features/player-hub/components/overview";
 import { PlayerSearch } from "@/features/player-hub/components/player-search";
 import type { PlayerHubTab } from "@/features/player-hub/types";
 import { formatValue } from "@/features/player-hub/utils/format";
+import { parsePlayerHeroStats } from "@/features/player-hub/utils/hero-stats";
 import { seasonLabel } from "@/features/player-hub/utils/season";
 import { TypedApiError } from "@/lib/api-errors";
 import { useUrlParam } from "@/lib/use-url-param";
@@ -65,7 +66,59 @@ export function PlayerHub({ identifier }: PlayerHubProps) {
     <Shell>
       <QueryBoundary query={summaryQuery} loadingLabel="Loading player" errorTitle="Player unavailable">
         {(summary) => (
-          <>
+          <PlayerHubContent
+            summary={summary}
+            identifier={identifier}
+            catalogQuery={catalogQuery}
+            tabs={tabs}
+            datasetById={datasetById}
+            activeTab={activeTab}
+            currentTab={currentTab}
+            selectedSeason={selectedSeason}
+            includeInactiveGames={includeInactiveGames}
+            setIncludeInactiveGames={setIncludeInactiveGames}
+            setParam={setParam}
+            refetchSummary={() => summaryQuery.refetch()}
+          />
+        )}
+      </QueryBoundary>
+    </Shell>
+  );
+}
+
+function PlayerHubContent({
+  summary,
+  identifier,
+  catalogQuery,
+  tabs,
+  datasetById,
+  activeTab,
+  currentTab,
+  selectedSeason,
+  includeInactiveGames,
+  setIncludeInactiveGames,
+  setParam,
+  refetchSummary,
+}: Readonly<{
+  summary: import("@/features/player-hub/types").PlayerHubSummary;
+  identifier: string;
+  catalogQuery: ReturnType<typeof useCatalog>;
+  tabs: PlayerHubTab[];
+  datasetById: Map<string, import("@/features/player-hub/types").DatasetCatalogEntry>;
+  activeTab: string;
+  currentTab: PlayerHubTab | undefined;
+  selectedSeason: number | null;
+  includeInactiveGames: boolean;
+  setIncludeInactiveGames: (value: boolean) => void;
+  setParam: (key: string, value: string) => void;
+  refetchSummary: () => void;
+}>) {
+  const heroStats = parsePlayerHeroStats(summary.hero_stats);
+  const currentTabSupportsInactive =
+    currentTab?.datasets.some((datasetId) => datasetById.get(datasetId)?.supports_include_inactive_games) ?? false;
+
+  return (
+    <>
             <header className="space-y-4 border-b border-court-line bg-white px-4 py-4 sm:px-6 lg:px-8">
               <div className="mx-auto flex max-w-7xl flex-col gap-4">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -76,7 +129,7 @@ export function PlayerHub({ identifier }: PlayerHubProps) {
                     </Link>
                     <h1 className="mt-2 truncate text-2xl font-semibold text-court-ink sm:text-3xl">{summary.display_name}</h1>
                     <p className="text-sm text-court-muted">
-                      {summary.identifier} · {formatValue(summary.hero_stats.season)} · {formatValue(summary.hero_stats.team)}
+                      {summary.identifier} · {formatValue(heroStats.season)} · {formatValue(heroStats.team)}
                     </p>
                   </div>
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -115,19 +168,17 @@ export function PlayerHub({ identifier }: PlayerHubProps) {
                         ))}
                       </select>
                     </label>
-                    {/* TODO P2-BE-03: hide or disable this control per dataset
-                        once catalog metadata declares whether
-                        `include_inactive_games` is supported. Current player
-                        datasets accept the query param but do not use it. */}
-                    <label className="inline-flex h-9 items-center gap-2 rounded-md border border-court-line bg-white px-3 text-sm text-court-muted">
-                      <input
-                        type="checkbox"
-                        checked={includeInactiveGames}
-                        onChange={(event) => setIncludeInactiveGames(event.target.checked)}
-                      />
-                      Inactive
-                    </label>
-                    <Button size="icon" onClick={() => summaryQuery.refetch()} title="Refresh player">
+                    {currentTabSupportsInactive ? (
+                      <label className="inline-flex h-9 items-center gap-2 rounded-md border border-court-line bg-white px-3 text-sm text-court-muted">
+                        <input
+                          type="checkbox"
+                          checked={includeInactiveGames}
+                          onChange={(event) => setIncludeInactiveGames(event.target.checked)}
+                        />
+                        Inactive
+                      </label>
+                    ) : null}
+                    <Button size="icon" onClick={refetchSummary} title="Refresh player">
                       <RefreshCcw className="size-4" aria-hidden="true" />
                       <span className="sr-only">Refresh player</span>
                     </Button>
@@ -171,10 +222,7 @@ export function PlayerHub({ identifier }: PlayerHubProps) {
                 </div>
               )}
             </main>
-          </>
-        )}
-      </QueryBoundary>
-    </Shell>
+    </>
   );
 }
 

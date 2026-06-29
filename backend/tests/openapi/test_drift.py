@@ -16,6 +16,7 @@ comparison scope (or move to a full-file structural diff once all 15 exist).
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 import tempfile
@@ -23,7 +24,7 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from courtside_data.server.app import app
+from basketball_data_emporium.server.app import app
 
 
 # ---------------------------------------------------------------------------
@@ -39,11 +40,10 @@ from courtside_data.server.app import app
 # ---------------------------------------------------------------------------
 
 
-def _openapi_typescript_cli(frontend_dir: str) -> str:
+def _openapi_typescript_cli(frontend_dir: str) -> str | None:
     """Absolute path to the openapi-typescript CLI entry point."""
-    return str(
-        Path(frontend_dir) / "node_modules" / "openapi-typescript" / "bin" / "cli.js"
-    )
+    path = Path(frontend_dir) / "node_modules" / "openapi-typescript" / "bin" / "cli.js"
+    return str(path) if path.exists() else None
 
 
 # ---------------------------------------------------------------------------
@@ -171,8 +171,14 @@ def test_openapi_drift_gate(
         # 2. Regenerate types. `stdin=DEVNULL` so node can't hang waiting
         # for input; 30s timeout so a broken toolchain fails fast.
         cli_js = _openapi_typescript_cli(frontend_dir)
+        if cli_js is None and os.name == "nt":
+            cmd = ["cmd.exe", "/d", "/s", "/c", f"npx --yes openapi-typescript {spec_path} -o {types_path}"]
+        elif cli_js is None:
+            cmd = ["npx", "--yes", "openapi-typescript", spec_path, "-o", types_path]
+        else:
+            cmd = ["node", cli_js, spec_path, "-o", types_path]
         proc = subprocess.run(
-            ["node", cli_js, spec_path, "-o", types_path],
+            cmd,
             cwd=frontend_dir,
             stdin=subprocess.DEVNULL,
             capture_output=True,

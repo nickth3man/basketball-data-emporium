@@ -8,18 +8,14 @@ Phase 2 endpoints will depend on are present. If any of these
 fail, the sidecar will be unable to serve the catalog/players/teams
 endpoints in a later phase.
 
-Spec contract (from the MVCS brief):
-* `unified_star.dim_player`            — bref_player_id, display_name, is_active
+Spec-facing compatibility contract (from the MVCS brief):
+* player identity projection              — bref_player_id, display_name, is_active
 * `unified_star.fact_player_season_stats` — player_id, season_year, is_playoffs, pts
-* `unified_star.dim_team`              — team_id, full_name
+* team identity projection                — team_id, full_name
 
-Note on divergence: as of Phase 1 the live DB schema uses `full_name`
-on `dim_player` (not `display_name`) and `team_abbrev`/`team_name` on
-`dim_team` (not `full_name`). The tests below xfail the spec-named
-columns with a clear reason and *also* assert the actual columns so
-we have coverage in either shape. When the DB is migrated to the
-spec's contract, the xfail becomes an XPASS and the spec-named
-assertion flips to a hard pass.
+The live DB can still drift internally. Endpoint code reads
+`basketball_data_emporium.db.schema_compat`, a read-only SQL projection
+that maps those physical columns to stable spec-facing names.
 """
 
 from __future__ import annotations
@@ -27,14 +23,16 @@ from __future__ import annotations
 import duckdb
 import pytest
 
+from basketball_data_emporium.db.schema_compat import DIM_PLAYER_COMPAT_SQL, DIM_TEAM_COMPAT_SQL
+
 
 # ---------------------------------------------------------------------------
 # Expected column sets
 # ---------------------------------------------------------------------------
 
-# Spec-named columns per the MVCS brief. These are the contract the
-# sidecar's planned endpoints will write SQL against. The actual DB
-# uses different names — see `ACTUAL_*` for the live schema.
+# Spec-named columns per the MVCS brief. Endpoint SQL should rely on
+# the compatibility projections for these names, not on physical table
+# column names.
 SPEC_DIM_PLAYER = {"bref_player_id", "display_name", "is_active"}
 SPEC_FACT_PLAYER_SEASON_STATS = {"player_id", "season_year", "is_playoffs", "pts"}
 SPEC_DIM_TEAM = {"team_id", "full_name"}
@@ -68,6 +66,11 @@ def _column_names(con: duckdb.DuckDBPyConnection, fqn: str) -> set[str]:
     return {r[1] for r in rows}
 
 
+def _query_column_names(con: duckdb.DuckDBPyConnection, source_sql: str) -> set[str]:
+    cursor = con.execute(f"SELECT * FROM {source_sql} LIMIT 0")
+    return {column[0] for column in cursor.description or []}
+
+
 # ---------------------------------------------------------------------------
 # Table presence
 # ---------------------------------------------------------------------------
@@ -94,40 +97,22 @@ def test_required_table_exists(
 
 
 # ---------------------------------------------------------------------------
-# Column presence — spec-named (xfail on divergence, hard-pass when fixed)
+# Column presence — spec-facing compatibility contract
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    reason=(
-        "Spec names `display_name` on dim_player but the live DB uses `full_name`. "
-        "Phase 2 should align the contract (DB migration or endpoint SQL rename) "
-        "so the spec-named column exists. The actual-column assertion below "
-        "passes today and is the source of truth for the live schema."
-    ),
-    strict=False,
-)
-def test_dim_player_has_spec_named_columns(duckdb_conn: duckdb.DuckDBPyConnection) -> None:
-    """`dim_player` exposes `bref_player_id`, `display_name`, `is_active`."""
-    cols = _column_names(duckdb_conn, "unified_star.dim_player")
+def test_dim_player_compat_has_spec_named_columns(duckdb_conn: duckdb.DuckDBPyConnection) -> None:
+    """The player compatibility layer exposes `bref_player_id`, `display_name`, `is_active`."""
+    cols = _query_column_names(duckdb_conn, DIM_PLAYER_COMPAT_SQL)
     missing = SPEC_DIM_PLAYER - cols
-    assert not missing, f"unified_star.dim_player missing spec columns: {sorted(missing)} (have: {sorted(cols)})"
+    assert not missing, f"player compatibility projection missing spec columns: {sorted(missing)}"
 
 
-@pytest.mark.xfail(
-    reason=(
-        "Spec names `full_name` on dim_team but the live DB uses `team_abbrev` / "
-        "`team_name` / `team_city`. Phase 2 should add a `full_name` view column "
-        "or rename the endpoint contract. The actual-column assertion below "
-        "passes today and is the source of truth for the live schema."
-    ),
-    strict=False,
-)
-def test_dim_team_has_spec_named_columns(duckdb_conn: duckdb.DuckDBPyConnection) -> None:
-    """`dim_team` exposes `team_id`, `full_name`."""
-    cols = _column_names(duckdb_conn, "unified_star.dim_team")
+def test_dim_team_compat_has_spec_named_columns(duckdb_conn: duckdb.DuckDBPyConnection) -> None:
+    """The team compatibility layer exposes `team_id`, `full_name`."""
+    cols = _query_column_names(duckdb_conn, DIM_TEAM_COMPAT_SQL)
     missing = SPEC_DIM_TEAM - cols
-    assert not missing, f"unified_star.dim_team missing spec columns: {sorted(missing)} (have: {sorted(cols)})"
+    assert not missing, f"team compatibility projection missing spec columns: {sorted(missing)}"
 
 
 def test_fact_player_season_stats_has_spec_named_columns(duckdb_conn: duckdb.DuckDBPyConnection) -> None:

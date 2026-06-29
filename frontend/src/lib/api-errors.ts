@@ -1,7 +1,7 @@
 /**
- * Typed error surface for the Courtside Data HTTP API.
+ * Typed error surface for the Basketball Data Emporium HTTP API.
  *
- * Sourced from `courtside_data.server.app._map_exception` — the canonical
+ * Sourced from `basketball_data_emporium.server.app._map_exception` — the canonical
  * mapping between domain exceptions and stable error codes. Keep this list
  * in sync if a new code is added server-side.
  */

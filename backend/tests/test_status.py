@@ -26,8 +26,8 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from courtside_data.db.pool import DuckDBPool
-from courtside_data.server import errors as err_mod
+from basketball_data_emporium.db.pool import DuckDBPool
+from basketball_data_emporium.server import errors as err_mod
 
 
 # ---------------------------------------------------------------------------
@@ -91,18 +91,18 @@ class _StubPool(DuckDBPool):
 def status_client() -> TestClient:
     """A TestClient for the real `app`, with the pool stubbed in.
 
-    We import the `app` symbol from `courtside_data.server.app` (NOT
+    We import the `app` symbol from `basketball_data_emporium.server.app` (NOT
     `from .server import app as app_module` — that would shadow the
     `app` attribute and make `app_module.app` invalid). We also
     pass `raise_server_exceptions=False` so the catch-all handler in
     the app can be exercised without the TestClient re-raising the
     server error in the test thread.
     """
-    if "courtside_data.server.app" in sys.modules:
-        importlib.reload(sys.modules["courtside_data.server.app"])
+    if "basketball_data_emporium.server.app" in sys.modules:
+        importlib.reload(sys.modules["basketball_data_emporium.server.app"])
 
-    from courtside_data.server.app import app as fastapi_app
-    from courtside_data.server.deps import get_db_pool
+    from basketball_data_emporium.server.app import app as fastapi_app
+    from basketball_data_emporium.server.deps import get_db_pool
 
     stub = _StubPool()
     fastapi_app.dependency_overrides.clear()
@@ -113,7 +113,38 @@ def status_client() -> TestClient:
 def test_status_happy_path(status_client: TestClient) -> None:
     response = status_client.get("/api/status")
     assert response.status_code == 200
-    assert response.json() == {"ok": True, "endpoint_count": 15}
+    body = response.json()
+    assert body["ok"] is True
+    assert body["endpoint_count"] == 15
+    assert body["data_state"] == "unverified"
+    assert body["data_verified"] is False
+    assert body["data_stale"] is True
+
+
+def test_status_cors_preflight_allows_next_origin(status_client: TestClient) -> None:
+    response = status_client.options(
+        "/api/status",
+        headers={
+            "Origin": "http://127.0.0.1:3000",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://127.0.0.1:3000"
+
+
+def test_rate_limit_jail_envelope(status_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    from basketball_data_emporium.server import rate_limit
+
+    monkeypatch.setenv("BASKETBALL_DATA_RATE_LIMIT_PER_MINUTE", "1")
+    rate_limit._hits.clear()  # type: ignore[attr-defined]
+
+    assert status_client.get("/api/status").status_code == 200
+    response = status_client.get("/api/status")
+    assert response.status_code == 429
+    body = response.json()
+    assert body["detail"]["code"] == "rate_limit_jailed"
+    assert body["detail"]["detail"]["retry_after"] >= 1
 
 
 def test_status_openapi_lists_route(status_client: TestClient) -> None:
@@ -126,10 +157,11 @@ def test_status_openapi_lists_route(status_client: TestClient) -> None:
     schema = body["components"]["schemas"]["StatusResponse"]
     assert schema["properties"]["ok"]["type"] == "boolean"
     assert schema["properties"]["endpoint_count"]["type"] == "integer"
+    assert schema["properties"]["data_state"]["enum"] == ["passed", "failed", "stale", "unverified"]
 
 
 def test_module_exposes_app_and_main() -> None:
-    from courtside_data.server.app import app as fastapi_app, main, _map_exception
+    from basketball_data_emporium.server.app import app as fastapi_app, main, _map_exception
 
     # `app` is the FastAPI singleton; `main` is the CLI entry point;
     # `_map_exception` is the named envelope mapper that the frontend
@@ -153,10 +185,10 @@ def _make_isolated_client() -> tuple[TestClient, FastAPI]:
     convert uncaught `Exception`s into the `internal_error` envelope
     instead of re-raising them in the test thread.
     """
-    from courtside_data.server.app import _map_exception, _map_exception_unhandled
+    from basketball_data_emporium.server.app import _map_exception, _map_exception_unhandled
 
     isolated = FastAPI()
-    isolated.add_exception_handler(err_mod.CourtsideError, _map_exception)
+    isolated.add_exception_handler(err_mod.BasketballDataEmporiumError, _map_exception)
     isolated.add_exception_handler(Exception, _map_exception_unhandled)  # type: ignore[arg-type]
     return TestClient(isolated, raise_server_exceptions=False), isolated
 
@@ -168,7 +200,7 @@ def _add_raising_route(app: FastAPI, path: str, exc: Exception) -> None:
     app.add_api_route(path, _endpoint, methods=["GET"])
 
 
-EXCEPTION_CASES: list[tuple[err_mod.CourtsideError, int, str]] = [
+EXCEPTION_CASES: list[tuple[err_mod.BasketballDataEmporiumError, int, str]] = [
     (err_mod.InvalidSearchError("bad term"), 400, "invalid_search"),
     (err_mod.BadRequestError("nope"), 400, "bad_request"),
     (
@@ -194,7 +226,7 @@ EXCEPTION_CASES: list[tuple[err_mod.CourtsideError, int, str]] = [
 
 @pytest.mark.parametrize(("exc", "status_code", "code"), EXCEPTION_CASES)
 def test_map_exception_envelope(
-    exc: err_mod.CourtsideError,
+    exc: err_mod.BasketballDataEmporiumError,
     status_code: int,
     code: str,
 ) -> None:

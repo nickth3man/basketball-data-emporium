@@ -23,12 +23,9 @@ export interface SampleTeam {
 }
 
 export const SAMPLE_TEAMS: readonly SampleTeam[] = [
-  // TODO P2-FE-04: validate these fallback abbreviations against the live
-  // backend in CI. Static sidebar data should never silently drift from
-  // `/api/teams/search` and `/api/teams/featured`.
   { identifier: "LAL", name: "Los Angeles Lakers", blurb: "Tied for most NBA titles" },
   { identifier: "BOS", name: "Boston Celtics", blurb: "Tied for most NBA titles" },
   { identifier: "GSW", name: "Golden State Warriors" },
   { identifier: "CHI", name: "Chicago Bulls" },
-  { identifier: "SAS", name: "San Antonio Spurs" },
+  { identifier: "SAN", name: "San Antonio Spurs" },
 ] as const;

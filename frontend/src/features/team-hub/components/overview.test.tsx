@@ -83,11 +83,9 @@ describe("Overview (team-hub)", () => {
   });
 
   it("renders the empty-state card when franchise_arc is absent", () => {
-    // Default makeSummary() has no `franchise_arc` field — the server
-    // has not shipped it yet. The empty-state copy should be visible.
     render(<Overview summary={makeSummary()} />);
 
-    expect(screen.getByText(/Franchise arc data not yet available/i)).toBeInTheDocument();
+    expect(screen.getByText(/No franchise arc rows/i)).toBeInTheDocument();
   });
 
   it("renders the empty-state card when franchise_arc is an empty array", () => {
@@ -95,7 +93,7 @@ describe("Overview (team-hub)", () => {
 
     render(<Overview summary={summary} />);
 
-    expect(screen.getByText(/Franchise arc data not yet available/i)).toBeInTheDocument();
+    expect(screen.getByText(/No franchise arc rows/i)).toBeInTheDocument();
   });
 
   it("renders the line chart when franchise_arc is present and non-empty", () => {
@@ -115,7 +113,7 @@ describe("Overview (team-hub)", () => {
     expect(screen.getAllByText("Wins").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Losses").length).toBeGreaterThan(0);
     // The empty-state copy is suppressed once the series is present.
-    expect(screen.queryByText(/Franchise arc data not yet available/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/No franchise arc rows/i)).not.toBeInTheDocument();
   });
 
   it("renders the section heading copy and roster row count", () => {

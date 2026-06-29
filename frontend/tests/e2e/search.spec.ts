@@ -149,11 +149,7 @@ test("Enter submits and navigates to player page", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "LeBron James" })).toBeVisible();
 });
 
-test.fixme("URL persists term on submit", async () => {});
-// TODO: `?term=` is written to the *current* URL (the `/players` page) via
-// `router.replace` in `player-search.tsx` submit(), but `router.push` to
-// `/players/jamesle01` immediately replaces the URL, so the destination
-// page does not carry `?term=`. The persistence is on the origin page
-// only — re-enable once a decision is made about whether the term should
-// survive the navigation (e.g. by writing it before push, or by making
-// the player-hub page honour an incoming `?term=` on mount).
+test.fixme(
+  "URL persists term on submit after product decides whether search terms survive detail navigation",
+  async () => {},
+);

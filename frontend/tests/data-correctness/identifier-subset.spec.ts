@@ -25,7 +25,7 @@ import { test, expect, type APIResponse } from "@playwright/test";
 import { SAMPLE_ATHLETES } from "../../src/lib/sample-athletes";
 import { SAMPLE_TEAMS } from "../../src/lib/sample-teams";
 
-const API_BASE = process.env.COURTSIDE_API_URL ?? "http://127.0.0.1:8765";
+const API_BASE = process.env.BASKETBALL_DATA_API_URL ?? "http://127.0.0.1:8765";
 
 interface SearchResult {
   name?: string;
@@ -44,9 +44,10 @@ function teamIdentifiers(): string[] {
 async function searchByIdentifier(
   request: import("@playwright/test").APIRequestContext,
   identifier: string,
+  owner: "players" | "teams" = "players",
 ): Promise<{ status: number; results: SearchResult[] }> {
   const response: APIResponse = await request.get(
-    `${API_BASE}/api/players/search?term=${encodeURIComponent(identifier)}`,
+    `${API_BASE}/api/${owner}/search?term=${encodeURIComponent(identifier)}`,
   );
   const status = response.status();
   const body = (await response.json().catch(() => [])) as unknown;
@@ -70,7 +71,7 @@ test.beforeAll(async ({ request }) => {
   if (!reachable) {
     throw new Error(
       `Sidecar is not reachable at ${API_BASE}. ` +
-        `Start it with: cd backend && uv run courtside-data serve. ` +
+        `Start it with: cd backend && uv run basketball-data-emporium serve. ` +
         `This MVCS test is a correctness gate and requires the live sidecar.`,
     );
   }
@@ -95,41 +96,35 @@ test.describe("sample-athletes slugs", () => {
 
 test.describe("sample-teams slugs", () => {
   for (const identifier of teamIdentifiers()) {
-    test(`team slug ${identifier} resolves via /api/players/search`, async ({
+    test(`team slug ${identifier} resolves via /api/teams/search`, async ({
       request,
     }) => {
-      // The MVCS brief does not require a dedicated /api/teams/search
-      // endpoint to exist yet (it's a Phase 2 endpoint). We use
-      // /api/players/search as a generic "the DB knows this identifier"
-      // probe: if the sidecar is not yet wired for team search, this
-      // test is best-effort and the failure mode is "empty result
-      // set", not a hard fail.
-      //
-      // We do, however, hard-fail if the response is non-200, because
-      // a 5xx from the sidecar on a sample-team slug means the DB
-      // path is broken for one of the curated fallbacks.
-      const { status, results } = await searchByIdentifier(request, identifier);
+      const { status, results } = await searchByIdentifier(request, identifier, "teams");
       expect(
         status,
-        `GET /api/players/search?term=${identifier} for team ${identifier}`,
+        `GET /api/teams/search?term=${identifier}`,
       ).toBe(200);
 
-      // Soft-assert: log a soft warning if the team slug is not in
-      // the result set, but do not hard-fail — the contract is
-      // "the slug exists in the DB", which is verified by the
-      // schema test, not "the sidecar's search resolves it".
       const match = results.find((r) => r.identifier === identifier);
-      if (!match) {
-        test.info().annotations.push({
-          type: "note",
-          description:
-            `team slug '${identifier}' from sample-teams.ts was not in ` +
-            `player-search results (got ${results.length} result(s)). ` +
-            `This is expected for team identifiers — the sidecar's ` +
-            `team-search endpoint is a Phase 2 deliverable. ` +
-            `The DB-level check is in backend/tests/schema/.`,
-        });
-      }
+      expect(
+        match,
+        `slug '${identifier}' from sample-teams.ts was not found in ` +
+          `/api/teams/search results (got ${results.length} result(s))`,
+      ).toBeDefined();
     });
   }
+});
+
+test("sample-athletes match /api/players/featured", async ({ request }) => {
+  const response = await request.get(`${API_BASE}/api/players/featured`);
+  expect(response.status()).toBe(200);
+  const body = (await response.json()) as { athletes: SearchResult[] };
+  expect(body.athletes.map((entry) => entry.identifier)).toEqual(playerIdentifiers());
+});
+
+test("sample-teams match /api/teams/featured", async ({ request }) => {
+  const response = await request.get(`${API_BASE}/api/teams/featured`);
+  expect(response.status()).toBe(200);
+  const body = (await response.json()) as { teams: SearchResult[] };
+  expect(body.teams.map((entry) => entry.identifier)).toEqual(teamIdentifiers());
 });

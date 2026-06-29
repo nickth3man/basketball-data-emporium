@@ -9,7 +9,7 @@
  * to the data table.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -17,10 +17,11 @@ import { DatasetPanel } from "@/features/player-hub/components/dataset-panel";
 import type { ColumnMeta, DatasetCatalogEntry, EndpointRowsResponse } from "@/features/player-hub/types";
 
 /** Hoisted shared mock for the query hooks — the factory below re-uses these. */
-const { usePlayerDataset, useSeasonDataset, csvExportUrl } = vi.hoisted(() => ({
+const { usePlayerDataset, useSeasonDataset, csvExportUrl, downloadCsv } = vi.hoisted(() => ({
   usePlayerDataset: vi.fn(),
   useSeasonDataset: vi.fn(),
   csvExportUrl: vi.fn(() => "http://test/api/players/jamesle01/export?dataset=career"),
+  downloadCsv: vi.fn(),
 }));
 
 vi.mock("@/features/player-hub/api/queries", () => ({
@@ -30,6 +31,10 @@ vi.mock("@/features/player-hub/api/queries", () => ({
 
 vi.mock("@/features/player-hub/api/client", () => ({
   csvExportUrl,
+}));
+
+vi.mock("@/lib/api-client", () => ({
+  downloadCsv,
 }));
 
 const columns: ColumnMeta[] = [
@@ -59,6 +64,7 @@ const playerScopeDataset: DatasetCatalogEntry = {
   columns,
   default_visible_columns: ["season", "points_per_game"],
   supports_export: true,
+  supports_include_inactive_games: false,
 };
 
 const seasonScopeDataset: DatasetCatalogEntry = {
@@ -70,6 +76,7 @@ const seasonScopeDataset: DatasetCatalogEntry = {
   columns,
   default_visible_columns: ["season", "points_per_game"],
   supports_export: true,
+  supports_include_inactive_games: false,
 };
 
 function makeWrapper(): ({ children }: { children: ReactNode }) => ReactNode {
@@ -85,6 +92,7 @@ describe("DatasetPanel", () => {
   beforeEach(() => {
     usePlayerDataset.mockReset();
     useSeasonDataset.mockReset();
+    downloadCsv.mockReset();
     csvExportUrl.mockClear();
     csvExportUrl.mockReturnValue("http://test/api/players/jamesle01/export?dataset=career");
   });
@@ -114,7 +122,7 @@ describe("DatasetPanel", () => {
     expect(screen.getAllByText(/2 rows/).length).toBeGreaterThan(0);
   });
 
-  it("renders a CSV export button with the right href for player-scope", () => {
+  it("downloads CSV with the right URL for player-scope", () => {
     usePlayerDataset.mockReturnValue({
       data: successResult,
       isLoading: false,
@@ -131,9 +139,12 @@ describe("DatasetPanel", () => {
       { wrapper: makeWrapper() },
     );
 
-    const csvLink = screen.getByRole("link", { name: /csv/i });
-    expect(csvLink).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /csv/i }));
     expect(csvExportUrl).toHaveBeenCalledWith("jamesle01", "career", undefined, false);
+    expect(downloadCsv).toHaveBeenCalledWith(
+      "http://test/api/players/jamesle01/export?dataset=career",
+      "jamesle01-career.csv",
+    );
   });
 
   it("uses the season-scope query when the dataset scope is 'season'", () => {
@@ -154,6 +165,7 @@ describe("DatasetPanel", () => {
     );
 
     expect(screen.getByText("2023-24")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /csv/i }));
     expect(csvExportUrl).toHaveBeenCalledWith("jamesle01", "adjusted-shooting", 2024, false);
   });
 });

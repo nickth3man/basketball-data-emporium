@@ -1,4 +1,4 @@
-# Initialization Plan: Courtside Data API ← DuckDB → Next.js UI
+# Initialization Plan: Basketball Data Emporium API ← DuckDB → Next.js UI
 
 > **Status:** Phase 1 complete (sidecar skeleton + `/api/status` live). This plan covers the remaining initialization work: correctness scaffolding (Track A), the 14 remaining API endpoints (Track B, Phases 2–9), and frontend type reconciliation (Track C).
 >
@@ -8,7 +8,7 @@
 
 ## Overview
 
-The `basketball-data-emporium` repo contains a **22 GB DuckDB file** (`data/nba.duckdb`, v1.4.2, `unified_star` conformed schema + 21 `api.v_*` projection views) and a fully-wired **Next.js 16 frontend** that was built to consume a FastAPI sidecar (`courtside-data`) at `http://127.0.0.1:8765`. **That sidecar did not exist in the repo** — the frontend's hardened HTTP client (`frontend/src/lib/api-client.ts`), 1596-line generated type contract (`frontend/src/lib/openapi-types.ts`), 8-code error envelope, and React Query hooks all pointed at a missing service.
+The `basketball-data-emporium` repo contains a **22 GB DuckDB file** (`data/nba.duckdb`, v1.4.2, `unified_star` conformed schema + 21 `api.v_*` projection views) and a fully-wired **Next.js 16 frontend** that was built to consume a FastAPI sidecar (`basketball-data-emporium`) at `http://127.0.0.1:8765`. **That sidecar did not exist in the repo** — the frontend's hardened HTTP client (`frontend/src/lib/api-client.ts`), 1596-line generated type contract (`frontend/src/lib/openapi-types.ts`), 8-code error envelope, and React Query hooks all pointed at a missing service.
 
 **The goal of initialization:** rebuild the missing FastAPI sidecar so the frontend lights up against the real DuckDB, with a correctness scaffolding that proves the right data flows to the right UI surfaces — then implement the remaining 14 endpoints in dependency order, culminating in a fully-functional player/team hub.
 
@@ -33,7 +33,7 @@ Three clinchers: (a) `rate_limit_jailed` **cannot** be implemented honestly in s
 ### Decision 2 — DuckDB access: read-only, pooled, no ORM
 
 - **Always read-only** (`duckdb.connect(path, read_only=True)`). The API never writes. DuckDB is exclusive-writer; read-only allows concurrent readers.
-- **Pool of 6 connections** (DuckDB is one-query-per-connection). Module-level singleton via double-checked locking in `courtside_data/db/pool.py` so `--reload` doesn't reopen the 22 GB file per request.
+- **Pool of 6 connections** (DuckDB is one-query-per-connection). Module-level singleton via double-checked locking in `basketball_data_emporium/db/pool.py` so `--reload` doesn't reopen the 22 GB file per request.
 - **No ORM.** Drizzle DuckDB dialect is maintainer-labeled "Experimental" (~20 stars); Prisma has no DuckDB connector. Raw parameterized SQL via `duckdb` prepared statements is the canonical OLAP pattern.
 
 ### Decision 3 — Query routing by schema layer
@@ -80,13 +80,13 @@ The prior deferral of `audit.*` was wrong for *correctness*. `audit.pipeline_run
 fix-1 built and verified the sidecar skeleton:
 
 **Files created** (under `backend/`):
-- `pyproject.toml` — `courtside-data` 0.1.0; `fastapi`, `uvicorn[standard]`, `duckdb>=1.4,<2.0`, `pydantic>=2.7`, `pyarrow>=17`, `python-dotenv`; `[project.scripts] courtside-data = "courtside_data.server.app:main"`
-- `courtside_data/server/app.py` — FastAPI singleton, `_map_exception` (async) + `_map_exception_unhandled` catch-all, `main()` CLI → uvicorn on :8765
-- `courtside_data/server/deps.py` — `get_db()` pool dependency
-- `courtside_data/server/errors.py` — `CourtsideError` base + 8 classes (`InvalidSearchError` 400, `BadRequestError` 400, `InvalidPlayerError` 404, `InvalidTeamError` 404, `InvalidSeasonError` 404, `RateLimitJailedError` 429, `SchemaDriftError` 500, `InternalError` 500)
-- `courtside_data/server/routes/status.py` — `GET /api/status` → `StatusResponse(ok=True, endpoint_count=15)`
-- `courtside_data/db/pool.py` — `DuckDBPool` (fixed-size, thread-safe, lazy init, READ_ONLY)
-- `courtside_data/schemas/common.py` — `StatusResponse{ok, endpoint_count}`, `ApiError{code, message, detail}`
+- `pyproject.toml` — `basketball-data-emporium` 0.1.0; `fastapi`, `uvicorn[standard]`, `duckdb>=1.4,<2.0`, `pydantic>=2.7`, `pyarrow>=17`, `python-dotenv`; `[project.scripts] basketball-data-emporium = "basketball_data_emporium.server.app:main"`
+- `basketball_data_emporium/server/app.py` — FastAPI singleton, `_map_exception` (async) + `_map_exception_unhandled` catch-all, `main()` CLI → uvicorn on :8765
+- `basketball_data_emporium/server/deps.py` — `get_db()` pool dependency
+- `basketball_data_emporium/server/errors.py` — `BasketballDataEmporiumError` base + 8 classes (`InvalidSearchError` 400, `BadRequestError` 400, `InvalidPlayerError` 404, `InvalidTeamError` 404, `InvalidSeasonError` 404, `RateLimitJailedError` 429, `SchemaDriftError` 500, `InternalError` 500)
+- `basketball_data_emporium/server/routes/status.py` — `GET /api/status` → `StatusResponse(ok=True, endpoint_count=15)`
+- `basketball_data_emporium/db/pool.py` — `DuckDBPool` (fixed-size, thread-safe, lazy init, READ_ONLY)
+- `basketball_data_emporium/schemas/common.py` — `StatusResponse{ok, endpoint_count}`, `ApiError{code, message, detail}`
 - `backend/tests/test_status.py` — 13 tests (all passing)
 
 **Verification gates passed:**
@@ -179,7 +179,7 @@ Track C (frontend reconciliation)      ──▶ parallel with late Track B
   - SQL queries are pinned to `unified_star.*` / `api.v_*` so a wrong-source-object bug fails loudly.
   - Pre-1973 null checks: `wilt_1962` rows assert `OREB/DREB/STL/BLK/TOV IS NULL` (not `0`). Note: `chambwi01` career anchor exists, but the 1961-62 season-specific anchor does NOT — the 4,029 PTS value is pinned from the live URL (the career-page anchor's per-season row is a secondary cross-check, not the primary pin).
   - Two trade-split invariants (see correction below): `harden_2021_hou_bkn` (2020-21, HOU+BKN = combined) AND `harden_2022_brk_phi` (2021-22, BRK+PHI = 2TM row). Neither has a local anchor — both stay on live URLs.
-- **Dependencies:** Phase 1 pool module (`courtside_data/db/pool.py`, complete).
+- **Dependencies:** Phase 1 pool module (`basketball_data_emporium/db/pool.py`, complete).
 - **Exit criteria:** all golden rows pass (some SQL queries will need adjustment against actual view column names — that adjustment is the point of this task; an engineer pins the value on first run and commits).
 
 #### Task A5 — Anchor corpus manifest + provenance audit
@@ -199,8 +199,8 @@ Track C (frontend reconciliation)      ──▶ parallel with late Track B
 #### Task A3 — Resolve OpenAPI generator mismatch
 
 - **Files (modified):**
-  - `backend/courtside_data/server/app.py` (or new `backend/courtside_data/server/openapi_config.py`)
-  - Possibly `backend/courtside_data/schemas/common.py` (add `model_config = ConfigDict(json_schema_extra=...)`)
+  - `backend/basketball_data_emporium/server/app.py` (or new `backend/basketball_data_emporium/server/openapi_config.py`)
+  - Possibly `backend/basketball_data_emporium/schemas/common.py` (add `model_config = ConfigDict(json_schema_extra=...)`)
 - **Description:** make FastAPI's auto-generated `/openapi.json` produce operationIds + description headers matching the committed `frontend/src/lib/openapi-types.ts` convention.
 - **Details:**
   - The committed file uses `* ClassName\n * @description ...` description headers (e.g. `StatusResponse`'s `* StatusResponse\n * @description Health and runtime metadata for the UI shell.`).
@@ -214,7 +214,7 @@ Track C (frontend reconciliation)      ──▶ parallel with late Track B
 #### Task A4 — Column-semantic manifest skeleton
 
 - **Files (new):**
-  - `backend/courtside_data/catalog/column_manifest.py`
+  - `backend/basketball_data_emporium/catalog/column_manifest.py`
   - `backend/tests/schema/test_column_manifest_lineage.py`
 - **Description:** declare lineage (`schema.table.column`), dtype, unit, format rule, `available_since_season` for every column Phase 2+ will expose. Build-time test asserts every lineage tuple exists in `information_schema.columns`.
 - **Details:** see oracle §3 for the `ColumnContract` dataclass shape. Start with ~15 columns (`pts`, `ast`, `reb`, `oreb`, `dreb`, `stl`, `blk`, `tov`, `min`, `fg_pct`, `gp`, `gs`, `w`, `l`, `win_pct`) — enough to cover Phase 2 catalog rows.
@@ -231,11 +231,11 @@ Serial, dependency-ordered. Each phase adds 2–5 endpoints and unblocks the nex
 
 - **Endpoints:** #2 `GET /api/endpoints/player-hub`, #9 `GET /api/endpoints/team-hub`
 - **Files (new):**
-  - `backend/courtside_data/server/routes/catalog.py`
-  - `backend/courtside_data/catalog/player_datasets.py` (static dataset registry)
-  - `backend/courtside_data/catalog/team_datasets.py`
-  - `backend/courtside_data/schemas/players.py` (add `PlayerHubCatalog`)
-  - `backend/courtside_data/schemas/teams.py` (add `TeamHubCatalog`)
+  - `backend/basketball_data_emporium/server/routes/catalog.py`
+  - `backend/basketball_data_emporium/catalog/player_datasets.py` (static dataset registry)
+  - `backend/basketball_data_emporium/catalog/team_datasets.py`
+  - `backend/basketball_data_emporium/schemas/players.py` (add `PlayerHubCatalog`)
+  - `backend/basketball_data_emporium/schemas/teams.py` (add `TeamHubCatalog`)
 - **Details:**
   - `PlayerHubCatalog`/`TeamHubCatalog` carry tabs + datasets with hardcoded `ColumnMeta[]` (finite, slowly-changing set).
   - **Tighten endpoint #2's `response_model`** to `PlayerHubCatalog` so the regenerated types include it (currently returns `{ [key:string]:unknown }` per `openapi-types.ts:697-700`; team side is already typed at `:542-547`).
@@ -247,10 +247,10 @@ Serial, dependency-ordered. Each phase adds 2–5 endpoints and unblocks the nex
 
 - **Endpoints:** #3 `GET /api/players/featured`, #4 `GET /api/players/search?term=`, #10 `GET /api/teams/featured`, #11 `GET /api/teams/search?term=`
 - **Files (new/extended):**
-  - `backend/courtside_data/server/routes/players.py` (partial)
-  - `backend/courtside_data/server/routes/teams.py` (partial)
-  - `backend/courtside_data/queries/players.py`
-  - `backend/courtside_data/queries/teams.py`
+  - `backend/basketball_data_emporium/server/routes/players.py` (partial)
+  - `backend/basketball_data_emporium/server/routes/teams.py` (partial)
+  - `backend/basketball_data_emporium/queries/players.py`
+  - `backend/basketball_data_emporium/queries/teams.py`
 - **Details:**
   - Cheap `dim_player`/`dim_team` ILIKE + static curated slugs.
   - `term: str` Pydantic path/query model with `min_length=2` → FastAPI auto-emits 422; on shorter terms raise `InvalidSearchError`.
@@ -262,7 +262,7 @@ Serial, dependency-ordered. Each phase adds 2–5 endpoints and unblocks the nex
 #### Task B3 — Phase 4: Player summary (landing page alive)
 
 - **Endpoint:** #5 `GET /api/players/{identifier}/summary`
-- **Files (extended):** `backend/courtside_data/queries/players.py::get_summary`, `backend/courtside_data/schemas/players.py::PlayerHubSummary`
+- **Files (extended):** `backend/basketball_data_emporium/queries/players.py::get_summary`, `backend/basketball_data_emporium/schemas/players.py::PlayerHubSummary`
 - **Details:** composite response — header from `dim_player`, `available_seasons` + `default_season` from `fact_player_season_stats`, `hero_stats` aggregation, `career` rows from `api.v_player_career_totals` (or matching registered view).
   - Run the 3 sub-queries in parallel via `asyncio.gather` so cheap lookups don't gate on the heaviest.
   - `hero_stats` stays open-ended (`{ [key]: unknown }`) per `openapi-types.ts:438-440` — client-side zod parse (see oracle §5) catches drift on consumed keys only.
@@ -274,8 +274,8 @@ Serial, dependency-ordered. Each phase adds 2–5 endpoints and unblocks the nex
 
 - **Endpoints:** #6 `GET /api/players/{identifier}/{dataset}`, #7 `GET /api/players/{identifier}/seasons/{season_end_year}/{dataset}`
 - **Files (new):**
-  - `backend/courtside_data/db/registry.py` (dataset_id → SQL object + column projection map)
-  - `backend/courtside_data/queries/players.py` dataset functions
+  - `backend/basketball_data_emporium/db/registry.py` (dataset_id → SQL object + column projection map)
+  - `backend/basketball_data_emporium/queries/players.py` dataset functions
 - **Details:**
   - On first run, enumerate `api` schema views with `SELECT view_name FROM information_schema.views WHERE table_schema = 'api'` and bind each catalogued dataset ID to its view.
   - `?include_inactive_games` filter; `season_end_year` validated 1946 ≤ year ≤ current_season_end → else `InvalidSeasonError`.
@@ -288,7 +288,7 @@ Serial, dependency-ordered. Each phase adds 2–5 endpoints and unblocks the nex
 #### Task B5 — Phase 6: Team summary
 
 - **Endpoint:** #12 `GET /api/teams/{identifier}/summary`
-- **Files (extended):** `backend/courtside_data/queries/teams.py::get_summary`, `backend/courtside_data/schemas/teams.py::TeamHubSummary`
+- **Files (extended):** `backend/basketball_data_emporium/queries/teams.py::get_summary`, `backend/basketball_data_emporium/schemas/teams.py::TeamHubSummary`
 - **Details:** composite — `dim_team` + `fact_team_season_summary` (hero_stats + franchise_arc) + roster (current-season players from `fact_player_season_stats` filtered by team).
   - `FranchiseArcPoint` shape per `openapi-types.ts:405-416`; compute `win_pct = wins / (wins + losses)` server-side per docstring.
 - **Dependencies:** B4 (registry pattern established).
@@ -305,7 +305,7 @@ Serial, dependency-ordered. Each phase adds 2–5 endpoints and unblocks the nex
 #### Task B7 — Phase 8: CSV export with injection guards
 
 - **Endpoints:** #8 `GET /api/players/{identifier}/export`, #15 `GET /api/teams/{identifier}/export`
-- **Files (extended):** `backend/courtside_data/server/routes/{players,teams}.py` export handlers, `backend/courtside_data/db/pool.py::to_csv_stream`
+- **Files (extended):** `backend/basketball_data_emporium/server/routes/{players,teams}.py` export handlers, `backend/basketball_data_emporium/db/pool.py::to_csv_stream`
 - **Details:**
   - Stream Arrow → CSV via `pyarrow`.
   - **Formula-injection mitigation** (OWASP): prefix any cell starting with `=`, `+`, `-`, `@` with a single quote.
@@ -481,7 +481,7 @@ These anchored pages had no golden fact; they're promoted to grow the immutable-
 
 ### How this connects to existing code
 
-- **Sidecar import paths are load-bearing:** `frontend/scripts/generate-api-types.ts:25` references `courtside_data/server/app.py`; `frontend/src/lib/api-errors.ts:5` names `courtside_data.server.app._map_exception`. fix-1 matched both — do not rename.
+- **Sidecar import paths are load-bearing:** `frontend/scripts/generate-api-types.ts:25` references `basketball_data_emporium/server/app.py`; `frontend/src/lib/api-errors.ts:5` names `basketball_data_emporium.server.app._map_exception`. fix-1 matched both — renamed to `basketball_data_emporium` as part of the project rebrand.
 - **Frontend contract is frozen:** `frontend/src/lib/openapi-types.ts` (1596 lines) is the spec. Every Phase 2+ endpoint must match its path + component shape. The drift gate (A3) enforces this.
 - **React Query hooks already exist:** `features/{player,team}-hub/api/queries.ts` are keyed + typed. Once the sidecar serves the contract, they light up with zero frontend changes (except C1 type reconciliation).
 - **Identifier space:** `frontend/src/lib/sample-athletes.ts` + `sample-teams.ts` hardcode BBR slugs (`jamesle01`, `achiupr01`, etc.). These must resolve against `dim_player.bref_player_id` — the identifier-subset test (A1) enforces this.
@@ -517,7 +517,7 @@ These anchored pages had no golden fact; they're promoted to grow the immutable-
 cd backend
 cp .env.example .env          # edit DUCKDB_PATH if your layout differs
 uv sync --extra dev
-uv run courtside-data serve   # listens on :8765
+uv run basketball-data-emporium serve   # listens on :8765
 
 # 2. UI (terminal 2)
 cd frontend
@@ -528,7 +528,7 @@ npm run dev                   # listens on :3000
 ### Env
 
 - `backend/.env`: `DUCKDB_PATH=../data/nba.duckdb`, `DUCKDB_POOL_SIZE=6`, `DUCKDB_ACCESS_MODE=READ_ONLY`
-- `frontend/.env.local` (optional): `NEXT_PUBLIC_COURTSIDE_API_URL=http://127.0.0.1:8765` (already the default at `api-client.ts:10-11`)
+- `frontend/.env.local` (optional): `NEXT_PUBLIC_BASKETBALL_DATA_API_URL=http://127.0.0.1:8765` (already the default at `api-client.ts:10-11`)
 
 ### Regenerate frontend types after schema changes
 
@@ -558,7 +558,7 @@ A `Makefile` at repo root to orchestrate both processes:
 ```make
 dev:
 	concurrently -n api,web -c yellow,blue \
-	  "cd backend && uv run courtside-data serve" \
+	  "cd backend && uv run basketball-data-emporium serve" \
 	  "cd frontend && npm run dev"
 ```
 Do **not** convert to pnpm/turbo monorepo — the two stacks share nothing; the repo has worked fine without it.

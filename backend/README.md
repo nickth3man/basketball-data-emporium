@@ -1,6 +1,6 @@
-# courtside-data
+# basketball-data-emporium
 
-FastAPI sidecar for the Courtside Data API. Reads from a 22 GB DuckDB file
+FastAPI sidecar for the Basketball Data Emporium API. Reads from a 22 GB DuckDB file
 in `../data/nba.duckdb` (read-only) and serves a JSON API on port 8765.
 
 ## Phase 1 scope
@@ -37,22 +37,22 @@ the DuckDB file lives at `../data/nba.duckdb` (relative to `backend/`).
 | `DUCKDB_PATH`         | `../data/nba.duckdb` | Path to the read-only DuckDB file.           |
 | `DUCKDB_POOL_SIZE`    | `6`                  | Number of read-only connections in the pool. |
 | `DUCKDB_ACCESS_MODE`  | `READ_ONLY`          | Honored defensively; we always open RO.      |
-| `COURTSIDE_LOG_LEVEL` | `INFO`               | Uvicorn / app log level.                     |
+| `BASKETBALL_DATA_LOG_LEVEL` | `INFO`               | Uvicorn / app log level.                     |
 
 ## Run
 
 ```bash
-uv run courtside-data serve
+uv run basketball-data-emporium serve
 ```
 
 …is equivalent to:
 
 ```bash
-uv run uvicorn courtside_data.server.app:app --port 8765
+uv run uvicorn basketball_data_emporium.server.app:app --port 8765
 ```
 
 By default the server binds to `127.0.0.1:8765`, matching the frontend's
-`NEXT_PUBLIC_COURTSIDE_API_URL` default (`frontend/src/lib/api-client.ts:10-11`).
+`NEXT_PUBLIC_BASKETBALL_DATA_API_URL` default (`frontend/src/lib/api-client.ts:10-11`).
 
 Once running:
 
@@ -80,7 +80,7 @@ backend/
 ├── .env.example
 ├── .gitignore
 ├── README.md
-└── courtside_data/
+└── basketball_data_emporium/
     ├── __init__.py
     ├── server/
     │   ├── __init__.py

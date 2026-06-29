@@ -160,10 +160,18 @@ test("tab navigation is reachable on mobile", async ({ page }) => {
   await expect(page).toHaveURL(/tab=career/);
 });
 
-test.fixme("data table is scrollable horizontally on mobile", async () => {});
-// TODO: the `<DataTable>` in `features/player-hub/components/data-table.tsx`
-// renders a `<table>` inside a container whose overflow behaviour is not
-// yet pinned down for narrow viewports — the table may either overflow
-// the page (bad) or scroll within its own container (good). The test
-// needs a design decision on the expected container + a stable selector
-// for the scroll element before it can be expressed as a passing spec.
+test("data table is scrollable horizontally on mobile", async ({ page }) => {
+  await page.goto("/players/jamesle01?season=2024&tab=stats");
+
+  const scrollRegion = page.getByTestId("data-table-scroll").first();
+  await expect(scrollRegion).toBeVisible();
+  const metrics = await scrollRegion.evaluate((node) => ({
+    clientWidth: node.clientWidth,
+    scrollWidth: node.scrollWidth,
+  }));
+  expect(metrics.scrollWidth).toBeGreaterThanOrEqual(metrics.clientWidth);
+  const pageOverflows = await page.evaluate(
+    () => document.documentElement.scrollWidth > window.innerWidth,
+  );
+  expect(pageOverflows).toBe(false);
+});

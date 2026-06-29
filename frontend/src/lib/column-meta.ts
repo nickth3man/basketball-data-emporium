@@ -1,5 +1,5 @@
 /**
- * Shared `ColumnMeta` interface — mirrors `courtside_data.server.models.ColumnMeta`.
+ * Shared `ColumnMeta` interface — mirrors `basketball_data_emporium.server.models.ColumnMeta`.
  *
  * Both the player-hub and team-hub Pydantic models emit a structurally
  * identical `ColumnMeta` shape (a per-dataset column descriptor), so the

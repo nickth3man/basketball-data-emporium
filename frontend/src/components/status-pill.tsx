@@ -1,33 +1,10 @@
 "use client";
 
-import { Database, LoaderCircle, WifiOff } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock3, Database, LoaderCircle, WifiOff } from "lucide-react";
 
 import { useStatus } from "@/lib/use-status";
 import { isRateLimited } from "@/lib/api-errors";
 
-/**
- * API status pill — surfaces the live-connection health of the API.
- *
- * The project serves only live Basketball Reference data (there is no
- * offline/fixture data mode), so the steady state is a simple "Live"
- * indicator. The two signals that need user-visible attention are:
- *
- * 1. **Rate-limit jail** — the `useStatus` query is in an error state
- *    with `code === "rate_limit_jailed"`. We read the error from the
- *    query result (not from a prop) so the pill can also surface the
- *    server-supplied `retryAfter` countdown. Using the shared hook
- *    here keeps the pill a thin visual component and lets it be
- *    rendered by any feature without per-feature plumbing.
- *
- * 2. **Offline** — the status query failed or reported not-ok, i.e. the
- *    API server is unreachable.
- *
- * TODO P1-FE-01: once `/api/status` includes audit/DQ fields, expand this
- * state machine beyond Live/Offline. Required states are: verified data,
- * failed latest ETL, stale DQ result, data present but unverified, offline,
- * and rate-limited. Keep the visual language compact because this pill appears
- * in every hub header.
- */
 export function StatusPill() {
   const status = useStatus();
 
@@ -62,10 +39,35 @@ export function StatusPill() {
     );
   }
 
+  const state = status.data.data_state;
+  if (state === "passed") {
+    return (
+      <span className="inline-flex h-8 items-center gap-2 rounded-md border border-court-accent-line bg-court-accent-soft px-3 text-xs font-medium text-court-accent-strong">
+        <CheckCircle2 className="size-3.5" aria-hidden="true" />
+        Verified
+      </span>
+    );
+  }
+  if (state === "failed") {
+    return (
+      <span className="inline-flex h-8 items-center gap-2 rounded-md border border-court-danger-line bg-court-danger-soft px-3 text-xs font-medium text-court-danger">
+        <AlertTriangle className="size-3.5" aria-hidden="true" />
+        DQ failed
+      </span>
+    );
+  }
+  if (state === "stale") {
+    return (
+      <span className="inline-flex h-8 items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 text-xs font-medium text-amber-800">
+        <Clock3 className="size-3.5" aria-hidden="true" />
+        Stale
+      </span>
+    );
+  }
   return (
-    <span className="inline-flex h-8 items-center gap-2 rounded-md border border-court-accent-line bg-court-accent-soft px-3 text-xs font-medium text-court-accent-strong">
+    <span className="inline-flex h-8 items-center gap-2 rounded-md border border-court-line bg-white px-3 text-xs font-medium text-court-muted">
       <Database className="size-3.5" aria-hidden="true" />
-      Live
+      Unverified
     </span>
   );
 }

@@ -13,8 +13,8 @@ What the contract pins
   `datasets` list (when the list is non-empty).
 * Player-hub tabs scope ∈ {player, season}; team-hub tabs scope ∈
   {team, team_season}.
-* Each dataset has 8 fields (id, label, endpoint_name, scope,
-  description, columns, default_visible_columns, supports_export);
+* Each dataset has fields for identity, columns, export support, and
+  inactive-game filter support;
   each column is a `ColumnMeta` with `key`, `label`,
   `default_visible`, `numeric`.
 * Two back-to-back calls return byte-identical bodies (the catalog is
@@ -91,6 +91,7 @@ def test_player_catalog_dataset_shape(contract_client: TestClient) -> None:
         "columns",
         "default_visible_columns",
         "supports_export",
+        "supports_include_inactive_games",
     }
     for dataset in datasets:
         assert set(dataset.keys()) == required, (

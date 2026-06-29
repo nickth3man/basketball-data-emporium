@@ -40,9 +40,6 @@ export interface SampleAthlete {
 }
 
 export const SAMPLE_ATHLETES: readonly SampleAthlete[] = [
-  // TODO P2-FE-04: validate these fallback slugs against the live backend in
-  // CI. The static list is useful offline, but every identifier should also
-  // resolve through `/api/players/search` or a direct API contract check.
   { identifier: "jamesle01", name: "LeBron James", blurb: "All-time scoring leader" },
   { identifier: "jordami01", name: "Michael Jordan" },
   { identifier: "curryst01", name: "Stephen Curry" },

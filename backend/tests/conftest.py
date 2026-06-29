@@ -1,4 +1,4 @@
-"""Pytest configuration for the courtside-data test suite.
+"""Pytest configuration for the basketball-data-emporium test suite.
 
 We do NOT add any project-wide fixtures here — the existing tests
 build their own clients with explicit dependency overrides. This

@@ -7,8 +7,7 @@ contract** with FastAPI's in-process `TestClient`:
 * status code is exactly 200
 * `Content-Type: application/json`
 * body parses as JSON
-* body is *exactly* `{"ok": true, "endpoint_count": 15}` (no extra
-  fields, no missing fields, no type drift)
+* body includes the pinned liveness and audit-state fields
 * no `Set-Cookie`, `Cache-Control`, or other headers leak through
   (the contract is intentionally minimal)
 * a second call returns the same body (the route is stateless)
@@ -41,19 +40,15 @@ def test_status_content_type_is_json(contract_client: TestClient) -> None:
     )
 
 
-def test_status_body_is_exact_contract(contract_client: TestClient) -> None:
-    """`/api/status` body is exactly `{"ok": true, "endpoint_count": 15}`.
-
-    Strict equality — no extra fields, no missing fields, no type
-    drift. This is the contract the frontend's `useStatus` hook
-    consumes (see `frontend/src/lib/use-status.ts`).
-    """
+def test_status_body_contract(contract_client: TestClient) -> None:
+    """`/api/status` carries liveness plus audit freshness state."""
     response = contract_client.get("/api/status")
     body = response.json()
-    assert body == {"ok": True, "endpoint_count": 15}, (
-        f"GET /api/status body drift: {body!r}; expected exactly "
-        f"{{'ok': True, 'endpoint_count': 15}}."
-    )
+    assert body["ok"] is True
+    assert body["endpoint_count"] == 15
+    assert body["data_state"] in {"passed", "failed", "stale", "unverified"}
+    assert isinstance(body["data_verified"], bool)
+    assert isinstance(body["data_stale"], bool)
 
 
 def test_status_field_types(contract_client: TestClient) -> None:
@@ -68,6 +63,9 @@ def test_status_field_types(contract_client: TestClient) -> None:
     assert isinstance(body["ok"], bool), f"`ok` was {type(body['ok']).__name__}, expected bool."
     assert isinstance(body["endpoint_count"], int), (
         f"`endpoint_count` was {type(body['endpoint_count']).__name__}, expected int."
+    )
+    assert isinstance(body["data_state"], str), (
+        f"`data_state` was {type(body['data_state']).__name__}, expected str."
     )
     assert body["endpoint_count"] == 15, (
         f"`endpoint_count` was {body['endpoint_count']}; the MVCS contract pins it to 15."

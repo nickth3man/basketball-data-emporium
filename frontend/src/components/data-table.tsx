@@ -22,13 +22,15 @@ interface DataTableProps {
   rows: Record<string, unknown>[];
   columns: ColumnMeta[];
   defaultVisibleColumns: string[];
-  exportUrl?: string;
+  onExportCsv?: () => Promise<void>;
 }
 
-export function DataTable({ rows, columns, defaultVisibleColumns, exportUrl }: DataTableProps) {
+export function DataTable({ rows, columns, defaultVisibleColumns, onExportCsv }: DataTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
   const [showColumns, setShowColumns] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
   const defaultVisible = useMemo(() => new Set(defaultVisibleColumns), [defaultVisibleColumns]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(() =>
     Object.fromEntries(columns.map((column) => [column.key, defaultVisible.has(column.key)])),
@@ -63,6 +65,21 @@ export function DataTable({ rows, columns, defaultVisibleColumns, exportUrl }: D
     },
   });
 
+  const handleExport = async () => {
+    if (!onExportCsv || isExporting) {
+      return;
+    }
+    setExportError(null);
+    setIsExporting(true);
+    try {
+      await onExportCsv();
+    } catch (error) {
+      setExportError(error instanceof Error ? error.message : "CSV export failed");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div className="rounded-md border border-court-line bg-white">
       <div className="flex flex-col gap-2 border-b border-court-line p-3 sm:flex-row sm:items-center sm:justify-between">
@@ -96,18 +113,21 @@ export function DataTable({ rows, columns, defaultVisibleColumns, exportUrl }: D
               </div>
             ) : null}
           </div>
-          {exportUrl ? (
-            <a href={exportUrl}>
-              <Button size="sm">
-                <Download className="size-4" aria-hidden="true" />
-                CSV
-              </Button>
-            </a>
+          {onExportCsv ? (
+            <Button size="sm" onClick={handleExport} disabled={isExporting}>
+              <Download className="size-4" aria-hidden="true" />
+              {isExporting ? "Exporting" : "CSV"}
+            </Button>
           ) : null}
         </div>
       </div>
+      {exportError ? (
+        <p className="border-b border-court-danger-line bg-court-danger-soft px-3 py-2 text-sm text-court-danger">
+          {exportError}
+        </p>
+      ) : null}
 
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto" data-testid="data-table-scroll">
         <table className="min-w-full table-fixed border-collapse text-sm">
           <thead className="bg-zinc-100 text-xs uppercase text-court-muted">
             {table.getHeaderGroups().map((headerGroup) => (

@@ -1,8 +1,8 @@
 /**
  * Component tests for `ui/src/components/status-pill.tsx`.
  *
- * The pill reads `useStatus()` directly and chooses one of four
- * presentations: rate-limit, loading, offline, or live. We mock the
+ * The pill reads `useStatus()` directly and chooses between rate-limit,
+ * loading, offline, and audit-state presentations. We mock the
  * hook to feed it controlled `{data, error, isLoading}` shapes and
  * assert the rendered DOM for each branch.
  */
@@ -23,6 +23,14 @@ vi.mock("@/lib/use-status", () => ({
 const healthyStatus: StatusResponse = {
   ok: true,
   endpoint_count: 50,
+  data_state: "passed",
+  data_verified: true,
+  data_stale: false,
+  latest_pipeline_run_id: "run-1",
+  latest_pipeline_stage: "load",
+  latest_pipeline_status: "success",
+  latest_pipeline_started_at: "2026-06-29T00:00:00Z",
+  latest_dq_status: "passed",
 };
 
 describe("StatusPill", () => {
@@ -34,7 +42,7 @@ describe("StatusPill", () => {
     vi.clearAllMocks();
   });
 
-  it("renders the Live pill in the default/online state", () => {
+  it("renders the Verified pill when audit state passed", () => {
     useStatus.mockReturnValue({
       data: healthyStatus,
       error: null,
@@ -45,7 +53,27 @@ describe("StatusPill", () => {
 
     render(<StatusPill />);
 
-    expect(screen.getByText("Live")).toBeInTheDocument();
+    expect(screen.getByText("Verified")).toBeInTheDocument();
+  });
+
+  it("renders failed, stale, and unverified audit states", () => {
+    for (const [dataState, label] of [
+      ["failed", "DQ failed"],
+      ["stale", "Stale"],
+      ["unverified", "Unverified"],
+    ] as const) {
+      useStatus.mockReturnValue({
+        data: { ...healthyStatus, data_state: dataState },
+        error: null,
+        isLoading: false,
+        isError: false,
+        isSuccess: true,
+      });
+
+      const { unmount } = render(<StatusPill />);
+      expect(screen.getByText(label)).toBeInTheDocument();
+      unmount();
+    }
   });
 
   it("renders the red 'Rate limited' pill when useStatus has a rate_limit_jailed error", () => {

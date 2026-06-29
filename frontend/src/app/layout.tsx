@@ -6,7 +6,7 @@ import { QueryProvider } from "@/lib/query-provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Courtside Data",
+  title: "Basketball Data Emporium",
   description: "Basketball Reference data workbench for player and team research.",
 };
 

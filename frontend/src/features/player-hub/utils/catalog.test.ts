@@ -9,7 +9,17 @@ import { datasetLabel, datasetScope } from "@/features/player-hub/utils/catalog"
 
 /** Build a minimal but complete `DatasetCatalogEntry` for test fixtures. */
 function makeEntry(id: string, label: string, scope: "player" | "season" = "player"): DatasetCatalogEntry {
-  return { id, label, endpoint_name: id, scope, description: label, columns: [], default_visible_columns: [], supports_export: true };
+  return {
+    id,
+    label,
+    endpoint_name: id,
+    scope,
+    description: label,
+    columns: [],
+    default_visible_columns: [],
+    supports_export: true,
+    supports_include_inactive_games: false,
+  };
 }
 
 describe("datasetLabel", () => {

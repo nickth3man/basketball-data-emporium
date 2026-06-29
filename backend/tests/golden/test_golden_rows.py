@@ -13,7 +13,7 @@ Type parsing:
   - All other stat keys → int comparison.
 
 The DB path resolves relative to this file: ``../../../../data/nba.duckdb``.
-Override via the ``COURTSIDE_DB_PATH`` env var for CI or local development.
+Override via the ``BASKETBALL_DATA_DB_PATH`` env var for CI or local development.
 """
 
 from __future__ import annotations
@@ -43,7 +43,7 @@ def _load_golden() -> List[Dict[str, str]]:
 
 @pytest.fixture(scope="session")
 def db() -> duckdb.DuckDBPyConnection:
-    db_path = os.environ.get("COURTSIDE_DB_PATH", str(DEFAULT_DB_PATH.resolve()))
+    db_path = os.environ.get("BASKETBALL_DATA_DB_PATH", str(DEFAULT_DB_PATH.resolve()))
     conn = duckdb.connect(db_path, read_only=True)
     try:
         yield conn

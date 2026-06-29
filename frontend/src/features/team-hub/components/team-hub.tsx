@@ -41,6 +41,8 @@ export function TeamHub({ identifier }: TeamHubProps) {
       ? seasonFromUrl
       : (summaryQuery.data?.default_season ?? null);
   const currentTab = tabs.find((tab) => tab.id === activeTab) ?? tabs[0];
+  const currentTabSupportsInactive =
+    currentTab?.datasets.some((datasetId) => datasetById.get(datasetId)?.supports_include_inactive_games) ?? false;
 
   return (
     <Shell>
@@ -112,21 +114,18 @@ export function TeamHub({ identifier }: TeamHubProps) {
                         ))}
                       </select>
                     </label>
-                    {/* TODO P2-BE-03: hide or disable this control per dataset
-                        once catalog metadata declares whether
-                        `include_inactive_games` is supported. Current team
-                        roster responses accept the query param but do not use
-                        it. */}
-                    <label className="inline-flex h-9 items-center gap-2 rounded-md border border-court-line bg-white px-3 text-sm text-court-muted">
-                      <input
-                        type="checkbox"
-                        checked={includeInactiveGames}
-                        onChange={(event) =>
-                          setIncludeInactiveGames(event.target.checked)
-                        }
-                      />
-                      Inactive
-                    </label>
+                    {currentTabSupportsInactive ? (
+                      <label className="inline-flex h-9 items-center gap-2 rounded-md border border-court-line bg-white px-3 text-sm text-court-muted">
+                        <input
+                          type="checkbox"
+                          checked={includeInactiveGames}
+                          onChange={(event) =>
+                            setIncludeInactiveGames(event.target.checked)
+                          }
+                        />
+                        Inactive
+                      </label>
+                    ) : null}
                     <Button
                       size="icon"
                       onClick={() => summaryQuery.refetch()}

@@ -10,7 +10,7 @@
     {
       "name": "backend",
       "runtimeExecutable": "uv",
-      "runtimeArgs": ["run", "--directory", "backend", "courtside-data", "serve", "--reload"],
+      "runtimeArgs": ["run", "--directory", "backend", "basketball-data-emporium", "serve", "--reload"],
       "port": 8765
     }
   ]

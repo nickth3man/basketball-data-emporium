@@ -1,6 +1,6 @@
 """MVCS Test 4 — Column-semantic manifest lineage.
 
-For every ``ColumnContract`` in :mod:`courtside_data.catalog` we assert:
+For every ``ColumnContract`` in :mod:`basketball_data_emporium.catalog` we assert:
 
 1. **Lineage exists.** The declared ``(schema, table, column)`` tuple
    must resolve to a real row in ``information_schema.columns``. This
@@ -29,7 +29,7 @@ from datetime import datetime, timezone
 import duckdb
 import pytest
 
-from courtside_data.catalog import (
+from basketball_data_emporium.catalog import (
     ALL_COLUMN_CONTRACTS,
     ColumnContract,
 )
@@ -256,10 +256,7 @@ def test_manifest_is_playoffs_scoped_is_boolean() -> None:
 
 
 # ---------------------------------------------------------------------------
-# 5. Manifest is regenerable (proves the file is not hand-edited into
-#    oblivion). Skipped by default because the regen script is currently
-#    a TODO; uncomment when
-#    ``backend/courtside_data/catalog/build_manifest.py`` exists.
+# 5. Manifest is regenerable. Skipped until a manifest regenerator exists.
 # ---------------------------------------------------------------------------
 
 
@@ -271,7 +268,7 @@ def test_manifest_is_playoffs_scoped_is_boolean() -> None:
 def test_manifest_regenerates_from_db() -> None:
     """Future test: the hand-written manifest must match what a discovery
     query against ``information_schema.columns`` would produce."""
-    raise NotImplementedError
+    pytest.skip("Manifest regenerator is not part of the current repository.")
 
 
 # ---------------------------------------------------------------------------
@@ -287,7 +284,7 @@ def test_manifest_has_recent_generated_at() -> None:
     The lineage-existence test above is the strict check; this is a
     soft reminder that the DB schema should be re-walked periodically.
     """
-    import courtside_data.catalog.column_manifest as cm
+    import basketball_data_emporium.catalog.column_manifest as cm
 
     generated_at = getattr(cm, "__generated_at__", None)
     if generated_at is None:

@@ -41,12 +41,9 @@ export function Overview({ summary }: OverviewProps) {
           description="Season-by-season trends for this franchise."
         />
         {chartRows.length === 0 ? (
-          // TODO P2-FE-03: this fallback is still useful for empty datasets, but
-          // tests and copy should stop describing franchise arc as entirely
-          // absent now that the backend emits `franchise_arc` on summaries.
           <EmptyState
-            title="Franchise arc data not yet available"
-            detail="The per-season series will appear here once the server starts emitting it."
+            title="No franchise arc rows"
+            detail="This team has no season-history rows in the current DuckDB snapshot."
           />
         ) : (
           <div className="h-80 rounded-md border border-court-line bg-white p-3">

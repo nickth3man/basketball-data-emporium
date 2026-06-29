@@ -17,7 +17,7 @@ export function SearchPage() {
       <header className="border-b border-court-line bg-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-court-accent">Courtside Data</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-court-accent">Basketball Data Emporium</p>
             <h1 className="text-xl font-semibold text-court-ink">Player Hub</h1>
           </div>
           <StatusPill />

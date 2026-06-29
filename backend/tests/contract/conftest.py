@@ -85,11 +85,11 @@ def contract_client() -> Iterator[TestClient]:
     convert uncaught `Exception`s into the `internal_error` envelope
     instead of re-raising them in the test thread.
     """
-    if "courtside_data.server.app" in sys.modules:
-        importlib.reload(sys.modules["courtside_data.server.app"])
+    if "basketball_data_emporium.server.app" in sys.modules:
+        importlib.reload(sys.modules["basketball_data_emporium.server.app"])
 
-    from courtside_data.server.app import app as fastapi_app
-    from courtside_data.server.deps import get_db_pool
+    from basketball_data_emporium.server.app import app as fastapi_app
+    from basketball_data_emporium.server.deps import get_db_pool
 
     fastapi_app.dependency_overrides.clear()
 
@@ -97,7 +97,7 @@ def contract_client() -> Iterator[TestClient]:
         # Let the production pool initialize on first request.
         fastapi_app.dependency_overrides[get_db_pool] = get_db_pool
     else:
-        from courtside_data.db.pool import DuckDBPool
+        from basketball_data_emporium.db.pool import DuckDBPool
 
         class _StubPool(DuckDBPool):
             def __init__(self) -> None:

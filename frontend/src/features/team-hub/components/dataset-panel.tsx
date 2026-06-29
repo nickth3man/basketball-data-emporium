@@ -6,6 +6,7 @@ import { csvExportUrl } from "@/features/team-hub/api/client";
 import { useSeasonDataset, useTeamDataset } from "@/features/team-hub/api/queries";
 import { DataTable } from "@/components/data-table";
 import type { TeamDatasetCatalogEntry } from "@/features/team-hub/types";
+import { downloadCsv } from "@/lib/api-client";
 
 interface DatasetPanelProps {
   identifier: string;
@@ -53,12 +54,17 @@ export function DatasetPanel({
             rows={data.rows}
             columns={data.columns}
             defaultVisibleColumns={data.default_visible_columns}
-            exportUrl={csvExportUrl(
-              identifier,
-              dataset.id,
-              dataset.scope === "team_season" && seasonEndYear !== null ? seasonEndYear : undefined,
-              includeInactiveGames,
-            )}
+            onExportCsv={() =>
+              downloadCsv(
+                csvExportUrl(
+                  identifier,
+                  dataset.id,
+                  dataset.scope === "team_season" && seasonEndYear !== null ? seasonEndYear : undefined,
+                  includeInactiveGames,
+                ),
+                `${identifier}-${dataset.id}.csv`,
+              )
+            }
           />
         )}
       </QueryBoundary>
