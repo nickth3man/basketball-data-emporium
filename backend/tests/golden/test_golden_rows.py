@@ -44,6 +44,15 @@ def _load_golden() -> List[Dict[str, str]]:
 @pytest.fixture(scope="session")
 def db() -> duckdb.DuckDBPyConnection:
     db_path = os.environ.get("BASKETBALL_DATA_DB_PATH", str(DEFAULT_DB_PATH.resolve()))
+    # Skip (don't error) when the 22 GB snapshot is absent, matching the
+    # schema/audit conftests. This keeps `pytest` green on CI runners that
+    # don't carry the DuckDB file; the golden suite still runs wherever the
+    # snapshot is mounted (locally and on the data-status runner).
+    if not Path(db_path).exists():
+        pytest.skip(
+            f"DuckDB file not found at {db_path}; "
+            "set BASKETBALL_DATA_DB_PATH (or DUCKDB_PATH) to enable golden tests."
+        )
     conn = duckdb.connect(db_path, read_only=True)
     try:
         yield conn

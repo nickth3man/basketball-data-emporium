@@ -2,7 +2,25 @@
 
 from __future__ import annotations
 
+import os
+from pathlib import Path
+
+import pytest
 from fastapi.testclient import TestClient
+
+
+def _has_duckdb_file() -> bool:
+    raw = os.environ.get("DUCKDB_PATH", "../data/nba.duckdb")
+    path = Path(raw)
+    if not path.is_absolute():
+        path = (Path.cwd() / path).resolve()
+    return path.exists()
+
+
+pytestmark = pytest.mark.skipif(
+    not _has_duckdb_file(),
+    reason="team route contracts require the real DuckDB snapshot",
+)
 
 
 def test_team_search_returns_bbr_abbrev(contract_client: TestClient) -> None:
