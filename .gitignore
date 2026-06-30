@@ -79,6 +79,10 @@ logs/
 *.seed
 *.local
 
+# Layer 5 reconciliation reports (the CLI writes these; the nightly
+# workflow uploads them as artifacts).
+backend/reports/
+
 # ---------------------------------------------------------------------------
 # OS/editor noise
 # ---------------------------------------------------------------------------

@@ -114,6 +114,7 @@ Copy `.env.example` to `.env` and adjust if needed.
 | `BASKETBALL_DATA_LOG_LEVEL` | `INFO` | Uvicorn/app log level. |
 | `BASKETBALL_DATA_CORS_ORIGINS` | local frontend origins | Comma-separated allowed frontend origins. |
 | `BASKETBALL_DATA_AUDIT_STALE_HOURS` | `72` | Age threshold for stale audit status. |
+| `DQ_STALENESS_HOURS` | `48` | Age threshold (hours) for `audit.dq_results.checked_at`; exceeding it flips the audit gate to `dq_stale` (issue #7). |
 
 ## Run
 
@@ -154,6 +155,53 @@ npm run test:e2e
 ```
 
 The Playwright suite starts both the FastAPI sidecar and the Next.js app.
+
+## Ratchet helper
+
+The invariant suite under `tests/invariant/` pins a measured count (or rate)
+of "genuine-residual" divergence rows as a regression ceiling. The targets
+are all 0; the pinned constants are regression guards, reachable only by
+upstream ETL fixes.
+
+`scripts/measure_baselines.py` measures every pinned baseline against the
+live DuckDB snapshot and prints a measured-vs-pinned table with one row per
+baseline:
+
+| Status | Meaning |
+| --- | --- |
+| `REGRESSION` | measured > pinned — the corresponding test would now fail |
+| `RATCHET_AVAILABLE` | measured < pinned — the test still passes; lower the constant |
+| `AT_CEILING` | measured == pinned — the test passes at the boundary |
+
+Exit code is 0 when there are no regressions (including the all-skipped
+case when the DuckDB snapshot is absent), nonzero when any baseline grew
+past its pinned value.
+
+Run it from `backend/`:
+
+```bash
+./.venv/Scripts/python.exe scripts/measure_baselines.py
+# or
+uv run python scripts/measure_baselines.py
+```
+
+`--json` emits a single JSON object instead of the human-readable table.
+
+Ratchet workflow when an upstream ETL fix lands:
+
+1. Re-run the helper. Rows marked `RATCHET_AVAILABLE` mean the measured
+   value has dropped below the pinned value.
+2. Lower the corresponding constant in the source file. For
+   `kd.GENUINE_RESIDUAL_BASELINE` keys, edit `tests/invariant/known_divergences.py`.
+   For per-layer module-level constants, edit the matching
+   `tests/invariant/test_layerN_*.py`.
+3. Re-run the helper to confirm the row moves to `AT_CEILING` and the
+   full test suite still passes.
+
+Pinned values are *imported* from the source files (no duplicated
+literal), and the SQL predicates are the same ones the invariant tests
+assert, so the helper's measured value is always exactly what the
+corresponding test sees.
 
 ## Layout
 
