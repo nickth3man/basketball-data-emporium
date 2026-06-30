@@ -52,6 +52,7 @@ def test_status_body_contract(contract_client: TestClient) -> None:
         "latest_pipeline_failed",
         "latest_dq_failed",
         "audit_stale",
+        "dq_stale",
         "dq_missing",
         "verified",
         "unverified",

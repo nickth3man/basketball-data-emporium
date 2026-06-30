@@ -171,6 +171,7 @@ def test_status_openapi_lists_route(status_client: TestClient) -> None:
         "latest_pipeline_failed",
         "latest_dq_failed",
         "audit_stale",
+        "dq_stale",
         "dq_missing",
         "verified",
         "unverified",

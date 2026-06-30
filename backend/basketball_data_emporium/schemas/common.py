@@ -49,6 +49,7 @@ class StatusResponse(BaseModel):
         "latest_pipeline_failed",
         "latest_dq_failed",
         "audit_stale",
+        "dq_stale",
         "dq_missing",
         "verified",
         "unverified",
