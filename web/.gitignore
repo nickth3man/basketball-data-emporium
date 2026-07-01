@@ -2,3 +2,13 @@ node_modules/
 dist/
 .cache/
 coverage/
+.env
+.env.local
+.env.*
+!.env.example
+
+# Logs and OS files
+*.log
+.DS_Store
+Thumbs.db
+
