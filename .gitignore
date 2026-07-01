@@ -1,104 +1,17 @@
-# ---------------------------------------------------------------------------
-# Local data and large database files
-# ---------------------------------------------------------------------------
-/data/nba.duckdb
-/data/*.duckdb
-/data/*.duckdb.wal
-/data/*.db
-/data/*.sqlite
-/data/*.sqlite3
-
-# Keep curated anchors/manifests trackable under data/anchors/.
-
-# ---------------------------------------------------------------------------
-# Environment and local secrets
-# ---------------------------------------------------------------------------
+node_modules/
+dist/
+.cache/
+coverage/
 .env
-.env.*
-!.env.example
-backend/.env
-frontend/.env.local
-frontend/.env.*.local
+.env.local
 
-# ---------------------------------------------------------------------------
-# Python / backend
-# ---------------------------------------------------------------------------
+# Python
 __pycache__/
 *.py[cod]
-*$py.class
 *.pyo
-*.pyd
-.Python
-.venv/
-venv/
-env/
-ENV/
-.uv-cache/
-.pytest_cache/
-.ruff_cache/
-.mypy_cache/
-.pyre/
-.coverage
-.coverage.*
-coverage.xml
-htmlcov/
-*.egg-info/
-build/
-dist/
 
-# ---------------------------------------------------------------------------
-# Node / Next.js frontend
-# ---------------------------------------------------------------------------
-node_modules/
-frontend/node_modules/
-frontend/.next/
-frontend/out/
-frontend/dist/
-frontend/build/
-frontend/.turbo/
-frontend/.vercel/
-frontend/coverage/
-frontend/.nyc_output/
-frontend/tsconfig.tsbuildinfo
-*.tsbuildinfo
-
-# ---------------------------------------------------------------------------
-# Test and browser artifacts
-# ---------------------------------------------------------------------------
-frontend/test-results/
-frontend/playwright-report/
-playwright-report/
-test-results/
-
-# ---------------------------------------------------------------------------
-# Logs and runtime files
-# ---------------------------------------------------------------------------
-*.log
-logs/
-*.pid
-*.seed
-*.local
-
-# Layer 5 reconciliation reports (the CLI writes these; the nightly
-# workflow uploads them as artifacts).
-backend/reports/
-
-# ---------------------------------------------------------------------------
-# OS/editor noise
-# ---------------------------------------------------------------------------
-.DS_Store
-Thumbs.db
-Desktop.ini
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# ---------------------------------------------------------------------------
-# Temporary files
-# ---------------------------------------------------------------------------
-tmp/
-temp/
-.tmp/
-*.tmp
-*.bak
+# DuckDB database files are large local artifacts, not source
+data/nba.duckdb
+data/nba.duckdb.wal
+*.duckdb
+*.duckdb.wal

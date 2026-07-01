@@ -1,0 +1,15 @@
+pre-commit:
+  parallel: true
+  commands:
+    web-lint:
+      root: web/
+      glob: "*.{ts,tsx,js,jsx}"
+      run: npx eslint --fix {staged_files}
+    web-format:
+      root: web/
+      glob: "*.{ts,tsx,js,jsx,json,css,html,md}"
+      run: npx prettier --write {staged_files}
+    web-typecheck:
+      root: web/
+      glob: "*.{ts,tsx}"
+      run: npm run typecheck
