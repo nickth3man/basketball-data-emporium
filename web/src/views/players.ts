@@ -103,7 +103,8 @@ export function renderPlayers(container: HTMLElement): void {
         api.getSimilarPlayers(id),
       ]);
       if (highs.status === "fulfilled" && highs.value.length > 0) renderHighs(detail, highs.value);
-      if (rates.status === "fulfilled") renderPerRates(detail, rates.value.per36, rates.value.per48);
+      if (rates.status === "fulfilled")
+        renderPerRates(detail, rates.value.per36, rates.value.per48);
       if (shotSplits.status === "fulfilled" && shotSplits.value.length > 0)
         renderShotSplits(detail, shotSplits.value);
       if (onOff.status === "fulfilled" && onOff.value.length > 0) renderOnOff(detail, onOff.value);
@@ -484,17 +485,26 @@ function renderCombine(container: HTMLElement, combine: Row): void {
   container.append(
     el("h3", { text: "Draft combine measurements" }),
     renderDefList([
-    ["Height (no shoes)", combine.height_wo_shoes ? `${formatValue(combine.height_wo_shoes)}"` : null],
-    ["Height (with shoes)", combine.height_w_shoes ? `${formatValue(combine.height_w_shoes)}"` : null],
-    ["Weight", combine.weight ? `${formatValue(combine.weight)} lb` : null],
-    ["Wingspan", combine.wingspan ? `${formatValue(combine.wingspan)}"` : null],
-    ["Standing reach", combine.standing_reach ? `${formatValue(combine.standing_reach)}"` : null],
-    ["Body fat %", combine.body_fat_pct],
-    [
-      "Standing vertical leap",
-      combine.standing_vertical_leap ? `${formatValue(combine.standing_vertical_leap)}"` : null,
-    ],
-    ["Max vertical leap", combine.max_vertical_leap ? `${formatValue(combine.max_vertical_leap)}"` : null],
+      [
+        "Height (no shoes)",
+        combine.height_wo_shoes ? `${formatValue(combine.height_wo_shoes)}"` : null,
+      ],
+      [
+        "Height (with shoes)",
+        combine.height_w_shoes ? `${formatValue(combine.height_w_shoes)}"` : null,
+      ],
+      ["Weight", combine.weight ? `${formatValue(combine.weight)} lb` : null],
+      ["Wingspan", combine.wingspan ? `${formatValue(combine.wingspan)}"` : null],
+      ["Standing reach", combine.standing_reach ? `${formatValue(combine.standing_reach)}"` : null],
+      ["Body fat %", combine.body_fat_pct],
+      [
+        "Standing vertical leap",
+        combine.standing_vertical_leap ? `${formatValue(combine.standing_vertical_leap)}"` : null,
+      ],
+      [
+        "Max vertical leap",
+        combine.max_vertical_leap ? `${formatValue(combine.max_vertical_leap)}"` : null,
+      ],
       ["Lane agility time", combine.lane_agility_time],
       ["Three-quarter sprint", combine.three_quarter_sprint],
       ["Bench press (reps)", combine.bench_press],

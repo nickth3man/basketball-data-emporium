@@ -262,9 +262,7 @@ export async function searchPlayers(q: string, limit = 25): Promise<Row[]> {
 // Per-36 / Per-48 (per-100-possession-style rate) tables
 // ---------------------------------------------------------------------------
 
-export async function getPlayerPerRates(
-  playerId: number,
-): Promise<{ per36: Row[]; per48: Row[] }> {
+export async function getPlayerPerRates(playerId: number): Promise<{ per36: Row[]; per48: Row[] }> {
   const [per36, per48] = await Promise.all([
     queryObjects(
       `SELECT * FROM agg_player_season_per36 WHERE player_id = ? ORDER BY season_year, season_type`,
@@ -307,7 +305,10 @@ export async function getPlayerHighs(playerId: number): Promise<Row[]> {
         ORDER BY ${s.key} DESC, game_date ASC
         LIMIT 1)`,
   );
-  return queryObjects(unions.join(" UNION ALL "), GAME_HIGH_STATS.map(() => playerId));
+  return queryObjects(
+    unions.join(" UNION ALL "),
+    GAME_HIGH_STATS.map(() => playerId),
+  );
 }
 
 // ---------------------------------------------------------------------------
