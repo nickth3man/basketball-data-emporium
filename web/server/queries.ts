@@ -32,6 +32,18 @@ if (BBR_JERSEYS_AVAILABLE) {
   console.log(`[queries] BBR jersey fallback enabled: ${BBR_JERSEYS_PATH}`);
 }
 
+// Supplemental coach-by-season table scraped from Basketball-Reference
+// franchise index pages (``data/anchors/scrape_team_coaches.py``), same
+// JSONL-at-query-time pattern as the jersey table above. dim_coach only has
+// rows for the current season, so this is the only source for historical
+// coach-by-season data.
+const BBR_COACHES_PATH =
+  process.env.BBR_COACHES_PATH ?? path.resolve(__dirname, "../../data/anchors/bbr_coaches.jsonl");
+const BBR_COACHES_AVAILABLE = existsSync(BBR_COACHES_PATH);
+if (BBR_COACHES_AVAILABLE) {
+  console.log(`[queries] BBR coach history enabled: ${BBR_COACHES_PATH}`);
+}
+
 // Jersey-history SQL template. ``$BBR_CTE`` is replaced with the BBR
 // CTE (or empty when the file is missing); ``$BBR_UNION`` is replaced
 // with the corresponding ranked source branch (or empty). The body is the
@@ -243,6 +255,186 @@ export async function searchPlayers(q: string, limit = 25): Promise<Row[]> {
      ORDER BY p.full_name
      LIMIT ?`,
     [`%${q}%`, limit],
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Per-36 / Per-48 (per-100-possession-style rate) tables
+// ---------------------------------------------------------------------------
+
+export async function getPlayerPerRates(
+  playerId: number,
+): Promise<{ per36: Row[]; per48: Row[] }> {
+  const [per36, per48] = await Promise.all([
+    queryObjects(
+      `SELECT * FROM agg_player_season_per36 WHERE player_id = ? ORDER BY season_year, season_type`,
+      [playerId],
+    ),
+    queryObjects(
+      `SELECT * FROM agg_player_season_per48 WHERE player_id = ? ORDER BY season_year, season_type`,
+      [playerId],
+    ),
+  ]);
+  return { per36, per48 };
+}
+
+// ---------------------------------------------------------------------------
+// Career/game highs
+//
+// analytics_player_game_complete has one row per player-game with a rich set
+// of box-score columns. Each stat's high is found independently (a single
+// game rarely holds every career high at once), each paired with the date/
+// team on which it happened, BBR-style ("50 pts on 3/2/2001 vs LAL").
+// ---------------------------------------------------------------------------
+
+const GAME_HIGH_STATS: { key: string; label: string }[] = [
+  { key: "pts", label: "Points" },
+  { key: "reb", label: "Rebounds" },
+  { key: "ast", label: "Assists" },
+  { key: "stl", label: "Steals" },
+  { key: "blk", label: "Blocks" },
+  { key: "fg3m", label: "3-Pointers Made" },
+  { key: "fgm", label: "Field Goals Made" },
+  { key: "ftm", label: "Free Throws Made" },
+];
+
+export async function getPlayerHighs(playerId: number): Promise<Row[]> {
+  const unions = GAME_HIGH_STATS.map(
+    (s) =>
+      `(SELECT '${s.label}' AS stat, ${s.key} AS value, game_date, team_abbreviation
+        FROM analytics_player_game_complete
+        WHERE player_id = ? AND ${s.key} IS NOT NULL
+        ORDER BY ${s.key} DESC, game_date ASC
+        LIMIT 1)`,
+  );
+  return queryObjects(unions.join(" UNION ALL "), GAME_HIGH_STATS.map(() => playerId));
+}
+
+// ---------------------------------------------------------------------------
+// Shooting-location splits
+//
+// agg_shot_location_season is a near-empty aggregate (only player_id,
+// season_year, fgm, season_fgm_rank) despite its name; the real
+// zone/distance breakdown lives in agg_shot_zones. League-wide averages per
+// (season, zone) are joined in so the UI can show a BBR-style "league avg"
+// column, satisfying the league-adjusted-shooting gap for zone shooting
+// without a separate feature.
+// ---------------------------------------------------------------------------
+
+export async function getPlayerShotSplits(playerId: number): Promise<Row[]> {
+  return queryObjects(
+    `WITH league_avg AS (
+       SELECT season_year, shot_zone_basic,
+              SUM(makes) AS league_makes,
+              SUM(attempts) AS league_attempts
+       FROM agg_shot_zones
+       GROUP BY season_year, shot_zone_basic
+     )
+     SELECT
+       z.season_year,
+       z.shot_zone_basic,
+       z.shot_zone_area,
+       z.shot_zone_range,
+       z.attempts,
+       z.makes,
+       z.fg_pct,
+       z.avg_distance,
+       la.league_makes / NULLIF(la.league_attempts, 0) AS league_fg_pct
+     FROM agg_shot_zones z
+     LEFT JOIN league_avg la
+       ON la.season_year = z.season_year AND la.shot_zone_basic = z.shot_zone_basic
+     WHERE z.player_id = ?
+     ORDER BY z.season_year, z.shot_zone_basic`,
+    [playerId],
+  );
+}
+
+// ---------------------------------------------------------------------------
+// On/off splits
+//
+// agg_on_off_splits carries both player- and team-level rows (entity_type);
+// only the player rows are surfaced here.
+// ---------------------------------------------------------------------------
+
+export async function getPlayerOnOffSplits(playerId: number): Promise<Row[]> {
+  return queryObjects(
+    `SELECT season_year, season_type, on_off, gp, min, pts, reb, ast, off_rating, def_rating, net_rating
+     FROM agg_on_off_splits
+     WHERE entity_type = 'player' AND entity_id = ?
+     ORDER BY season_year, season_type, on_off`,
+    [playerId],
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Draft combine measurements
+//
+// The four stg_draft_combine* staging tables are queried directly (never
+// promoted to warehouse tables) and matched on player_id; a player only has
+// a match if they attended an NBA combine (draft classes back to ~2000).
+// ---------------------------------------------------------------------------
+
+export async function getPlayerDraftCombine(playerId: number): Promise<Row | null> {
+  const rows = await queryObjects(
+    `SELECT
+       c.season,
+       c.height_wo_shoes, c.height_w_shoes, c.weight, c.wingspan, c.standing_reach,
+       c.body_fat_pct, c.hand_length, c.hand_width,
+       d.standing_vertical_leap, d.max_vertical_leap, d.lane_agility_time,
+       d.modified_lane_agility_time, d.three_quarter_sprint, d.bench_press
+     FROM stg_draft_combine c
+     LEFT JOIN stg_draft_combine_drills d ON d.player_id = c.player_id AND d.season = c.season
+     WHERE c.player_id = ?
+     ORDER BY c.season DESC
+     LIMIT 1`,
+    [playerId],
+  );
+  return rows[0] ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// Similar players
+//
+// A lightweight "similarity score" over career per-game rate stats
+// (recomputed the same games-weighted way as the career summary above), not
+// a BBR-equivalent model — just nearest-neighbor by Euclidean distance
+// across points/rebounds/assists/steals/blocks/3PM per game plus true
+// shooting-ish efficiency, restricted to players with at least 100 career
+// games so single-season call-ups don't dominate the neighbor list.
+// ---------------------------------------------------------------------------
+
+export async function getSimilarPlayers(playerId: number, limit = 10): Promise<Row[]> {
+  return queryObjects(
+    `WITH career AS (
+       SELECT
+         player_id,
+         SUM(gp) AS career_gp,
+         SUM(avg_pts * gp) / NULLIF(SUM(gp), 0) AS ppg,
+         SUM(avg_reb * gp) / NULLIF(SUM(gp), 0) AS rpg,
+         SUM(avg_ast * gp) / NULLIF(SUM(gp), 0) AS apg,
+         SUM(avg_stl * gp) / NULLIF(SUM(gp), 0) AS spg,
+         SUM(avg_blk * gp) / NULLIF(SUM(gp), 0) AS bpg,
+         SUM(total_fg3m) / NULLIF(SUM(gp), 0) AS fg3mpg
+       FROM agg_player_season
+       WHERE season_type = 'Regular'
+       GROUP BY player_id
+       HAVING SUM(gp) >= 100
+     ),
+     target AS (SELECT * FROM career WHERE player_id = ?)
+     SELECT
+       p.player_id, p.full_name, p.position,
+       c.career_gp, c.ppg, c.rpg, c.apg, c.spg, c.bpg, c.fg3mpg,
+       SQRT(
+         POWER(c.ppg - t.ppg, 2) + POWER(c.rpg - t.rpg, 2) + POWER(c.apg - t.apg, 2) +
+         POWER(c.spg - t.spg, 2) * 4 + POWER(c.bpg - t.bpg, 2) * 4 + POWER(c.fg3mpg - t.fg3mpg, 2)
+       ) AS distance
+     FROM career c
+     CROSS JOIN target t
+     JOIN dim_player p ON p.player_id = c.player_id AND p.is_current
+     WHERE c.player_id != t.player_id
+     ORDER BY distance ASC
+     LIMIT ?`,
+    [playerId, limit],
   );
 }
 
@@ -648,13 +840,22 @@ export interface TeamProfile {
 
 export async function getTeamProfile(teamId: number): Promise<TeamProfile> {
   const teamIdStr = String(teamId);
-  const [identity, extra, currentStanding, seasons, franchiseHistory, recentGames] =
+  const [identity, extra, details, currentStanding, seasons, franchiseHistory, recentGames] =
     await Promise.all([
       queryObjects(`SELECT * FROM dim_team_history WHERE team_id = ? AND is_current LIMIT 1`, [
         teamId,
       ]),
       queryObjects(
         `SELECT arena, year_founded FROM dim_team WHERE team_id = ? ORDER BY year_founded DESC LIMIT 1`,
+        [teamId],
+      ),
+      // team_details (fact_team_background) carries bio fields dim_team never
+      // populated: arena capacity, owner, GM, current head coach, D-League
+      // affiliate, and social links. team_id is stored as VARCHAR there.
+      queryObjects(
+        `SELECT arenacapacity, owner, generalmanager, headcoach, dleagueaffiliation,
+                facebook, instagram, twitter
+         FROM team_details WHERE TRY_CAST(team_id AS BIGINT) = ? LIMIT 1`,
         [teamId],
       ),
       queryObjects(
@@ -684,7 +885,7 @@ export async function getTeamProfile(teamId: number): Promise<TeamProfile> {
         [teamIdStr, teamIdStr, teamIdStr, teamIdStr, teamIdStr, teamIdStr, teamIdStr],
       ),
     ]);
-  const bio = identity[0] ? { ...identity[0], ...extra[0] } : null;
+  const bio = identity[0] ? { ...identity[0], ...extra[0], ...details[0] } : null;
   return {
     bio,
     currentStanding: currentStanding[0] ?? null,
@@ -692,6 +893,128 @@ export async function getTeamProfile(teamId: number): Promise<TeamProfile> {
     franchiseHistory,
     recentGames,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Current team roster
+// ---------------------------------------------------------------------------
+
+export async function getTeamRoster(teamId: number): Promise<Row[]> {
+  // dim_player.is_current/is_active are both nearly always true (they track
+  // "latest known row for this player", not "on this roster today") so they
+  // can't identify a current roster — filtering by them returns every player
+  // who ever suited up for the franchise. Instead, use
+  // bridge_player_team_season restricted to the latest season_year on
+  // record, which is a real season-by-season roster mapping. Some
+  // player/team/season combos have multiple rows with different (or null)
+  // position values, so dedupe to one row per player, preferring a non-null
+  // position.
+  return queryObjects(
+    `WITH latest_season AS (SELECT MAX(season_year) AS season_year FROM bridge_player_team_season)
+     SELECT p.player_id, p.full_name, b.position, b.jersey_number, p.height, p.weight
+     FROM bridge_player_team_season b
+     JOIN latest_season ls ON b.season_year = ls.season_year
+     JOIN dim_player p ON p.player_id = b.player_id AND p.is_current
+     WHERE b.team_id = ?
+     QUALIFY ROW_NUMBER() OVER (PARTITION BY p.player_id ORDER BY b.position NULLS LAST) = 1
+     ORDER BY p.full_name`,
+    [teamId],
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Playoff series-by-series
+//
+// fact_playoff_series' own `wins`/`losses`/abbreviation columns are
+// unreliable (verified: each real game appears duplicated once per historical
+// abbreviation era of the involved franchises, and the win/loss counters run
+// well past a series-clinching 4 rather than resetting per series). Instead,
+// this only uses fact_playoff_series to identify which (season, series,
+// game, opponent) a given team played, then re-derives the real result from
+// `game.wl_home`/`wl_away` (the same source already trusted for the "Recent
+// games" team section). Round names aren't stored anywhere, but a team only
+// ever plays one series at a time, so ordering a team's series chronologically
+// within a season reliably reproduces the round order (First Round, Conf.
+// Semis, Conf. Finals, Finals) without needing bracket reconstruction.
+// ---------------------------------------------------------------------------
+
+export async function getTeamPlayoffSeries(teamId: number): Promise<Row[]> {
+  return queryObjects(
+    `WITH real_games AS (
+       SELECT DISTINCT season_id, series_id, game_id, home_team_id, away_team_id
+       FROM fact_playoff_series
+       WHERE ? IN (home_team_id, away_team_id)
+     ),
+     joined AS (
+       SELECT
+         rg.season_id, rg.series_id,
+         g.game_date,
+         CASE WHEN rg.home_team_id = ? THEN g.wl_home ELSE g.wl_away END AS team_wl,
+         CASE WHEN rg.home_team_id = ? THEN rg.away_team_id ELSE rg.home_team_id END AS opponent_team_id
+       FROM real_games rg
+       JOIN game g ON g.game_id = rg.game_id
+     ),
+     series_agg AS (
+       SELECT
+         season_id, series_id, opponent_team_id,
+         MIN(game_date) AS series_start,
+         COUNT(*) FILTER (WHERE team_wl = 'W') AS wins,
+         COUNT(*) FILTER (WHERE team_wl = 'L') AS losses
+       FROM joined
+       GROUP BY season_id, series_id, opponent_team_id
+     )
+     SELECT
+       sa.season_id,
+       sa.wins,
+       sa.losses,
+       ROW_NUMBER() OVER (PARTITION BY sa.season_id ORDER BY sa.series_start) AS round_number,
+       COALESCE(th_era.abbreviation, th_current.abbreviation) AS opponent_abbreviation,
+       COALESCE(th_era.nickname, th_current.nickname) AS opponent_name
+     FROM series_agg sa
+     LEFT JOIN dim_team_history th_era
+       ON th_era.team_id = sa.opponent_team_id
+       AND sa.season_id >= th_era.valid_from
+       AND (th_era.valid_to IS NULL OR sa.season_id < th_era.valid_to)
+     LEFT JOIN dim_team_history th_current
+       ON th_current.team_id = sa.opponent_team_id AND th_current.is_current
+     ORDER BY sa.season_id DESC, round_number`,
+    [teamId, teamId, teamId],
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Historical coach-by-season
+// ---------------------------------------------------------------------------
+
+export async function getTeamCoachHistory(teamId: number): Promise<Row[]> {
+  if (!BBR_COACHES_AVAILABLE) return [];
+  const safePath = BBR_COACHES_PATH.replaceAll("\\", "/").replaceAll("'", "''");
+  return queryObjects(
+    `SELECT
+       season_year,
+       COALESCE(first_name || ' ' || last_name, coach_label) AS coach_name,
+       wins,
+       losses
+     FROM read_json_auto('${safePath}')
+     WHERE team_id = ?
+     ORDER BY season_end_year DESC, wins DESC`,
+    [teamId],
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Lineup efficiency (team-level on/off complement)
+// ---------------------------------------------------------------------------
+
+export async function getTeamLineupEfficiency(teamId: number, limit = 15): Promise<Row[]> {
+  return queryObjects(
+    `SELECT group_id, season_year, total_gp, total_min, pts_per48, avg_net_rating
+     FROM agg_lineup_efficiency
+     WHERE team_id = ?
+     ORDER BY total_min DESC
+     LIMIT ?`,
+    [teamId, limit],
+  );
 }
 
 // ---------------------------------------------------------------------------

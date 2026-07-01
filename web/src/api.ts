@@ -38,8 +38,8 @@ export interface TeamProfile {
   recentGames: Row[];
 }
 
-async function getJSON<T>(url: string): Promise<T> {
-  const res = await fetch(url);
+async function getJSON<T>(url: string, signal?: AbortSignal): Promise<T> {
+  const res = await fetch(url, { signal });
   const body: unknown = await res.json();
   if (!res.ok) {
     const message =
@@ -60,12 +60,28 @@ const qs = (params: Record<string, string | null | undefined>): string => {
   return str ? `?${str}` : "";
 };
 
+export interface PerRates {
+  per36: Row[];
+  per48: Row[];
+}
+
 export const api = {
-  searchPlayers: (query: string) => getJSON<Row[]>(`/api/players${qs({ q: query })}`),
+  searchPlayers: (query: string, signal?: AbortSignal) =>
+    getJSON<Row[]>(`/api/players${qs({ q: query })}`, signal),
   getPlayer: (id: string | number) => getJSON<PlayerProfile>(`/api/players/${id}`),
+  getPlayerRates: (id: string | number) => getJSON<PerRates>(`/api/players/${id}/rates`),
+  getPlayerHighs: (id: string | number) => getJSON<Row[]>(`/api/players/${id}/highs`),
+  getPlayerShotSplits: (id: string | number) => getJSON<Row[]>(`/api/players/${id}/shot-splits`),
+  getPlayerOnOff: (id: string | number) => getJSON<Row[]>(`/api/players/${id}/on-off`),
+  getPlayerCombine: (id: string | number) => getJSON<Row | null>(`/api/players/${id}/combine`),
+  getSimilarPlayers: (id: string | number) => getJSON<Row[]>(`/api/players/${id}/similar`),
 
   searchTeams: (query: string) => getJSON<Row[]>(`/api/teams${qs({ q: query })}`),
   getTeam: (id: string | number) => getJSON<TeamProfile>(`/api/teams/${id}`),
+  getTeamRoster: (id: string | number) => getJSON<Row[]>(`/api/teams/${id}/roster`),
+  getTeamPlayoffSeries: (id: string | number) => getJSON<Row[]>(`/api/teams/${id}/playoff-series`),
+  getTeamLineups: (id: string | number) => getJSON<Row[]>(`/api/teams/${id}/lineups`),
+  getTeamCoaches: (id: string | number) => getJSON<Row[]>(`/api/teams/${id}/coaches`),
 
   standingsSeasons: () => getJSON<string[]>("/api/standings/seasons"),
   standings: (season: string, type: string) =>

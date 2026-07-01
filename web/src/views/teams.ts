@@ -70,6 +70,21 @@ export function renderTeams(container: HTMLElement): void {
       if (profile.seasons.length > 0) renderSeasons(detail, profile.seasons);
       if (profile.recentGames.length > 0) renderRecentGames(detail, profile.recentGames);
       announceStatus(`Loaded profile for ${String(profile.bio.nickname)}.`);
+
+      const [roster, playoffSeries, lineups, coaches] = await Promise.allSettled([
+        api.getTeamRoster(id),
+        api.getTeamPlayoffSeries(id),
+        api.getTeamLineups(id),
+        api.getTeamCoaches(id),
+      ]);
+      if (roster.status === "fulfilled" && roster.value.length > 0)
+        renderRoster(detail, roster.value);
+      if (coaches.status === "fulfilled" && coaches.value.length > 0)
+        renderCoachHistory(detail, coaches.value);
+      if (playoffSeries.status === "fulfilled" && playoffSeries.value.length > 0)
+        renderPlayoffSeries(detail, playoffSeries.value);
+      if (lineups.status === "fulfilled" && lineups.value.length > 0)
+        renderLineups(detail, lineups.value);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to load team.";
       detail.replaceChildren(el("p", { className: "muted", text: `Error: ${message}` }));
@@ -88,7 +103,12 @@ function renderBio(container: HTMLElement, bio: Row, standing: Row | null): void
       ["Conference", standing?.conference],
       ["Division", standing?.division],
       ["Arena", bio.arena],
+      ["Arena capacity", bio.arenacapacity],
       ["Founded", bio.year_founded],
+      ["Owner", bio.owner],
+      ["General Manager", bio.generalmanager],
+      ["Head Coach", bio.headcoach],
+      ["D-League affiliate", bio.dleagueaffiliation],
       [
         "Latest record",
         standing
@@ -96,6 +116,104 @@ function renderBio(container: HTMLElement, bio: Row, standing: Row | null): void
           : "—",
       ],
     ]),
+  );
+  const socialLinks = [
+    typeof bio.facebook === "string" && bio.facebook
+      ? el("a", { href: bio.facebook, target: "_blank", rel: "noreferrer", text: "Facebook" })
+      : null,
+    typeof bio.instagram === "string" && bio.instagram
+      ? el("a", { href: bio.instagram, target: "_blank", rel: "noreferrer", text: "Instagram" })
+      : null,
+    typeof bio.twitter === "string" && bio.twitter
+      ? el("a", { href: bio.twitter, target: "_blank", rel: "noreferrer", text: "Twitter" })
+      : null,
+  ].filter((n): n is HTMLElement => n !== null);
+  if (socialLinks.length > 0) {
+    const linkRow = el("p", { className: "bio-line" });
+    socialLinks.forEach((link, i) => {
+      if (i > 0) linkRow.append(" · ");
+      linkRow.append(link);
+    });
+    container.append(linkRow);
+  }
+}
+
+function renderRoster(container: HTMLElement, roster: Row[]): void {
+  container.append(
+    el("h3", { text: "Current roster" }),
+    renderTable(
+      [
+        { key: "full_name", label: "Name" },
+        { key: "position", label: "Pos" },
+        { key: "jersey_number", label: "#" },
+        { key: "height", label: "Height" },
+        { key: "weight", label: "Weight" },
+      ],
+      roster,
+    ),
+  );
+}
+
+function renderCoachHistory(container: HTMLElement, coaches: Row[]): void {
+  container.append(
+    el("h3", { text: "Coaching history" }),
+    renderTable(
+      [
+        { key: "season_year", label: "Season" },
+        { key: "coach_name", label: "Coach" },
+        {
+          key: "wins",
+          label: "Record",
+          format: (_v, row) => `${formatValue(row.wins)}-${formatValue(row.losses)}`,
+        },
+      ],
+      coaches,
+    ),
+  );
+}
+
+const ROUND_LABELS: Record<number, string> = {
+  1: "First Round",
+  2: "Conference Semifinals",
+  3: "Conference Finals",
+  4: "Finals",
+};
+
+function renderPlayoffSeries(container: HTMLElement, series: Row[]): void {
+  container.append(
+    el("h3", { text: "Playoff series by season" }),
+    renderTable(
+      [
+        { key: "season_id", label: "Season" },
+        {
+          key: "round_number",
+          label: "Round",
+          format: (v) => ROUND_LABELS[Number(v)] ?? `Round ${formatValue(v)}`,
+        },
+        { key: "opponent_name", label: "Opponent" },
+        {
+          key: "wins",
+          label: "Result",
+          format: (_v, row) => `${formatValue(row.wins)}-${formatValue(row.losses)}`,
+        },
+      ],
+      series,
+    ),
+  );
+}
+
+function renderLineups(container: HTMLElement, lineups: Row[]): void {
+  container.append(
+    el("h3", { text: "Most-used lineup outings (single-game samples)" }),
+    renderTable(
+      [
+        { key: "season_year", label: "Season" },
+        { key: "total_min", label: "Minutes" },
+        { key: "pts_per48", label: "PTS/48" },
+        { key: "avg_net_rating", label: "Net Rating" },
+      ],
+      lineups,
+    ),
   );
 }
 

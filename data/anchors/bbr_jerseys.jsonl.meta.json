@@ -1,9 +1,9 @@
 {
-  "cached": 41,
-  "fetched": 1,
+  "cached": 42,
+  "fetched": 584,
   "generated_on": "2026-06-30",
   "lookups_loaded": true,
-  "row_count": 704,
+  "row_count": 9049,
   "scraper": "data/anchors/scrape_team_rosters.py",
   "seasons": [
     1960,
@@ -75,10 +75,10 @@
   ],
   "skip_counts": {
     "blank_jersey": 0,
-    "no_canonical": 3720,
-    "no_player_match": 41,
+    "no_canonical": 3136,
+    "no_player_match": 334,
     "no_roster_table": 0,
-    "no_team_match": 0
+    "no_team_match": 847
   },
   "teams": [
     "AND",
@@ -107,7 +107,6 @@
     "MIN",
     "MNL",
     "NJN",
-    "NOJ",
     "NOH",
     "NOK",
     "NOP",

@@ -7,6 +7,7 @@ import {
   jerseyIcon,
   labeledSearch,
   playerPhoto,
+  renderDefList,
   renderTable,
 } from "../dom.ts";
 
@@ -23,17 +24,28 @@ export function renderPlayers(container: HTMLElement): void {
   container.append(el("div", { className: "search-panel" }, [searchWrapper, resultsList]), detail);
 
   let debounce: number | undefined;
+  let currentSearchController: AbortController | null = null;
   searchBox.addEventListener("input", () => {
     window.clearTimeout(debounce);
     debounce = window.setTimeout(() => void runSearch(searchBox.value.trim()), 200);
   });
 
   async function runSearch(query: string): Promise<void> {
+    // Abort any in-flight search before starting a new one: without this, a
+    // slow response for an earlier keystroke (e.g. "Wilt Chamberla…") can
+    // resolve after a faster response for the final query and overwrite it,
+    // intermittently showing "No players found" for a query that actually
+    // has matches (a race condition, not a search-quality bug).
+    currentSearchController?.abort();
+    const controller = new AbortController();
+    currentSearchController = controller;
+
     resultsList.replaceChildren();
     if (query.length < 2) return;
     announceStatus("Searching players…");
     try {
-      const players = await api.searchPlayers(query);
+      const players = await api.searchPlayers(query, controller.signal);
+      if (controller.signal.aborted) return;
       if (players.length === 0) {
         resultsList.append(el("li", { className: "muted", text: "No players found." }));
         announceStatus("No players found.");
@@ -54,6 +66,7 @@ export function renderPlayers(container: HTMLElement): void {
         resultsList.append(el("li", {}, [button]));
       }
     } catch (err) {
+      if (controller.signal.aborted) return;
       const message = err instanceof Error ? err.message : "Search failed.";
       resultsList.append(el("li", { className: "muted", text: `Error: ${message}` }));
       announceStatus(`Player search failed: ${message}`);
@@ -77,6 +90,26 @@ export function renderPlayers(container: HTMLElement): void {
       if (profile.seasons.length > 0) renderSeasons(detail, profile.seasons);
       if (profile.awards.length > 0) renderAwards(detail, profile.awards);
       announceStatus(`Loaded profile for ${String(bio.full_name)}.`);
+
+      // Secondary sections load independently of the main profile — each is
+      // its own endpoint/table, so one failing or being empty (e.g. a player
+      // with no combine data) shouldn't block the others.
+      const [highs, rates, shotSplits, onOff, combine, similar] = await Promise.allSettled([
+        api.getPlayerHighs(id),
+        api.getPlayerRates(id),
+        api.getPlayerShotSplits(id),
+        api.getPlayerOnOff(id),
+        api.getPlayerCombine(id),
+        api.getSimilarPlayers(id),
+      ]);
+      if (highs.status === "fulfilled" && highs.value.length > 0) renderHighs(detail, highs.value);
+      if (rates.status === "fulfilled") renderPerRates(detail, rates.value.per36, rates.value.per48);
+      if (shotSplits.status === "fulfilled" && shotSplits.value.length > 0)
+        renderShotSplits(detail, shotSplits.value);
+      if (onOff.status === "fulfilled" && onOff.value.length > 0) renderOnOff(detail, onOff.value);
+      if (combine.status === "fulfilled" && combine.value) renderCombine(detail, combine.value);
+      if (similar.status === "fulfilled" && similar.value.length > 0)
+        renderSimilarPlayers(detail, similar.value, (pid) => void showPlayer(pid));
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to load player.";
       detail.replaceChildren(el("p", { className: "muted", text: `Error: ${message}` }));
@@ -164,6 +197,13 @@ function formatBirthDate(value: unknown): string {
 
 function formatDraftLine(draft: Row | null): string {
   if (!draft) return "Undrafted";
+  // Territorial picks (used 1949-1965 to let a team claim a local-college
+  // star) have no round/pick number in the source data — round_number,
+  // round_pick, and overall_pick are all stored as 0, which would otherwise
+  // render as the nonsensical "0th round (0th pick, 0th overall)".
+  if (draft.draft_type === "Territorial") {
+    return `${formatValue(draft.team_name)} (${formatValue(draft.team_abbreviation)}), territorial pick, ${formatValue(draft.season)} NBA Draft`;
+  }
   const round = Number(draft.round_number);
   const roundPick = Number(draft.round_pick);
   const overall = Number(draft.overall_pick);
@@ -345,4 +385,140 @@ function renderAwards(container: HTMLElement, awards: Row[]): void {
       awards,
     ),
   );
+}
+
+function renderHighs(container: HTMLElement, highs: Row[]): void {
+  container.append(
+    el("h3", { text: "Career highs" }),
+    renderTable(
+      [
+        { key: "stat", label: "Stat" },
+        { key: "value", label: "Value" },
+        { key: "game_date", label: "Date", format: (v) => String(v).slice(0, 10) },
+        { key: "team_abbreviation", label: "Team" },
+      ],
+      highs,
+    ),
+  );
+}
+
+function renderPerRates(container: HTMLElement, per36: Row[], per48: Row[]): void {
+  if (per36.length > 0) {
+    container.append(
+      el("h3", { text: "Per 36 minutes" }),
+      renderTable(
+        [
+          { key: "season_year", label: "Season" },
+          { key: "season_type", label: "Type" },
+          { key: "gp", label: "GP" },
+          { key: "pts_per36", label: "PTS" },
+          { key: "reb_per36", label: "TRB" },
+          { key: "ast_per36", label: "AST" },
+          { key: "stl_per36", label: "STL" },
+          { key: "blk_per36", label: "BLK" },
+          { key: "tov_per36", label: "TOV" },
+        ],
+        per36,
+      ),
+    );
+  }
+  if (per48.length > 0) {
+    container.append(
+      el("h3", { text: "Per 48 minutes" }),
+      renderTable(
+        [
+          { key: "season_year", label: "Season" },
+          { key: "season_type", label: "Type" },
+          { key: "gp", label: "GP" },
+          { key: "pts_per48", label: "PTS" },
+          { key: "reb_per48", label: "TRB" },
+          { key: "ast_per48", label: "AST" },
+          { key: "stl_per48", label: "STL" },
+          { key: "blk_per48", label: "BLK" },
+          { key: "tov_per48", label: "TOV" },
+        ],
+        per48,
+      ),
+    );
+  }
+}
+
+function renderShotSplits(container: HTMLElement, splits: Row[]): void {
+  container.append(
+    el("h3", { text: "Shooting by zone" }),
+    renderTable(
+      [
+        { key: "season_year", label: "Season" },
+        { key: "shot_zone_basic", label: "Zone" },
+        { key: "shot_zone_area", label: "Area" },
+        { key: "attempts", label: "FGA" },
+        { key: "makes", label: "FGM" },
+        { key: "fg_pct", label: "FG%", format: formatPct },
+        { key: "league_fg_pct", label: "Lg Avg FG%", format: formatPct },
+        { key: "avg_distance", label: "Avg Dist (ft)" },
+      ],
+      splits,
+    ),
+  );
+}
+
+function renderOnOff(container: HTMLElement, rows: Row[]): void {
+  container.append(
+    el("h3", { text: "On/off court splits" }),
+    renderTable(
+      [
+        { key: "season_year", label: "Season" },
+        { key: "season_type", label: "Type" },
+        { key: "on_off", label: "On/Off" },
+        { key: "gp", label: "GP" },
+        { key: "off_rating", label: "OffRtg" },
+        { key: "def_rating", label: "DefRtg" },
+        { key: "net_rating", label: "NetRtg" },
+      ],
+      rows,
+    ),
+  );
+}
+
+function renderCombine(container: HTMLElement, combine: Row): void {
+  container.append(
+    el("h3", { text: "Draft combine measurements" }),
+    renderDefList([
+    ["Height (no shoes)", combine.height_wo_shoes ? `${formatValue(combine.height_wo_shoes)}"` : null],
+    ["Height (with shoes)", combine.height_w_shoes ? `${formatValue(combine.height_w_shoes)}"` : null],
+    ["Weight", combine.weight ? `${formatValue(combine.weight)} lb` : null],
+    ["Wingspan", combine.wingspan ? `${formatValue(combine.wingspan)}"` : null],
+    ["Standing reach", combine.standing_reach ? `${formatValue(combine.standing_reach)}"` : null],
+    ["Body fat %", combine.body_fat_pct],
+    [
+      "Standing vertical leap",
+      combine.standing_vertical_leap ? `${formatValue(combine.standing_vertical_leap)}"` : null,
+    ],
+    ["Max vertical leap", combine.max_vertical_leap ? `${formatValue(combine.max_vertical_leap)}"` : null],
+      ["Lane agility time", combine.lane_agility_time],
+      ["Three-quarter sprint", combine.three_quarter_sprint],
+      ["Bench press (reps)", combine.bench_press],
+    ]),
+  );
+}
+
+function renderSimilarPlayers(
+  container: HTMLElement,
+  rows: Row[],
+  onSelect: (playerId: string) => void,
+): void {
+  container.append(el("h3", { text: "Similar players" }));
+  const list = el("ul", { className: "result-list" });
+  for (const r of rows) {
+    const sub = `${formatValue(r.ppg)} PPG, ${formatValue(r.rpg)} RPG, ${formatValue(r.apg)} APG`;
+    const button = el("button", { type: "button", className: "result-row" }, [
+      el("div", { className: "result-row-text" }, [
+        el("span", { text: String(r.full_name) }),
+        el("span", { className: "muted", text: sub }),
+      ]),
+    ]);
+    button.addEventListener("click", () => onSelect(String(r.player_id)));
+    list.append(el("li", {}, [button]));
+  }
+  container.append(list);
 }
