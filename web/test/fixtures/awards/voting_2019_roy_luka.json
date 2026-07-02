@@ -14,10 +14,7 @@
   "assertion_mode": "query_fn",
   "query_target": {
     "fn": "getAwardVoting",
-    "params": [
-      "2019",
-      "nba roy"
-    ]
+    "params": ["2019", "nba roy"]
   },
   "match": "containsObject",
   "status": "stable",

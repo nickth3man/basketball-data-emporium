@@ -12,9 +12,7 @@
   "assertion_mode": "query_fn",
   "query_target": {
     "fn": "getGameDetail",
-    "params": [
-      "0042300405"
-    ],
+    "params": ["0042300405"],
     "extract": "header"
   },
   "match": "objectMatching",
