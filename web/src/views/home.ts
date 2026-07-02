@@ -26,8 +26,10 @@ export function renderHome(container: HTMLElement): void {
   searchTile.addEventListener("click", () => focusHeaderSearch());
 
   const navTiles = NAV_TILES.map((t) =>
-    tile("home-tile-nav", [el("h3", { text: t.label }), el("p", { className: "muted", text: t.description })], () =>
-      navigateToDetail(t.id),
+    tile(
+      "home-tile-nav",
+      [el("h3", { text: t.label }), el("p", { className: "muted", text: t.description })],
+      () => navigateToDetail(t.id),
     ),
   );
 
@@ -61,12 +63,16 @@ async function loadFeaturedPlayer(container: HTMLElement): Promise<void> {
         : null;
     const card = el("button", { type: "button", className: "featured-player-card" }, [
       playerPhoto(player.player_id, "player-photo-header", String(player.full_name)),
-      el("div", {}, [
-        el("h4", { text: "Featured Player" }),
-        el("p", { text: String(player.full_name) }),
-        el("p", { className: "muted", text: sub }),
-        ppg ? el("p", { className: "muted", text: ppg }) : null,
-      ].filter((n): n is HTMLElement => n !== null)),
+      el(
+        "div",
+        {},
+        [
+          el("h4", { text: "Featured Player" }),
+          el("p", { text: String(player.full_name) }),
+          el("p", { className: "muted", text: sub }),
+          ppg ? el("p", { className: "muted", text: ppg }) : null,
+        ].filter((n): n is HTMLElement => n !== null),
+      ),
     ]);
     card.addEventListener("click", () => navigateToDetail("players", String(player.player_id)));
     container.append(card);
@@ -108,7 +114,10 @@ async function loadTeamSpotlight(container: HTMLElement): Promise<void> {
       ]);
     container.append(
       el("h4", { text: "Teams by Conference" }),
-      el("div", { className: "conference-columns" }, [column("Eastern", east), column("Western", west)]),
+      el("div", { className: "conference-columns" }, [
+        column("Eastern", east),
+        column("Western", west),
+      ]),
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to load teams.";

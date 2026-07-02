@@ -164,5 +164,9 @@ function teamCell(value: unknown, row: Row): Node | string {
   const label = formatValue(value);
   const teamId = Number(row.team_id);
   if (!Number.isFinite(teamId) || label === "—") return label;
-  return cellButton(label, () => navigateToDetail("teams", String(teamId)), `${label} team profile`);
+  return cellButton(
+    label,
+    () => navigateToDetail("teams", String(teamId)),
+    `${label} team profile`,
+  );
 }

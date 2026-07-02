@@ -121,7 +121,10 @@ export function renderTable(
     if (column.align) return column.align === "right";
     if (column.render) return false;
     const values = renderedRows.map((row) => row[index]).filter((value) => value !== "—");
-    return values.length > 0 && values.every((value) => typeof value === "string" && isNumericText(value));
+    return (
+      values.length > 0 &&
+      values.every((value) => typeof value === "string" && isNumericText(value))
+    );
   });
   const groupRow =
     columnGroups.length > 0

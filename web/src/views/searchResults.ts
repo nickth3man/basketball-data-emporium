@@ -27,16 +27,23 @@ export async function renderSearchResults(container: HTMLElement, query?: string
   const trimmed = (query ?? "").trim();
   container.replaceChildren();
   if (trimmed.length === 0) {
-    container.append(el("p", { className: "muted", text: "Type a search above to find players or teams." }));
+    container.append(
+      el("p", { className: "muted", text: "Type a search above to find players or teams." }),
+    );
     return;
   }
   container.append(el("p", { className: "muted", text: "Loading…" }));
   announceStatus(`Searching for ${trimmed}…`);
   try {
-    const [players, teams] = await Promise.all([api.searchPlayers(trimmed), api.searchTeams(trimmed)]);
+    const [players, teams] = await Promise.all([
+      api.searchPlayers(trimmed),
+      api.searchTeams(trimmed),
+    ]);
     container.replaceChildren(el("h2", { text: `Search results for "${trimmed}"` }));
     if (players.length === 0 && teams.length === 0) {
-      container.append(el("p", { className: "muted", text: `No players or teams found for "${trimmed}".` }));
+      container.append(
+        el("p", { className: "muted", text: `No players or teams found for "${trimmed}".` }),
+      );
       announceStatus(`No results for ${trimmed}.`);
       return;
     }

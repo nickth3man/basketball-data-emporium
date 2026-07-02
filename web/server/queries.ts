@@ -572,7 +572,8 @@ export async function getPlayerRecentGames(playerId: number): Promise<Row[]> {
   return rows.map((r) => {
     // season_year is stored like "2025-26"; colorForEra wants the calendar
     // start year, same conversion used for jersey stints above.
-    const calendarYear = typeof r.season_year === "string" ? Number(r.season_year.slice(0, 4)) : NaN;
+    const calendarYear =
+      typeof r.season_year === "string" ? Number(r.season_year.slice(0, 4)) : NaN;
     const opponentTeamId = Number(r.opponent_team_id);
     const color = colorForEra(
       typeof r.opponent === "string" ? r.opponent : "",

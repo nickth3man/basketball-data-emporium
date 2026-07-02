@@ -93,11 +93,15 @@ export function renderTeams(container: HTMLElement, initialTeamId?: string): voi
         profile.seasons.length > 0 ? ["Seasons", "team-seasons"] : null,
         profile.recentGames.length > 0 ? ["Games", "team-games"] : null,
         roster.status === "fulfilled" && roster.value.length > 0 ? ["Roster", "team-roster"] : null,
-        coaches.status === "fulfilled" && coaches.value.length > 0 ? ["Coaches", "team-coaches"] : null,
+        coaches.status === "fulfilled" && coaches.value.length > 0
+          ? ["Coaches", "team-coaches"]
+          : null,
         playoffSeries.status === "fulfilled" && playoffSeries.value.length > 0
           ? ["Playoffs", "team-playoffs"]
           : null,
-        lineups.status === "fulfilled" && lineups.value.length > 0 ? ["Lineups", "team-lineups"] : null,
+        lineups.status === "fulfilled" && lineups.value.length > 0
+          ? ["Lineups", "team-lineups"]
+          : null,
         ranks.status === "fulfilled" && ranks.value.length > 0 ? ["Ranks", "team-ranks"] : null,
         opponentStats.status === "fulfilled" && opponentStats.value.length > 0
           ? ["Opponent", "team-opponent"]
@@ -240,7 +244,9 @@ function renderPlayoffSeries(container: HTMLElement, series: Row[]): void {
   container.append(
     el("section", {}, [
       sectionHeading("team-playoffs", "Playoff series by season"),
-      tableNote("Series results are re-derived from game-level wins and losses, not fact_playoff_series counters."),
+      tableNote(
+        "Series results are re-derived from game-level wins and losses, not fact_playoff_series counters.",
+      ),
       renderTable(
         [
           { key: "season_id", label: "Season" },
@@ -266,7 +272,9 @@ function renderLineups(container: HTMLElement, lineups: Row[]): void {
   container.append(
     el("section", {}, [
       sectionHeading("team-lineups", "Most-used lineup outings"),
-      tableNote("Lineup rows are single-game samples ordered by minutes, not full-season lineup totals."),
+      tableNote(
+        "Lineup rows are single-game samples ordered by minutes, not full-season lineup totals.",
+      ),
       renderTable(
         [
           { key: "season_year", label: "Season" },
