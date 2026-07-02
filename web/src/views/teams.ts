@@ -4,7 +4,7 @@ import {
   el,
   formatPct,
   formatValue,
-  navigateToDetail,
+  playerCell,
   renderDefList,
   renderTable,
   teamLogo,
@@ -131,20 +131,6 @@ function sectionHeading(id: string, text: string): HTMLElement {
 
 function tableNote(text: string): HTMLElement {
   return el("p", { className: "table-note", text });
-}
-
-function playerCell(value: unknown, row: Row): Node | string {
-  const label = formatValue(value);
-  const playerId = Number(row.player_id);
-  if (!Number.isFinite(playerId) || label === "—") return label;
-  const button = el("button", {
-    type: "button",
-    className: "cell-link",
-    text: label,
-    "aria-label": `${label} player profile`,
-  });
-  button.addEventListener("click", () => navigateToDetail("players", String(playerId)));
-  return button;
 }
 
 function renderBio(container: HTMLElement, bio: Row, standing: Row | null): void {

@@ -103,6 +103,24 @@ function cellValue(column: Column, row: Record<string, unknown>): Node | string 
   return column.format ? column.format(row[column.key], row) : formatValue(row[column.key]);
 }
 
+/** Renders a player-name cell as a button that navigates to that player's
+ *  profile. Shared by views that need a clickable player column (team
+ *  rosters, franchise leaders, league-leader tables). Falls back to a plain
+ *  text label when the row has no usable `player_id` or the value is empty. */
+export function playerCell(value: unknown, row: Record<string, unknown>): Node | string {
+  const label = formatValue(value);
+  const playerId = Number(row.player_id);
+  if (!Number.isFinite(playerId) || label === "—") return label;
+  const button = el("button", {
+    type: "button",
+    className: "cell-link",
+    text: label,
+    "aria-label": `${label} player profile`,
+  });
+  button.addEventListener("click", () => navigateToDetail("players", String(playerId)));
+  return button;
+}
+
 function isNumericText(value: string): boolean {
   const trimmed = value.trim();
   return trimmed === "—" || /^-?\d+(\.\d+)?%?$/.test(trimmed);
