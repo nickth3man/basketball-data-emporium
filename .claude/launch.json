@@ -2,10 +2,9 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "web",
+      "name": "web-dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
-      "cwd": "web",
+      "runtimeArgs": ["run", "dev", "--prefix", "web"],
       "port": 5173
     }
   ]
