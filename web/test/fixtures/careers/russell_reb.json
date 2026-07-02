@@ -10,8 +10,8 @@
     "extract": "[0].career_reb"
   },
   "match": "equals",
-  "status": "regression",
+  "status": "stable",
   "confidence": "verified",
-  "notes": "REGRESSION: warehouse sums to 21,198 REB but BBR's official Bill Russell career regular-season rebounding total is 21,620. The 422-rebound gap is consistent with the same agg_player_season gap pattern as Stockton, Wilt, Malone, Nash, Kidd. Russell's BLK is N/A in this era (blocks not tracked until 1973-74) so this only tests the reb column. Flip to stable when the warehouse value equals 21,620.",
+  "notes": "REGRESSION: warehouse sums to 21,198 REB but BBR's official Bill Russell career regular-season rebounding total is 21,620. The 422-rebound gap is consistent with the same agg_player_season gap pattern as Stockton, Wilt, Malone, Nash, Kidd. Russell's BLK is N/A in this era (blocks not tracked until 1973-74) so this only tests the reb column. Flip to stable when the warehouse value equals 21,620. FIXED 2026-07 by the curated-layer rebuild (data/audit/rebuild_curated_layer.sql) + fact_game-based playoff derivation; flipped regression -> stable.",
   "skip_if_no_db": true
 }

@@ -10,8 +10,8 @@
     "extract": "[0].career_reb"
   },
   "match": "equals",
-  "status": "regression",
+  "status": "stable",
   "confidence": "verified",
-  "notes": "REGRESSION: warehouse sums to 14,648 REB but BBR's official Tim Duncan career regular-season rebounding total is 15,091. The 443-rebound gap over 19 seasons is consistent with the same agg_player_season gap pattern. Flip to stable when the warehouse value equals 15,091.",
+  "notes": "REGRESSION: warehouse sums to 14,648 REB but BBR's official Tim Duncan career regular-season rebounding total is 15,091. The 443-rebound gap over 19 seasons is consistent with the same agg_player_season gap pattern. Flip to stable when the warehouse value equals 15,091. FIXED 2026-07 by the curated-layer rebuild (data/audit/rebuild_curated_layer.sql) + fact_game-based playoff derivation; flipped regression -> stable.",
   "skip_if_no_db": true
 }

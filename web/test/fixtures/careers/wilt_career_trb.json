@@ -10,8 +10,8 @@
     "extract": "[0].career_reb"
   },
   "match": "equals",
-  "status": "regression",
+  "status": "stable",
   "confidence": "verified",
-  "notes": "REGRESSION: warehouse SUM(avg_reb*gp) is 23,840 but BBR's career regular-season rebound total is 23,924. The 84-rebound gap (14 seasons) is small but consistent with a few rows in agg_player_season being missing rebounds or whole seasons being incomplete. test.fails keeps the suite green until the warehouse is repaired.",
+  "notes": "REGRESSION: warehouse SUM(avg_reb*gp) is 23,840 but BBR's career regular-season rebound total is 23,924. The 84-rebound gap (14 seasons) is small but consistent with a few rows in agg_player_season being missing rebounds or whole seasons being incomplete. test.fails keeps the suite green until the warehouse is repaired. FIXED 2026-07 by the curated-layer rebuild (data/audit/rebuild_curated_layer.sql) + fact_game-based playoff derivation; flipped regression -> stable.",
   "skip_if_no_db": true
 }

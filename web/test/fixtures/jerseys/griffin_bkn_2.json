@@ -1,14 +1,14 @@
 {
   "id": "jersey.griffin_bkn_2",
   "datapoint_class": "jersey",
-  "entity": "Blake Griffin BKN stint 2020-21 must be #2 (stable anchor)",
-  "expected": { "abbreviation": "BKN", "start_year": 2020, "end_year": 2021, "jersey_num": "2" },
+  "entity": "Blake Griffin BKN stint 2020-2022 wore #2 (stable anchor)",
+  "expected": { "abbreviation": "BKN", "start_year": 2020, "end_year": 2022, "jersey_num": "2" },
   "bbr_source_url": "https://www.basketball-reference.com/teams/BKN/numbers.html",
   "assertion_mode": "query_fn",
   "query_target": { "fn": "getPlayerProfile", "params": [201933], "extract": "jerseyHistory" },
   "match": "containsObject",
   "status": "stable",
   "confidence": "verified",
-  "notes": "Griffin signed with Brooklyn mid-2020-21 after his Pistons buyout. Wore #2.",
+  "notes": "Griffin signed with Brooklyn mid-2020-21 after his Pistons buyout and wore #2 through 2021-22 (BBR BKN numbers page). Stint extended to end_year 2022 after the 2026-07 curated-layer rebuild surfaced his previously-missing 2021-22 BKN season row.",
   "skip_if_no_db": true
 }

@@ -1,14 +1,14 @@
 {
   "id": "season_line.curry_2015_16",
   "datapoint_class": "season_line",
-  "entity": "Stephen Curry 2015-16 season (GSW, Regular): 82 GP, 29.0 PPG, 5.2 RPG, 6.4 APG, 402 three-pointers made — unanimous MVP, the most 3PM in a single season in NBA history, 73-9 Warriors",
+  "entity": "Stephen Curry 2015-16 season (GSW, Regular): 79 GP, 30.1 PPG, 5.4 RPG, 6.7 APG, 402 three-pointers made — unanimous MVP, the most 3PM in a single season in NBA history, 73-9 Warriors",
   "expected": {
     "season_year": "2015-16",
     "season_type": "Regular",
-    "gp": 82,
-    "avg_pts": 28.963414634146343,
-    "avg_reb": 5.2439024390243905,
-    "avg_ast": 6.426829268292683
+    "gp": 79,
+    "avg_pts": 30.063291139240505,
+    "avg_reb": 5.443037974683544,
+    "avg_ast": 6.670886075949367
   },
   "bbr_source_url": "https://www.basketball-reference.com/players/c/curryst01.html",
   "assertion_mode": "raw_sql",
@@ -18,6 +18,6 @@
   "match": "containsObject",
   "status": "stable",
   "confidence": "verified",
-  "notes": "Retired player's historic season (Curry is still active, but this fixture pins a specific completed season); match:containsObject with exact values. team_abbreviation is omitted because agg_player_season.team_abbreviation is unreliable (shows 'PHI' for Curry's GSW seasons). The 402 three-pointers are a separate stat (total_fg3m) not pinned here.",
+  "notes": "Historic completed season; match:containsObject with exact values. Re-pinned 2026-07 after the curated-layer rebuild: BBR says 79 GP / 30.1 PPG (2375 pts, 430 reb, 527 ast); the pre-rebuild table claimed 82 GP / 29.0 PPG. The 402 three-pointers are a separate stat (total_fg3m) not pinned here.",
   "skip_if_no_db": true
 }

@@ -14,8 +14,8 @@
     "params": ["2021-22", "Regular"]
   },
   "match": "containsObject",
-  "status": "regression",
+  "status": "stable",
   "confidence": "verified",
-  "notes": "KNOWN BUG (2026-07 data-quality audit): fact_standings counts play-in tournament games in the regular-season W-L for play-in participants from 2020-21 onward (warehouse shows ATL 45-39 = 43-39 plus two play-in wins). Official record is 43-39. All eight play-in teams are affected each season 2021-2023 and 2026; 2023-24 additionally has a stale snapshot (all 30 teams a few games short: e.g. BOS 61-16 vs official 64-18). Flip to stable once fact_standings excludes play-in games. See docs/data-quality-audit.md.",
+  "notes": "KNOWN BUG (2026-07 data-quality audit): fact_standings counts play-in tournament games in the regular-season W-L for play-in participants from 2020-21 onward (warehouse shows ATL 45-39 = 43-39 plus two play-in wins). Official record is 43-39. All eight play-in teams are affected each season 2021-2023 and 2026; 2023-24 additionally has a stale snapshot (all 30 teams a few games short: e.g. BOS 61-16 vs official 64-18). Flip to stable once fact_standings excludes play-in games. See docs/data-quality-audit.md. FIXED 2026-07 by the curated-layer rebuild (data/audit/rebuild_curated_layer.sql) + fact_game-based playoff derivation; flipped regression -> stable.",
   "skip_if_no_db": true
 }

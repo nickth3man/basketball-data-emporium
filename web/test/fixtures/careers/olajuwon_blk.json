@@ -10,8 +10,8 @@
     "extract": "[0].career_blk"
   },
   "match": "equals",
-  "status": "regression",
+  "status": "stable",
   "confidence": "verified",
-  "notes": "REGRESSION: warehouse sums to 3,790 BLK but BBR's official Hakeem Olajuwon career regular-season block total is 3,830. The 40-block gap (over 18 seasons, blocks tracked from 1973-74) is consistent with the same agg_player_season gap pattern. Flip to stable when the warehouse value equals 3,830.",
+  "notes": "REGRESSION: warehouse sums to 3,790 BLK but BBR's official Hakeem Olajuwon career regular-season block total is 3,830. The 40-block gap (over 18 seasons, blocks tracked from 1973-74) is consistent with the same agg_player_season gap pattern. Flip to stable when the warehouse value equals 3,830. FIXED 2026-07 by the curated-layer rebuild (data/audit/rebuild_curated_layer.sql) + fact_game-based playoff derivation; flipped regression -> stable.",
   "skip_if_no_db": true
 }

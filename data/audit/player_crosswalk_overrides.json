@@ -28,5 +28,12 @@
   { "nba_player_id": 77245, "bbr_player_id": "kennepi01", "note": "William 'Pickles' Kennedy — exact span 1961" },
   { "nba_player_id": 76524, "bbr_player_id": "davisre01", "note": "James 'Red' Davis 1956 — team-season overlap 1; adjudicate" },
   { "nba_player_id": 78443, "bbr_player_id": "wallare01", "note": "Michael/'Red' Wallace 1947 — team-season overlap 1; adjudicate" },
-  { "nba_player_id": 77203, "bbr_player_id": "joneshu01", "note": "Willie/Hutch Jones 1983-84 — team-season overlap 2; adjudicate" }
+  { "nba_player_id": 77203, "bbr_player_id": "joneshu01", "note": "Willie/Hutch Jones 1983-84 — team-season overlap 2; adjudicate" },
+  { "nba_player_id": 76918, "bbr_player_id": "halbech01", "note": "Chuck/Chick Halbert — confirmed by source-db bridge (jw+DOB)" },
+  { "nba_player_id": 203183, "bbr_player_id": "mitchto03", "note": "Tony Mitchell (MIL 2013-14) — source-db bridge DOB match; my span tiers had the two 2013 Tony Mitchells swapped" },
+  { "nba_player_id": 203502, "bbr_player_id": "mitchto02", "note": "Tony Mitchell (DET 2013-15) — source-db bridge DOB match" },
+  { "nba_player_id": 919, "bbr_player_id": "vaughlo01", "note": "Loy Vaught duplicate warehouse identity (919 + 78412 are the same person); both ids map to one BBR player intentionally" },
+  { "nba_player_id": 438, "bbr_player_id": "werdaro01", "note": "Robert Werdann duplicate warehouse identity (438 + 78493)" },
+  { "nba_player_id": 77741, "bbr_player_id": "obanned01", "note": "Ed O'Bannon duplicate warehouse identity (709 + 77741)" },
+  { "nba_player_id": 1272, "bbr_player_id": "rambiku01", "note": "Kurt Rambis ghost duplicate id (77905 is the real career row)" }
 ]

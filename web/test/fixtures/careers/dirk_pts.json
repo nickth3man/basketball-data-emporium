@@ -10,8 +10,8 @@
     "extract": "[0].career_pts"
   },
   "match": "equals",
-  "status": "regression",
+  "status": "stable",
   "confidence": "verified",
-  "notes": "REGRESSION: warehouse sums to 30,610 PTS but BBR's official Dirk Nowitzki career regular-season total is 31,560. The 950-point gap over 21 seasons is consistent with the same agg_player_season gap pattern. Flip to stable when the warehouse value equals 31,560.",
+  "notes": "REGRESSION: warehouse sums to 30,610 PTS but BBR's official Dirk Nowitzki career regular-season total is 31,560. The 950-point gap over 21 seasons is consistent with the same agg_player_season gap pattern. Flip to stable when the warehouse value equals 31,560. FIXED 2026-07 by the curated-layer rebuild (data/audit/rebuild_curated_layer.sql) + fact_game-based playoff derivation; flipped regression -> stable.",
   "skip_if_no_db": true
 }

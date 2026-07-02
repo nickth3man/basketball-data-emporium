@@ -10,8 +10,8 @@
     "extract": "[0].career_pts"
   },
   "match": "equals",
-  "status": "regression",
+  "status": "stable",
   "confidence": "verified",
-  "notes": "REGRESSION: warehouse sums to 36,058 PTS but BBR's official Karl Malone career regular-season total is 36,928. The 870-point gap (over 19 seasons) is consistent with agg_player_season being missing or incomplete for one or more Malone seasons; same general cause as the existing stockton_career_ast and wilt_career_trb regressions but documents a specific new data point. Flip to stable when the warehouse value equals 36,928.",
+  "notes": "REGRESSION: warehouse sums to 36,058 PTS but BBR's official Karl Malone career regular-season total is 36,928. The 870-point gap (over 19 seasons) is consistent with agg_player_season being missing or incomplete for one or more Malone seasons; same general cause as the existing stockton_career_ast and wilt_career_trb regressions but documents a specific new data point. Flip to stable when the warehouse value equals 36,928. FIXED 2026-07 by the curated-layer rebuild (data/audit/rebuild_curated_layer.sql) + fact_game-based playoff derivation; flipped regression -> stable.",
   "skip_if_no_db": true
 }

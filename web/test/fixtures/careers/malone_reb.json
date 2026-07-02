@@ -10,8 +10,8 @@
     "extract": "[0].career_reb"
   },
   "match": "equals",
-  "status": "regression",
+  "status": "stable",
   "confidence": "verified",
-  "notes": "REGRESSION: warehouse sums to 14,627 REB but BBR's official Karl Malone career regular-season rebounding total is 14,968. The 341-rebound gap is consistent with the same agg_player_season gap as career_total.malone_pts. Flip to stable when the warehouse value equals 14,968.",
+  "notes": "REGRESSION: warehouse sums to 14,627 REB but BBR's official Karl Malone career regular-season rebounding total is 14,968. The 341-rebound gap is consistent with the same agg_player_season gap as career_total.malone_pts. Flip to stable when the warehouse value equals 14,968. FIXED 2026-07 by the curated-layer rebuild (data/audit/rebuild_curated_layer.sql) + fact_game-based playoff derivation; flipped regression -> stable.",
   "skip_if_no_db": true
 }

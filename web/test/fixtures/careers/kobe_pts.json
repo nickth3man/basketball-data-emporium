@@ -10,8 +10,8 @@
     "extract": "[0].career_pts"
   },
   "match": "equals",
-  "status": "regression",
+  "status": "stable",
   "confidence": "verified",
-  "notes": "REGRESSION: warehouse sums to 32,468 PTS but BBR's official Kobe Bryant career regular-season total is 33,643. The 1,175-point gap over 20 seasons is the largest single-player delta so far, again consistent with agg_player_season missing rows for one or more Kobe seasons (likely his late injury-shortened years). Flip to stable when the warehouse value equals 33,643.",
+  "notes": "REGRESSION: warehouse sums to 32,468 PTS but BBR's official Kobe Bryant career regular-season total is 33,643. The 1,175-point gap over 20 seasons is the largest single-player delta so far, again consistent with agg_player_season missing rows for one or more Kobe seasons (likely his late injury-shortened years). Flip to stable when the warehouse value equals 33,643. FIXED 2026-07 by the curated-layer rebuild (data/audit/rebuild_curated_layer.sql) + fact_game-based playoff derivation; flipped regression -> stable.",
   "skip_if_no_db": true
 }

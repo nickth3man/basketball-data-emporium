@@ -10,8 +10,8 @@
     "extract": "[0].career_ast"
   },
   "match": "equals",
-  "status": "regression",
+  "status": "stable",
   "confidence": "verified",
-  "notes": "REGRESSION: warehouse SUM(avg_ast*gp) is 15,442 but BBR's career regular-season assist total is 15,806. The 364-assist gap suggests agg_player_season is missing data from one or more of Stockton's 19 seasons or a per-season row is missing assists. Promoting to stable requires the warehouse ETL to add the missing rows.",
+  "notes": "REGRESSION: warehouse SUM(avg_ast*gp) is 15,442 but BBR's career regular-season assist total is 15,806. The 364-assist gap suggests agg_player_season is missing data from one or more of Stockton's 19 seasons or a per-season row is missing assists. Promoting to stable requires the warehouse ETL to add the missing rows. FIXED 2026-07 by the curated-layer rebuild (data/audit/rebuild_curated_layer.sql) + fact_game-based playoff derivation; flipped regression -> stable.",
   "skip_if_no_db": true
 }

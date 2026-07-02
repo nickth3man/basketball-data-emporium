@@ -1366,43 +1366,40 @@ export async function getTeamRoster(teamId: number): Promise<Row[]> {
 // ---------------------------------------------------------------------------
 // Playoff series-by-series
 //
-// fact_playoff_series' own `wins`/`losses`/abbreviation columns are
-// unreliable (verified: each real game appears duplicated once per historical
-// abbreviation era of the involved franchises, and the win/loss counters run
-// well past a series-clinching 4 rather than resetting per series). Instead,
-// this only uses fact_playoff_series to identify which (season, series,
-// game, opponent) a given team played, then re-derives the real result from
-// `game.wl_home`/`wl_away` (the same source already trusted for the "Recent
-// games" team section). Round names aren't stored anywhere, but a team only
-// ever plays one series at a time, so ordering a team's series chronologically
-// within a season reliably reproduces the round order (First Round, Conf.
-// Semis, Conf. Finals, Finals) without needing bracket reconstruction.
+// Derived entirely from fact_game (imported complete game dimension with
+// scores — unlike the legacy `game` table, it has no missing playoff
+// seasons; the 1994/1996/2000/2002/2006/2024/2025 runs are all present).
+// fact_playoff_series is NOT used: its wins/losses/abbreviation columns are
+// unreliable (each real game duplicated once per historical abbreviation era,
+// counters never reset per series). A team plays each opponent at most once
+// per postseason, so grouping a team's playoff games by opponent IS the
+// series, and ordering series chronologically within a season reproduces the
+// round order (First Round, Conf. Semis, Conf. Finals, Finals) without
+// bracket reconstruction. Play-in games are excluded (fact_game classifies
+// them under season_type 'Regular', game_type 'Play-in Tournament').
 // ---------------------------------------------------------------------------
 
 export async function getTeamPlayoffSeries(teamId: number): Promise<Row[]> {
   return queryObjects(
-    `WITH real_games AS (
-       SELECT DISTINCT season_id, series_id, game_id, home_team_id, away_team_id
-       FROM fact_playoff_series
-       WHERE ? IN (home_team_id, away_team_id)
-     ),
-     joined AS (
+    `WITH team_games AS (
        SELECT
-         rg.season_id, rg.series_id,
+         g.season_year AS season_id,
          g.game_date,
-         CASE WHEN rg.home_team_id = ? THEN g.wl_home ELSE g.wl_away END AS team_wl,
-         CASE WHEN rg.home_team_id = ? THEN rg.away_team_id ELSE rg.home_team_id END AS opponent_team_id
-       FROM real_games rg
-       JOIN game g ON g.game_id = rg.game_id
+         CASE WHEN g.winner_team_id = ? THEN 'W' ELSE 'L' END AS team_wl,
+         CASE WHEN g.home_team_id = ? THEN g.away_team_id ELSE g.home_team_id END AS opponent_team_id
+       FROM fact_game g
+       WHERE g.season_type = 'Playoffs'
+         AND ? IN (g.home_team_id, g.away_team_id)
+         AND g.winner_team_id IS NOT NULL
      ),
      series_agg AS (
        SELECT
-         season_id, series_id, opponent_team_id,
+         season_id, opponent_team_id,
          MIN(game_date) AS series_start,
          COUNT(*) FILTER (WHERE team_wl = 'W') AS wins,
          COUNT(*) FILTER (WHERE team_wl = 'L') AS losses
-       FROM joined
-       GROUP BY season_id, series_id, opponent_team_id
+       FROM team_games
+       GROUP BY season_id, opponent_team_id
      )
      SELECT
        sa.season_id,

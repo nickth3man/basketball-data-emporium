@@ -2,7 +2,10 @@
   "id": "season_line.harden_2020_21_traded_totals",
   "datapoint_class": "season_line",
   "entity": "James Harden 2020-21 season totals across HOU+BKN trade (Regular): 44 GP, 1083 PTS",
-  "expected": { "gp": 44, "pts": 1083 },
+  "expected": {
+    "gp": 44,
+    "pts": 1083
+  },
   "bbr_source_url": "https://www.basketball-reference.com/players/h/hardeja01.html",
   "assertion_mode": "raw_sql",
   "query_target": {
@@ -10,8 +13,8 @@
     "extract": "[0]"
   },
   "match": "objectMatching",
-  "status": "regression",
+  "status": "stable",
   "confidence": "verified",
-  "notes": "KNOWN BUG (2026-07 data-quality audit): agg_player_season totals are inflated by a fan-out join over franchise name eras — analytics_player_game_complete holds one copy of every player-game per historical franchise name (Harden's BKN games exist as NJ/BKN/NYK, HOU games as SD/HOU), and the agg layer was built on top of it. Warehouse currently returns 48 GP / 3051 PTS for this season; fact_player_game_log (which is clean, verified vs BBR) gives the correct 44 / 1083. Flip to stable once the agg layer is rebuilt from fact_player_game_log. See docs/data-quality-audit.md.",
+  "notes": "KNOWN BUG (2026-07 data-quality audit): agg_player_season totals are inflated by a fan-out join over franchise name eras — analytics_player_game_complete holds one copy of every player-game per historical franchise name (Harden's BKN games exist as NJ/BKN/NYK, HOU games as SD/HOU), and the agg layer was built on top of it. Warehouse currently returns 48 GP / 3051 PTS for this season; fact_player_game_log (which is clean, verified vs BBR) gives the correct 44 / 1083. Flip to stable once the agg layer is rebuilt from fact_player_game_log. See docs/data-quality-audit.md. FIXED 2026-07 by the curated-layer rebuild (data/audit/rebuild_curated_layer.sql) + fact_game-based playoff derivation; flipped regression -> stable.",
   "skip_if_no_db": true
 }

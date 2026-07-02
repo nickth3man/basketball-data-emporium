@@ -10,8 +10,8 @@
     "extract": "[0].career_ast"
   },
   "match": "equals",
-  "status": "regression",
+  "status": "stable",
   "confidence": "verified",
-  "notes": "REGRESSION: warehouse sums to 11,745 AST but BBR's official Jason Kidd career regular-season assist total is 12,091. The 346-assist gap matches the same agg_player_season gap pattern as Stockton and Nash. Flip to stable when the warehouse value equals 12,091.",
+  "notes": "REGRESSION: warehouse sums to 11,745 AST but BBR's official Jason Kidd career regular-season assist total is 12,091. The 346-assist gap matches the same agg_player_season gap pattern as Stockton and Nash. Flip to stable when the warehouse value equals 12,091. FIXED 2026-07 by the curated-layer rebuild (data/audit/rebuild_curated_layer.sql) + fact_game-based playoff derivation; flipped regression -> stable.",
   "skip_if_no_db": true
 }

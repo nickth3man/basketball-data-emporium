@@ -1,14 +1,14 @@
 {
   "id": "season_line.westbrook_2016_17",
   "datapoint_class": "season_line",
-  "entity": "Russell Westbrook 2016-17 season (OKC, Regular): 82 GP, 31.6 PPG, 10.7 RPG, 10.4 APG, 42 triple-doubles — the first season since Oscar Robertson (1961-62) to average a triple-double, and the first of Westbrook's four triple-double seasons",
+  "entity": "Russell Westbrook 2016-17 season (OKC, Regular): 81 GP, 31.6 PPG, 10.7 RPG, 10.4 APG, 42 triple-doubles — the first season since Oscar Robertson (1961-62) to average a triple-double, and the first of Westbrook's four triple-double seasons",
   "expected": {
     "season_year": "2016-17",
     "season_type": "Regular",
-    "gp": 82,
-    "avg_pts": 31.195121951219512,
-    "avg_reb": 10.536585365853659,
-    "avg_ast": 10.24390243902439
+    "gp": 81,
+    "avg_pts": 31.580246913580247,
+    "avg_reb": 10.666666666666666,
+    "avg_ast": 10.37037037037037
   },
   "bbr_source_url": "https://www.basketball-reference.com/players/w/westbru01.html",
   "assertion_mode": "raw_sql",
@@ -18,6 +18,6 @@
   "match": "containsObject",
   "status": "stable",
   "confidence": "verified",
-  "notes": "Retired player (no longer in NBA as of 2025-26); match:containsObject with exact values. team_abbreviation is omitted because agg_player_season.team_abbreviation is unreliable (shows 'SEA' for Westbrook's OKC seasons); the curated getPlayerProfile query re-derives it from team_id via dim_team_history. The fixture pins per-game averages and GP only.",
+  "notes": "Retired player; match:containsObject with exact values. Re-pinned 2026-07 after the curated-layer rebuild: BBR says 81 GP (2558 pts / 864 reb / 840 ast); the pre-rebuild table claimed 82 GP with diluted averages. The fixture pins per-game averages and GP only.",
   "skip_if_no_db": true
 }

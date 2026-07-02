@@ -10,8 +10,8 @@
     "extract": "[0].career_pts"
   },
   "match": "equals",
-  "status": "regression",
+  "status": "stable",
   "confidence": "verified",
-  "notes": "REGRESSION: warehouse sums to 31,417 PTS but BBR's official Wilt Chamberlain career regular-season total is 31,419. The 2-point delta is small (one missed field goal across 14 seasons) but real and consistent with the same agg_player_season gap pattern seen for Stockton, Wilt REB, Malone, Nash, Kidd, Russell, Olajuwon, Dirk, Duncan. Pairs with the existing career_total.wilt_trb regression (Wilt REB undercount of 84) to document that the gap extends to the PTS column as well. Flip to stable when the warehouse value equals 31,419.",
+  "notes": "REGRESSION: warehouse sums to 31,417 PTS but BBR's official Wilt Chamberlain career regular-season total is 31,419. The 2-point delta is small (one missed field goal across 14 seasons) but real and consistent with the same agg_player_season gap pattern seen for Stockton, Wilt REB, Malone, Nash, Kidd, Russell, Olajuwon, Dirk, Duncan. Pairs with the existing career_total.wilt_trb regression (Wilt REB undercount of 84) to document that the gap extends to the PTS column as well. Flip to stable when the warehouse value equals 31,419. FIXED 2026-07 by the curated-layer rebuild (data/audit/rebuild_curated_layer.sql) + fact_game-based playoff derivation; flipped regression -> stable.",
   "skip_if_no_db": true
 }

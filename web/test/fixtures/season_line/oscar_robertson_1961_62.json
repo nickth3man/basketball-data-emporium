@@ -8,7 +8,7 @@
     "gp": 79,
     "avg_pts": 30.78481012658228,
     "avg_reb": 12.468354430379748,
-    "avg_ast": 11.367088607594937
+    "avg_ast": 11.379746835443038
   },
   "bbr_source_url": "https://www.basketball-reference.com/players/r/roberos01.html",
   "assertion_mode": "raw_sql",
@@ -18,6 +18,6 @@
   "match": "containsObject",
   "status": "stable",
   "confidence": "verified",
-  "notes": "Retired player; match:containsObject with exact values. agg_player_season.total_pts is unreliable for historical players (inflated by a factor of ~5x for Oscar), so the fixture pins avg_pts (which checks out at 30.8 PPG, matching BBR). CAST(gp AS INTEGER) forces a number; season_type is 'Regular' per the binding constraint.",
+  "notes": "Retired player; match:containsObject with exact values. Re-pinned 2026-07 after the curated-layer rebuild (data/audit/rebuild_curated_layer.sql): assists are 899/79 = 11.3797 per BBR (the pre-rebuild table held 898/79); totals are no longer inflated.",
   "skip_if_no_db": true
 }

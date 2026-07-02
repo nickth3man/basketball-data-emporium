@@ -14,8 +14,8 @@
     "params": ["2023-24", "Regular"]
   },
   "match": "containsObject",
-  "status": "regression",
+  "status": "stable",
   "confidence": "verified",
-  "notes": "REGRESSION: fact_standings for 2023-24 BOS has wins=61 / losses=16 (one row per team per season). BBR shows 64-18 (the 64th win clinched the East 1-seed, the 18th loss was the regular-season finale). The 3-win / 2-loss delta suggests the warehouse snapshot missed 5 late-season games for BOS, or the ETL's win/loss counter dropped games with a postponed/abnormal status. Flip to stable once the warehouse row matches BBR's 64-18.",
+  "notes": "REGRESSION: fact_standings for 2023-24 BOS has wins=61 / losses=16 (one row per team per season). BBR shows 64-18 (the 64th win clinched the East 1-seed, the 18th loss was the regular-season finale). The 3-win / 2-loss delta suggests the warehouse snapshot missed 5 late-season games for BOS, or the ETL's win/loss counter dropped games with a postponed/abnormal status. Flip to stable once the warehouse row matches BBR's 64-18. FIXED 2026-07 by the curated-layer rebuild (data/audit/rebuild_curated_layer.sql) + fact_game-based playoff derivation; flipped regression -> stable.",
   "skip_if_no_db": true
 }
