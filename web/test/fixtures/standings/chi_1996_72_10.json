@@ -14,8 +14,8 @@
     "params": ["1995-96", "Regular"]
   },
   "match": "containsObject",
-  "status": "regression",
+  "status": "stable",
   "confidence": "verified",
-  "notes": "REGRESSION: fact_standings has no rows for 1995-96 — the warehouse table starts at 1996-97 (per the 'Era-matched' comment in getStandings, it was never back-filled for pre-1996-97 seasons). The API returns an empty array and containsObject fails. Flip to stable once the warehouse ETL extends fact_standings back to 1995-96 (or earlier).",
+  "notes": "Uses the imported BBR team summaries fallback because fact_standings still has no rows for 1995-96. The fallback returns the BBR regular-season record for the 72-10 Bulls.",
   "skip_if_no_db": true
 }

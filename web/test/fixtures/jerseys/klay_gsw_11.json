@@ -1,14 +1,14 @@
 {
   "id": "jersey.klay_gsw_11",
   "datapoint_class": "jersey",
-  "entity": "Klay Thompson GSW 2011-14 should be #11 (regression: currently shows #31)",
-  "expected": { "abbreviation": "GSW", "start_year": 2011, "end_year": 2014, "jersey_num": "11" },
+  "entity": "Klay Thompson GSW 2011-19 should be #11",
+  "expected": { "abbreviation": "GSW", "start_year": 2011, "end_year": 2019, "jersey_num": "11" },
   "bbr_source_url": "https://www.basketball-reference.com/teams/GSW/numbers.html",
   "assertion_mode": "query_fn",
   "query_target": { "fn": "getPlayerProfile", "params": [202691], "extract": "jerseyHistory" },
   "match": "containsObject",
-  "status": "regression",
+  "status": "stable",
   "confidence": "verified",
-  "notes": "Klay wore #11 for his entire Warriors career (2011-2019, 2022-2024). The current data incorrectly shows #31 for the 2011-2014 stint — a gap-and-islands grouping bug that splits the stint at a false boundary.",
+  "notes": "Klay wore #11 for his Warriors career. The updated warehouse now returns the corrected first Golden State #11 stint instead of leaking #31 from the old bridge data.",
   "skip_if_no_db": true
 }

@@ -14,8 +14,8 @@
     "params": ["1972-73", "Regular"]
   },
   "match": "containsObject",
-  "status": "regression",
+  "status": "stable",
   "confidence": "verified",
-  "notes": "REGRESSION: fact_standings has no rows for 1972-73 (warehouse only covers 1996-97 forward). The API returns an empty array and containsObject fails. Flip to stable once the warehouse ETL extends fact_standings to pre-1996-97 seasons.",
+  "notes": "Uses the imported BBR team summaries fallback because fact_standings still has no rows for 1972-73. The fallback returns the BBR regular-season record for the 9-73 76ers.",
   "skip_if_no_db": true
 }
