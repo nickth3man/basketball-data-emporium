@@ -1,4 +1,4 @@
-import { api, type Badge, type JerseyStint, type Row } from "../api.ts";
+import { api, type Badge, type JerseyStint, type PlayerSeasonRank, type Row } from "../api.ts";
 import {
   announceStatus,
   el,
@@ -79,18 +79,29 @@ export function renderPlayers(container: HTMLElement, initialPlayerId?: string):
       // Secondary sections load independently of the main profile — each is
       // its own endpoint/table, so one failing or being empty (e.g. a player
       // with no combine data) shouldn't block the others.
-      const [highs, recentGames, rates, advanced, per100, shotSplits, onOff, combine, similar] =
-        await Promise.allSettled([
-          api.getPlayerHighs(id),
-          api.getPlayerRecentGames(id),
-          api.getPlayerRates(id),
-          api.getPlayerAdvanced(id),
-          api.getPlayerPer100(id),
-          api.getPlayerShotSplits(id),
-          api.getPlayerOnOff(id),
-          api.getPlayerCombine(id),
-          api.getSimilarPlayers(id),
-        ]);
+      const [
+        highs,
+        recentGames,
+        rates,
+        advanced,
+        per100,
+        shotSplits,
+        onOff,
+        combine,
+        similar,
+        seasonRanks,
+      ] = await Promise.allSettled([
+        api.getPlayerHighs(id),
+        api.getPlayerRecentGames(id),
+        api.getPlayerRates(id),
+        api.getPlayerAdvanced(id),
+        api.getPlayerPer100(id),
+        api.getPlayerShotSplits(id),
+        api.getPlayerOnOff(id),
+        api.getPlayerCombine(id),
+        api.getSimilarPlayers(id),
+        api.getPlayerSeasonRanks(id, 10),
+      ]);
       if (recentGames.status === "fulfilled" && recentGames.value.length > 0)
         renderRecentGames(detail, recentGames.value);
       if (profile.seasons.length > 0)
@@ -101,6 +112,8 @@ export function renderPlayers(container: HTMLElement, initialPlayerId?: string):
         renderShotSplits(detail, shotSplits.value);
       if (onOff.status === "fulfilled" && onOff.value.length > 0) renderOnOff(detail, onOff.value);
       if (combine.status === "fulfilled" && combine.value) renderCombine(detail, combine.value);
+      if (seasonRanks.status === "fulfilled" && seasonRanks.value.length > 0)
+        renderLeagueRanks(detail, seasonRanks.value);
       if (similar.status === "fulfilled" && similar.value.length > 0)
         renderSimilarPlayers(detail, similar.value, (pid) => void showPlayer(pid));
       renderJumpNav(jumpNav, [
@@ -116,6 +129,9 @@ export function renderPlayers(container: HTMLElement, initialPlayerId?: string):
           : null,
         onOff.status === "fulfilled" && onOff.value.length > 0 ? ["On/Off", "player-on-off"] : null,
         combine.status === "fulfilled" && combine.value ? ["Combine", "player-combine"] : null,
+        seasonRanks.status === "fulfilled" && seasonRanks.value.length > 0
+          ? ["Ranks", "player-league-ranks"]
+          : null,
         similar.status === "fulfilled" && similar.value.length > 0
           ? ["Similar", "player-similar"]
           : null,
@@ -1594,6 +1610,40 @@ function renderCombine(container: HTMLElement, combine: Row): void {
         ["Three-quarter sprint", combine.three_quarter_sprint],
         ["Bench press (reps)", combine.bench_press],
       ]),
+    ]),
+  );
+}
+
+function renderLeagueRanks(container: HTMLElement, ranks: PlayerSeasonRank[]): void {
+  container.append(
+    el("section", {}, [
+      sectionHeading("player-league-ranks", "League ranks"),
+      tableNote(
+        "League-wide per-season rank for scoring, playmaking, and efficiency categories. One row per (season, competition type) — Regular, Playoffs, and Cup.",
+      ),
+      renderTable(
+        [
+          { key: "season_id", label: "Season" },
+          { key: "rank_type", label: "Type" },
+          { key: "team_abbreviation", label: "Team", render: teamCell },
+          { key: "rank_pts", label: "PTS Rank" },
+          { key: "rank_reb", label: "REB Rank" },
+          { key: "rank_ast", label: "AST Rank" },
+          { key: "rank_stl", label: "STL Rank" },
+          { key: "rank_blk", label: "BLK Rank" },
+          { key: "rank_fg_pct", label: "FG% Rank" },
+          { key: "rank_fg3_pct", label: "3P% Rank" },
+          { key: "rank_ft_pct", label: "FT% Rank" },
+          { key: "rank_eff", label: "EFF Rank" },
+        ],
+        ranks,
+        [
+          { label: "Context", span: 3 },
+          { label: "Per-game ranks", span: 5 },
+          { label: "Shooting ranks", span: 3 },
+          { label: "Efficiency", span: 1 },
+        ],
+      ),
     ]),
   );
 }
