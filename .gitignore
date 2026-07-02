@@ -58,3 +58,4 @@ data/nba.duckdb.wal
 *.duckdb
 *.duckdb.wal
 
+/data/audit/out

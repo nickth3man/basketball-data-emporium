@@ -1,0 +1,21 @@
+{
+  "id": "standings_record.atl_2022_43_39",
+  "datapoint_class": "standings_record",
+  "entity": "2021-22 Atlanta Hawks regular-season record 43-39 (9th in East, reached play-in)",
+  "expected": {
+    "abbreviation": "ATL",
+    "wins": "43",
+    "losses": "39"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/leagues/NBA_2022_standings.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getStandings",
+    "params": ["2021-22", "Regular"]
+  },
+  "match": "containsObject",
+  "status": "regression",
+  "confidence": "verified",
+  "notes": "KNOWN BUG (2026-07 data-quality audit): fact_standings counts play-in tournament games in the regular-season W-L for play-in participants from 2020-21 onward (warehouse shows ATL 45-39 = 43-39 plus two play-in wins). Official record is 43-39. All eight play-in teams are affected each season 2021-2023 and 2026; 2023-24 additionally has a stale snapshot (all 30 teams a few games short: e.g. BOS 61-16 vs official 64-18). Flip to stable once fact_standings excludes play-in games. See docs/data-quality-audit.md.",
+  "skip_if_no_db": true
+}
