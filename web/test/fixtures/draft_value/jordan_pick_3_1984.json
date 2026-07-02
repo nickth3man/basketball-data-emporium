@@ -13,11 +13,17 @@
   "assertion_mode": "query_fn",
   "query_target": {
     "fn": "getDraftValueBoard",
-    "params": [{ "round": 1, "sortBy": "career_ppg", "limit": 50 }]
+    "params": [
+      {
+        "round": 1,
+        "sortBy": "career_ppg",
+        "limit": 50
+      }
+    ]
   },
   "match": "containsObject",
   "status": "stable",
   "confidence": "verified",
-  "notes": "Queries round=1 first-round picks across all draft years sorted by career_ppg DESC. MJ (27.04 PPG warehouse / 30.1 BBR) lands in the top ~10 of that universe — limit=50 keeps the assertion stable against Wilt/Luka/Oscar-tier PPG leaders from other classes. round_pick is NULL for the 1984 class in the warehouse (column populated inconsistently), so the fixture pins season/round_number/overall_pick/name only.",
+  "notes": "Queries round=1 first-round picks across all draft years sorted by career_ppg DESC. After the leaders-layer rebuild MJ shows his true 30.12 career PPG (was 27.04 pre-rebuild) — comfortably top-10 of that universe; limit=50 keeps the assertion stable. round_pick is NULL for the 1984 class in the warehouse, so the fixture pins season/round_number/overall_pick/name only.",
   "skip_if_no_db": true
 }

@@ -1,0 +1,25 @@
+{
+  "id": "famous_game_line.finals_2024_g5",
+  "datapoint_class": "famous_game_line",
+  "entity": "2024 NBA Finals Game 5 (2024-06-17): Celtics 106, Mavericks 88 — Boston clinches banner 18",
+  "expected": {
+    "home_score": 106,
+    "away_score": 88,
+    "home_abbreviation": "BOS",
+    "away_abbreviation": "DAL"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/boxscores/202406170BOS.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getGameDetail",
+    "params": [
+      "0042300405"
+    ],
+    "extract": "header"
+  },
+  "match": "objectMatching",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Pins the game-detail endpoint over fact_game for a season the legacy game table is missing entirely.",
+  "skip_if_no_db": true
+}

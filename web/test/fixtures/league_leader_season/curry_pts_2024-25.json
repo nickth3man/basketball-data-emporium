@@ -17,6 +17,6 @@
   "match": "containsObject",
   "status": "stable",
   "confidence": "verified",
-  "notes": "Pins the 2024-25 Regular-season scoring leaders query to include Curry. Exact stat_rank (warehouse=20, BBR=18) and stat_value (warehouse=24.04, BBR=24.5) differ slightly because the warehouse's GP cut/aggregation is not identical to BBR's per-game page; the row-presence assertion pins Curry in the leaderboard without locking to a single rank.",
+  "notes": "Pins the 2024-25 Regular-season scoring leaders query to include Curry (24.5 PPG). Ranks come from the rebuilt agg_league_leaders with BBR-style qualification (58-of-82 games or 1400-point floor, schedule-scaled); the row-presence assertion pins Curry in the leaderboard without locking to a single rank.",
   "skip_if_no_db": true
 }

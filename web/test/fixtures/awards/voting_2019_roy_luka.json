@@ -1,0 +1,27 @@
+{
+  "id": "roy.voting_2019_luka_share",
+  "datapoint_class": "roy",
+  "entity": "2018-19 ROY voting: Luka Doncic wins with 98 first-place votes, 496/500 points (share .992); Trae Young second",
+  "expected": {
+    "player_id": "1629029",
+    "first_place_votes": 98,
+    "pts_won": 496,
+    "pts_max": 500,
+    "share": 0.992,
+    "winner": true
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/awards/awards_2019.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getAwardVoting",
+    "params": [
+      "2019",
+      "nba roy"
+    ]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Pins the award-voting endpoint (stg_bref_player_award_shares via the crosswalk) incl. the diacritic-name join that the legacy award facts dropped.",
+  "skip_if_no_db": true
+}
