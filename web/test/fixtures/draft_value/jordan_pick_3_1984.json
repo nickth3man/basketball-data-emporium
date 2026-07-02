@@ -1,0 +1,23 @@
+{
+  "id": "draft_value.jordan_pick_3_1984",
+  "datapoint_class": "draft_value",
+  "entity": "Michael Jordan was the 3rd overall pick in the 1984 NBA Draft (1st round, pick 3), selected by the Chicago Bulls out of UNC.",
+  "expected": {
+    "season": "1984",
+    "round_number": "1",
+    "overall_pick": "3",
+    "source_player_name": "Michael Jordan",
+    "full_name": "Michael Jordan"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/draft/NBA_1984.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getDraftValueBoard",
+    "params": [{ "round": 1, "sortBy": "career_ppg", "limit": 50 }]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Queries round=1 first-round picks across all draft years sorted by career_ppg DESC. MJ (27.04 PPG warehouse / 30.1 BBR) lands in the top ~10 of that universe — limit=50 keeps the assertion stable against Wilt/Luka/Oscar-tier PPG leaders from other classes. round_pick is NULL for the 1984 class in the warehouse (column populated inconsistently), so the fixture pins season/round_number/overall_pick/name only.",
+  "skip_if_no_db": true
+}

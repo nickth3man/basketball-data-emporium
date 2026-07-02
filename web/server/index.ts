@@ -183,6 +183,19 @@ app.get(
 );
 
 app.get(
+  "/api/players/:id/season-ranks",
+  asyncRoute(async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      res.status(400).json({ error: "Invalid player id" });
+      return;
+    }
+    const limit = clampLimit(req.query.limit);
+    res.json(await q.getPlayerSeasonRanks(id, limit));
+  }),
+);
+
+app.get(
   "/api/players/:id/photo",
   asyncRoute(async (req, res) => {
     const id = Number(req.params.id);
@@ -304,6 +317,33 @@ app.get(
   }),
 );
 
+app.get(
+  "/api/teams/:id/franchise-leaders",
+  asyncRoute(async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      res.status(400).json({ error: "Invalid team id" });
+      return;
+    }
+    res.json(await q.getFranchiseLeaders(id));
+  }),
+);
+
+app.get(
+  "/api/teams/:id/franchise-top",
+  asyncRoute(async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      res.status(400).json({ error: "Invalid team id" });
+      return;
+    }
+    const stat =
+      typeof req.query.stat === "string" && req.query.stat !== "" ? req.query.stat : "gp";
+    const limit = clampLimit(req.query.limit);
+    res.json(await q.getFranchiseTopPlayers(id, stat, limit));
+  }),
+);
+
 // --- Standings ---------------------------------------------------------
 
 app.get(
@@ -341,6 +381,27 @@ app.get(
   }),
 );
 
+// Registered before /api/draft/value/:something variants would be added.
+// Currently only /value and /value/rounds are used; no :id param route.
+app.get(
+  "/api/draft/value/rounds",
+  asyncRoute(async (_req, res) => {
+    res.json(await q.listDraftValueRounds());
+  }),
+);
+
+app.get(
+  "/api/draft/value",
+  asyncRoute(async (req, res) => {
+    const roundRaw = typeof req.query.round === "string" ? req.query.round : "";
+    const round = roundRaw !== "" ? Number(roundRaw) : undefined;
+    const sort =
+      typeof req.query.sort === "string" && req.query.sort !== "" ? req.query.sort : "career_ppg";
+    const limit = clampLimit(req.query.limit);
+    res.json(await q.getDraftValueBoard({ round, sortBy: sort, limit }));
+  }),
+);
+
 // --- Awards --------------------------------------------------------------
 
 app.get(
@@ -365,6 +426,48 @@ app.get(
     const type =
       typeof req.query.type === "string" && req.query.type !== "" ? req.query.type : null;
     res.json(await q.getAwards(season, type));
+  }),
+);
+
+// --- Leaders -------------------------------------------------------------
+//
+// Literal-segment routes are registered before /api/leaders/* :something
+// variants would be added (none currently — all leader endpoints are
+// query-string driven).
+
+app.get(
+  "/api/leaders/seasons",
+  asyncRoute(async (_req, res) => {
+    res.json(await q.listLeaderSeasons());
+  }),
+);
+
+app.get(
+  "/api/leaders/stat-keys",
+  asyncRoute(async (_req, res) => {
+    res.json(await q.listLeaderStatKeys());
+  }),
+);
+
+app.get(
+  "/api/leaders/season",
+  asyncRoute(async (req, res) => {
+    const season = requireQueryString(req, res, "season");
+    if (!season) return;
+    const statKey = requireQueryString(req, res, "stat_key");
+    if (!statKey) return;
+    const limit = clampLimit(req.query.limit);
+    res.json(await q.getSeasonLeaders(season, statKey, limit));
+  }),
+);
+
+app.get(
+  "/api/leaders/all-time",
+  asyncRoute(async (req, res) => {
+    const rawStat = typeof req.query.stat === "string" ? req.query.stat : "pts";
+    const stat = rawStat === "ast" || rawStat === "reb" ? rawStat : "pts";
+    const limit = clampLimit(req.query.limit);
+    res.json(await q.getAllTimeLeaders(stat, limit));
   }),
 );
 

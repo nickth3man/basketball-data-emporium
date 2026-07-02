@@ -1,0 +1,21 @@
+{
+  "id": "franchise_leader.lakers_pts_kobe",
+  "datapoint_class": "franchise_leader",
+  "entity": "Los Angeles Lakers franchise career points leader is Kobe Bryant (only Lakers team in his career, 1996-2016).",
+  "expected": {
+    "pts_person_id": "977",
+    "pts_player": "Kobe Bryant",
+    "pts_leader_name": "Kobe Bryant"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/LAL/leaders_career.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getFranchiseLeaders",
+    "params": [1610612747]
+  },
+  "match": "objectMatching",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Pins the Lakers PTS leader to Kobe Bryant. Warehouse reports 38,108 PTS (slightly higher than BBR-citable 33,643 — data-quality-audit.md documents agg_all_time_leaders inflation; fact_franchise_leaders appears to use the same inflated source). The person_id + leader_name match is the stable assertion.",
+  "skip_if_no_db": true
+}

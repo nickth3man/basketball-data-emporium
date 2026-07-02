@@ -36,6 +36,102 @@ export interface TeamProfile {
   seasons: Row[];
   franchiseHistory: Row[];
   recentGames: Row[];
+  franchiseTotals: Row | null;
+  franchiseAlumni: Row[];
+}
+
+export interface SeasonLeader {
+  player_id: number;
+  full_name: string;
+  season_year: string;
+  season_type: string;
+  gp: number;
+  stat_value: number;
+  stat_rank: number;
+  team_abbreviation: string | null;
+}
+
+export interface AllTimeLeader {
+  stat_rank: number;
+  player_id: number;
+  full_name: string;
+  stat_value: number;
+  pts: number;
+  ast: number;
+  reb: number;
+  gp: number;
+}
+
+export interface FranchiseLeaderRow extends Row {
+  team_id: number;
+  pts: number;
+  pts_person_id: number;
+  pts_player: string;
+  pts_leader_name: string | null;
+  ast: number;
+  ast_person_id: number;
+  ast_player: string;
+  ast_leader_name: string | null;
+  reb: number;
+  reb_person_id: number;
+  reb_player: string;
+  reb_leader_name: string | null;
+  blk: number;
+  blk_person_id: number;
+  blk_player: string;
+  blk_leader_name: string | null;
+  stl: number;
+  stl_person_id: number;
+  stl_player: string;
+  stl_leader_name: string | null;
+}
+
+export interface FranchiseTopPlayer {
+  player_id: number;
+  source_player_name: string;
+  full_name: string | null;
+  gp: number;
+  pts: number;
+  ast: number;
+  reb: number;
+  stl: number;
+  blk: number;
+  fg_pct: number;
+  fg3_pct: number;
+  ft_pct: number;
+}
+
+export interface PlayerSeasonRank extends Row {
+  player_id: number;
+  season_id: string;
+  rank_type: string;
+  team_id: number | null;
+  team_abbreviation: string | null;
+  gp: number;
+}
+
+export interface DraftValueRow {
+  player_id: number;
+  source_player_name: string;
+  full_name: string | null;
+  season: string;
+  round_number: number;
+  round_pick: number;
+  overall_pick: number;
+  team_id: number;
+  team_abbreviation: string | null;
+  position: string;
+  country: string;
+  career_gp: number;
+  career_pts: number;
+  career_ppg: number;
+  career_rpg: number;
+  career_apg: number;
+  career_fg_pct: number;
+  career_fg3_pct: number;
+  seasons_played: number;
+  first_season: string;
+  last_season: string;
 }
 
 async function getJSON<T>(url: string, signal?: AbortSignal): Promise<T> {
@@ -102,4 +198,40 @@ export const api = {
   awardTypes: () => getJSON<string[]>("/api/awards/types"),
   awards: (season: string, type: string | null) =>
     getJSON<Row[]>(`/api/awards${qs({ season, type })}`),
+
+  listLeaderSeasons: () => getJSON<string[]>("/api/leaders/seasons"),
+  listLeaderStatKeys: () => getJSON<string[]>("/api/leaders/stat-keys"),
+  getSeasonLeaders: (season: string, statKey: string, limit?: number) =>
+    getJSON<SeasonLeader[]>(
+      `/api/leaders/season${qs({ season, stat_key: statKey, limit: limit !== undefined ? String(limit) : null })}`,
+    ),
+  getAllTimeLeaders: (stat: "pts" | "ast" | "reb" = "pts", limit?: number) =>
+    getJSON<AllTimeLeader[]>(
+      `/api/leaders/all-time${qs({ stat, limit: limit !== undefined ? String(limit) : null })}`,
+    ),
+
+  getFranchiseLeaders: (teamId: string | number) =>
+    getJSON<FranchiseLeaderRow | null>(`/api/teams/${teamId}/franchise-leaders`),
+  getFranchiseTopPlayers: (teamId: string | number, stat?: string, limit?: number) =>
+    getJSON<FranchiseTopPlayer[]>(
+      `/api/teams/${teamId}/franchise-top${qs({
+        stat: stat ?? null,
+        limit: limit !== undefined ? String(limit) : null,
+      })}`,
+    ),
+
+  getPlayerSeasonRanks: (playerId: string | number, limit?: number) =>
+    getJSON<PlayerSeasonRank[]>(
+      `/api/players/${playerId}/season-ranks${qs({ limit: limit !== undefined ? String(limit) : null })}`,
+    ),
+
+  listDraftValueRounds: () => getJSON<number[]>("/api/draft/value/rounds"),
+  getDraftValueBoard: (opts?: { round?: number; sort?: string; limit?: number }) =>
+    getJSON<DraftValueRow[]>(
+      `/api/draft/value${qs({
+        round: opts?.round !== undefined ? String(opts.round) : null,
+        sort: opts?.sort ?? null,
+        limit: opts?.limit !== undefined ? String(opts.limit) : null,
+      })}`,
+    ),
 };

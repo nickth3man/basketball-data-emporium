@@ -1,0 +1,22 @@
+{
+  "id": "league_leader_season.curry_pts_2024_25",
+  "datapoint_class": "league_leader_season",
+  "entity": "Stephen Curry 2024-25 regular-season scoring rank (per-game leaders). Curry finishes the season around rank 18-20 with ~24 PPG; BBR 2024-25 leaders page lists him at 24.5 PPG.",
+  "expected": {
+    "player_id": "201939",
+    "full_name": "Stephen Curry",
+    "season_year": "2024-25",
+    "season_type": "Regular"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/leagues/NBA_2025_per_game.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getSeasonLeaders",
+    "params": ["2024-25", "pts", 25]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Pins the 2024-25 Regular-season scoring leaders query to include Curry. Exact stat_rank (warehouse=20, BBR=18) and stat_value (warehouse=24.04, BBR=24.5) differ slightly because the warehouse's GP cut/aggregation is not identical to BBR's per-game page; the row-presence assertion pins Curry in the leaderboard without locking to a single rank.",
+  "skip_if_no_db": true
+}

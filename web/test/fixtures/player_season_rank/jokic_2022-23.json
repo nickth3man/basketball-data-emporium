@@ -1,0 +1,26 @@
+{
+  "id": "player_season_rank.jokic_2022_23",
+  "datapoint_class": "player_season_rank",
+  "entity": "Nikola Jokić 2022-23 Regular-season league ranks (DEN, 69 GP). He won his 3rd MVP that year; per the warehouse's fact_player_season_ranks he ranks #3 REB and #4 AST.",
+  "expected": {
+    "player_id": "203999",
+    "season_id": "2022-23",
+    "rank_type": "Regular",
+    "team_abbreviation": "DEN",
+    "gp": "69",
+    "rank_pts": "26",
+    "rank_reb": "3",
+    "rank_ast": "4"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/players/j/jokicni01.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getPlayerSeasonRanks",
+    "params": [203999, 50]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Pins Jokić's 2022-23 Regular-season ranks. The exact PTS rank (warehouse=26, BBR=2) differs because the warehouse's rank columns reflect a wider universe/GP cutoff than BBR's season-page ranks. REB/AST top-5 matches BBR's leader narrative.",
+  "skip_if_no_db": true
+}

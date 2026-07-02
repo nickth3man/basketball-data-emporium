@@ -1,0 +1,21 @@
+{
+  "id": "league_leader_all_time.lebron_pts",
+  "datapoint_class": "league_leader_all_time",
+  "entity": "LeBron James is the NBA all-time regular-season points leader as of 2025-26 (passed Kareem in Feb 2023).",
+  "expected": {
+    "stat_rank": "1",
+    "player_id": "2544",
+    "full_name": "LeBron James"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/leaders/pts_career.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getAllTimeLeaders",
+    "params": ["pts", 5]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Computed from fact_player_career (NBA, Regular Season) — not from agg_all_time_leaders, whose totals are inflated/incorrect vs BBR (data-quality-audit.md). Warehouse total for LeBron (43,440) is in the BBR neighborhood; BBR-citable career total through 2024-25 is 42,184+ (BBR updates live). The stat_rank=1 assertion pins LeBron's #1 all-time position regardless of the running total.",
+  "skip_if_no_db": true
+}

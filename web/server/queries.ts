@@ -1467,33 +1467,44 @@ export interface TeamProfile {
   seasons: Row[];
   franchiseHistory: Row[];
   recentGames: Row[];
+  franchiseTotals: Row | null;
+  franchiseAlumni: Row[];
 }
 
 export async function getTeamProfile(teamId: number): Promise<TeamProfile> {
-  const [identity, extra, details, currentStanding, seasons, franchiseHistory, recentGames] =
-    await Promise.all([
-      queryObjects(`SELECT * FROM dim_team_history WHERE team_id = ? AND is_current LIMIT 1`, [
-        teamId,
-      ]),
-      queryObjects(
-        `SELECT arena, year_founded FROM dim_team WHERE team_id = ? ORDER BY year_founded DESC LIMIT 1`,
-        [teamId],
-      ),
-      // team_details (fact_team_background) carries bio fields dim_team never
-      // populated: arena capacity, owner, GM, current head coach, D-League
-      // affiliate, and social links. team_id is stored as VARCHAR there.
-      queryObjects(
-        `SELECT arenacapacity, owner, generalmanager, headcoach, dleagueaffiliation,
+  const [
+    identity,
+    extra,
+    details,
+    currentStanding,
+    seasons,
+    franchiseHistory,
+    recentGames,
+    franchiseTotals,
+    franchiseAlumni,
+  ] = await Promise.all([
+    queryObjects(`SELECT * FROM dim_team_history WHERE team_id = ? AND is_current LIMIT 1`, [
+      teamId,
+    ]),
+    queryObjects(
+      `SELECT arena, year_founded FROM dim_team WHERE team_id = ? ORDER BY year_founded DESC LIMIT 1`,
+      [teamId],
+    ),
+    // team_details (fact_team_background) carries bio fields dim_team never
+    // populated: arena capacity, owner, GM, current head coach, D-League
+    // affiliate, and social links. team_id is stored as VARCHAR there.
+    queryObjects(
+      `SELECT arenacapacity, owner, generalmanager, headcoach, dleagueaffiliation,
                 facebook, instagram, twitter
          FROM team_details WHERE TRY_CAST(team_id AS BIGINT) = ? LIMIT 1`,
-        [teamId],
-      ),
-      queryObjects(
-        `SELECT * FROM fact_standings WHERE team_id = ? ORDER BY season_year DESC, season_type LIMIT 1`,
-        [teamId],
-      ),
-      queryObjects(
-        `SELECT s.*, p.avg_pace, p.avg_ortg, p.avg_drtg, p.avg_net_rtg
+      [teamId],
+    ),
+    queryObjects(
+      `SELECT * FROM fact_standings WHERE team_id = ? ORDER BY season_year DESC, season_type LIMIT 1`,
+      [teamId],
+    ),
+    queryObjects(
+      `SELECT s.*, p.avg_pace, p.avg_ortg, p.avg_drtg, p.avg_net_rtg
          FROM agg_team_season s
          LEFT JOIN agg_team_pace_and_efficiency p
            ON p.team_id = s.team_id
@@ -1501,13 +1512,11 @@ export async function getTeamProfile(teamId: number): Promise<TeamProfile> {
            AND p.season_type = s.season_type
          WHERE s.team_id = ?
          ORDER BY s.season_year DESC, s.season_type`,
-        [teamId],
-      ),
-      queryObjects(`SELECT * FROM dim_team_history WHERE team_id = ? ORDER BY valid_from`, [
-        teamId,
-      ]),
-      queryObjects(
-        `WITH team_games AS (
+      [teamId],
+    ),
+    queryObjects(`SELECT * FROM dim_team_history WHERE team_id = ? ORDER BY valid_from`, [teamId]),
+    queryObjects(
+      `WITH team_games AS (
            SELECT *
            FROM fact_team_game_log
            WHERE team_id = ?
@@ -1531,9 +1540,40 @@ export async function getTeamProfile(teamId: number): Promise<TeamProfile> {
          LEFT JOIN opponent_games og ON og.game_id = tg.game_id
          ORDER BY TRY_CAST(tg.game_date AS DATE) DESC
          LIMIT 20`,
-        [teamId, teamId],
-      ),
-    ]);
+      [teamId, teamId],
+    ),
+    // Franchise-level totals: years active, games/wins/losses, playoff
+    // appearances, division/conference/league titles. league_titles in
+    // agg_team_franchise is currently 0 for every team in the warehouse
+    // (data-quality gap; documented in data-quality-audit.md), so it
+    // should not be the only signal for championship count.
+    queryObjects(`SELECT * FROM agg_team_franchise WHERE team_id = ? LIMIT 1`, [teamId]),
+    // Top-15 career-alumni list from fact_franchise_players, regular
+    // season totals only (the same player has Regular + Playoffs +
+    // sometimes Cup rows in the source).
+    queryObjects(
+      `SELECT
+           fp.person_id AS player_id,
+           fp.player AS source_player_name,
+           p.full_name,
+           fp.gp,
+           fp.pts,
+           fp.ast,
+           fp.reb,
+           fp.stl,
+           fp.blk,
+           fp.fg_pct,
+           fp.fg3_pct,
+           fp.ft_pct
+         FROM fact_franchise_players fp
+         JOIN dim_player p ON p.player_id = fp.person_id AND p.is_current
+         WHERE fp.team_id = ?
+           AND fp.season_type = 'Regular'
+         ORDER BY fp.gp DESC NULLS LAST, p.full_name ASC
+         LIMIT 15`,
+      [teamId],
+    ),
+  ]);
   const bio = identity[0] ? { ...identity[0], ...extra[0], ...details[0] } : null;
   return {
     bio,
@@ -1541,6 +1581,8 @@ export async function getTeamProfile(teamId: number): Promise<TeamProfile> {
     seasons,
     franchiseHistory,
     recentGames,
+    franchiseTotals: franchiseTotals[0] ?? null,
+    franchiseAlumni,
   };
 }
 
@@ -1910,5 +1952,360 @@ export async function getAwards(season: string, awardType: string | null): Promi
      WHERE ${conditions.join(" AND ")}
      ORDER BY a.award_type, p.full_name`,
     params,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// League Leaders
+//
+// fact_season_leader is a season-level aggregate (one row per season/split/
+// stat_key — no player_id); the row-per-leader table is agg_league_leaders,
+// which already carries player_id, season_year, season_type, gp, the
+// per-game rate stats (avg_pts, avg_reb, ...) and the league ranks
+// (pts_rank, reb_rank, ...). All-Time is recomputed from fact_player_career
+// (NBA Regular Season, summed per player_id) rather than reading
+// agg_all_time_leaders — that table's totals are inflated/incorrect vs BBR
+// (e.g. LeBron shows 62,564 instead of the BBR-citable ~42k+).
+// ---------------------------------------------------------------------------
+
+export async function listLeaderSeasons(): Promise<string[]> {
+  const rows = await queryObjects<{ season_year: string }>(
+    `SELECT DISTINCT season_year
+     FROM agg_league_leaders
+     WHERE season_type = 'Regular'
+     ORDER BY season_year DESC`,
+  );
+  return rows.map((r) => r.season_year);
+}
+
+export async function listLeaderStatKeys(): Promise<string[]> {
+  const rows = await queryObjects<{ stat_key: string }>(
+    `SELECT DISTINCT stat_key
+     FROM (
+       SELECT 'pts' AS stat_key FROM agg_league_leaders WHERE avg_pts IS NOT NULL
+       UNION ALL SELECT 'reb' FROM agg_league_leaders WHERE avg_reb IS NOT NULL
+       UNION ALL SELECT 'ast' FROM agg_league_leaders WHERE avg_ast IS NOT NULL
+       UNION ALL SELECT 'stl' FROM agg_league_leaders WHERE avg_stl IS NOT NULL
+       UNION ALL SELECT 'blk' FROM agg_league_leaders WHERE avg_blk IS NOT NULL
+     )
+     ORDER BY stat_key`,
+  );
+  return rows.map((r) => r.stat_key);
+}
+
+export async function getSeasonLeaders(
+  season: string,
+  statKey: string,
+  limit = 25,
+): Promise<Row[]> {
+  // Whitelist stat keys — agg_league_leaders stores each as a separate
+  // rank/avg column, so we can't parameterise the column name. Falling
+  // back to 'pts' on unknown input keeps the endpoint resilient.
+  const statColumn: Record<string, { avg: string; rank: string }> = {
+    pts: { avg: "avg_pts", rank: "pts_rank" },
+    reb: { avg: "avg_reb", rank: "reb_rank" },
+    ast: { avg: "avg_ast", rank: "ast_rank" },
+    stl: { avg: "avg_stl", rank: "stl_rank" },
+    blk: { avg: "avg_blk", rank: "blk_rank" },
+  };
+  const cols = statColumn[statKey] ?? statColumn.pts;
+  return queryObjects(
+    `SELECT
+       l.player_id,
+       p.full_name,
+       l.season_year,
+       l.season_type,
+       l.gp,
+       l.${cols.avg} AS stat_value,
+       l.${cols.rank} AS stat_rank,
+       th.abbreviation AS team_abbreviation
+     FROM agg_league_leaders l
+     JOIN dim_player p ON p.player_id = l.player_id AND p.is_current
+     LEFT JOIN dim_team_history th ON th.team_id = p.team_id AND th.is_current
+     WHERE l.season_year = ?
+       AND l.season_type = 'Regular'
+       AND l.${cols.rank} IS NOT NULL
+     ORDER BY l.${cols.rank} ASC
+     LIMIT ?`,
+    [season, limit],
+  );
+}
+
+export async function getAllTimeLeaders(
+  statKey: "pts" | "ast" | "reb" = "pts",
+  limit = 50,
+): Promise<Row[]> {
+  // Recompute from fact_player_career (NBA, Regular Season only — the
+  // schema's `league_id` value for NBA is the literal string 'NBA', and
+  // career_type for regular-season rows is 'Regular Season'). Excludes
+  // Playoffs/Cup so totals are BBR-comparable. All-time ranks are
+  // computed per-stat; the chosen `statKey` determines the ordering and
+  // which column is the "value" surfaced to the client.
+  return queryObjects(
+    `WITH career_totals AS (
+       SELECT
+         player_id,
+         SUM(pts)::BIGINT AS pts,
+         SUM(ast)::BIGINT AS ast,
+         SUM(reb)::BIGINT AS reb,
+         SUM(gp)::BIGINT AS gp
+       FROM fact_player_career
+       WHERE league_id = 'NBA'
+         AND career_type = 'Regular Season'
+       GROUP BY player_id
+       HAVING SUM(gp) > 0
+     ),
+     ranked AS (
+       SELECT
+         player_id,
+         pts,
+         ast,
+         reb,
+         gp,
+         RANK() OVER (ORDER BY ${statKey} DESC NULLS LAST) AS stat_rank
+       FROM career_totals
+     )
+     SELECT
+       r.stat_rank,
+       r.player_id,
+       p.full_name,
+       r.${statKey} AS stat_value,
+       r.pts,
+       r.ast,
+       r.reb,
+       r.gp
+     FROM ranked r
+     JOIN dim_player p ON p.player_id = r.player_id AND p.is_current
+     ORDER BY r.stat_rank ASC
+     LIMIT ?`,
+    [limit],
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Franchise Leaders (per-team career leaders)
+//
+// fact_franchise_leaders has one row per team_id with five stat leaders
+// (pts/ast/reb/blk/stl). Each leader is stored as `<stat>_person_id`
+// (BIGINT, dim_player.player_id) plus a `<stat>_player` VARCHAR name
+// snapshot, plus the leader's `<stat>` value. Join dim_player to
+// canonicalize full_name (in case the snapshot drifted).
+//
+// fact_franchise_players has one row per (team_id, person_id, season_type)
+// with that player's career-with-team totals (gp, pts, ast, reb, fg_pct,
+// ...). Player key is `person_id` (same value-space as
+// dim_player.player_id, verified by spot-check); dedupe by season_type
+// since the same player typically has a Regular and a Playoffs row.
+// Sortable by any of the totals; default sort is gp DESC.
+// ---------------------------------------------------------------------------
+
+export async function getFranchiseLeaders(teamId: number): Promise<Row | null> {
+  const rows = await queryObjects(
+    `SELECT
+       fl.team_id,
+       fl.pts,
+       fl.pts_person_id,
+       fl.pts_player,
+       p_pts.full_name AS pts_leader_name,
+       fl.ast,
+       fl.ast_person_id,
+       fl.ast_player,
+       p_ast.full_name AS ast_leader_name,
+       fl.reb,
+       fl.reb_person_id,
+       fl.reb_player,
+       p_reb.full_name AS reb_leader_name,
+       fl.blk,
+       fl.blk_person_id,
+       fl.blk_player,
+       p_blk.full_name AS blk_leader_name,
+       fl.stl,
+       fl.stl_person_id,
+       fl.stl_player,
+       p_stl.full_name AS stl_leader_name
+     FROM fact_franchise_leaders fl
+     LEFT JOIN dim_player p_pts ON p_pts.player_id = fl.pts_person_id AND p_pts.is_current
+     LEFT JOIN dim_player p_ast ON p_ast.player_id = fl.ast_person_id AND p_ast.is_current
+     LEFT JOIN dim_player p_reb ON p_reb.player_id = fl.reb_person_id AND p_reb.is_current
+     LEFT JOIN dim_player p_blk ON p_blk.player_id = fl.blk_person_id AND p_blk.is_current
+     LEFT JOIN dim_player p_stl ON p_stl.player_id = fl.stl_person_id AND p_stl.is_current
+     WHERE fl.team_id = ?
+     LIMIT 1`,
+    [teamId],
+  );
+  return rows[0] ?? null;
+}
+
+// Whitelist of stat keys the client can sort by. Maps onto the numeric
+// columns of fact_franchise_players (all DOUBLE in the schema).
+const FRANCHISE_PLAYER_SORT_COLUMNS: ReadonlySet<string> = new Set([
+  "gp",
+  "pts",
+  "ast",
+  "reb",
+  "stl",
+  "blk",
+  "tov",
+  "fg_pct",
+  "fg3_pct",
+  "ft_pct",
+  "oreb",
+  "dreb",
+]);
+
+export async function getFranchiseTopPlayers(
+  teamId: number,
+  statKey = "gp",
+  limit = 25,
+): Promise<Row[]> {
+  const sortKey = FRANCHISE_PLAYER_SORT_COLUMNS.has(statKey) ? statKey : "gp";
+  return queryObjects(
+    `SELECT
+       fp.person_id AS player_id,
+       fp.player AS source_player_name,
+       p.full_name,
+       fp.gp,
+       fp.pts,
+       fp.ast,
+       fp.reb,
+       fp.stl,
+       fp.blk,
+       fp.fg_pct,
+       fp.fg3_pct,
+       fp.ft_pct
+     FROM fact_franchise_players fp
+     JOIN dim_player p ON p.player_id = fp.person_id AND p.is_current
+     WHERE fp.team_id = ?
+       AND fp.season_type = 'Regular'
+     ORDER BY fp.${sortKey} DESC NULLS LAST, p.full_name ASC
+     LIMIT ?`,
+    [teamId, limit],
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Player Season Ranks
+//
+// fact_player_season_ranks has rank_* columns per (player_id, season_id,
+// league_id, rank_type). league_id is the literal '00' (NBA) across all
+// rows; rank_type is one of Regular/Playoffs/Cup. The schema includes
+// team_abbreviation inline (no join required), but we re-derive the
+// current abbreviation from dim_team_history so the era-correct
+// abbreviation is returned (matches the convention used elsewhere on
+// the player profile).
+// ---------------------------------------------------------------------------
+
+export async function getPlayerSeasonRanks(playerId: number, limit = 50): Promise<Row[]> {
+  return queryObjects(
+    `SELECT
+       r.player_id,
+       r.season_id,
+       r.rank_type,
+       r.team_id,
+       COALESCE(th.abbreviation, r.team_abbreviation) AS team_abbreviation,
+       r.gp,
+       r.player_age,
+       r.rank_pts,
+       r.rank_reb,
+       r.rank_ast,
+       r.rank_stl,
+       r.rank_blk,
+       r.rank_fgm,
+       r.rank_fga,
+       r.rank_fg_pct,
+       r.rank_fg3m,
+       r.rank_fg3a,
+       r.rank_fg3_pct,
+       r.rank_ftm,
+       r.rank_fta,
+       r.rank_ft_pct,
+       r.rank_oreb,
+       r.rank_dreb,
+       r.rank_tov,
+       r.rank_eff,
+       r.rank_min
+     FROM fact_player_season_ranks r
+     LEFT JOIN dim_team_history th
+       ON th.team_id = r.team_id
+       AND r.season_id >= th.valid_from
+       AND (th.valid_to IS NULL OR r.season_id < th.valid_to)
+     WHERE r.player_id = ?
+       AND r.league_id = '00'
+     ORDER BY r.season_id DESC, CASE r.rank_type WHEN 'Regular' THEN 1 WHEN 'Playoffs' THEN 2 WHEN 'Cup' THEN 3 ELSE 4 END
+     LIMIT ?`,
+    [playerId, limit],
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Draft Value / Career Success
+//
+// analytics_draft_value carries one row per draft pick with career totals
+// (gp/pts/rpg/apg/fg%/fg3%/seasons_played). player key is `person_id`,
+// which matches dim_player.player_id directly (verified).
+// ---------------------------------------------------------------------------
+
+const DRAFT_VALUE_SORT_COLUMNS: ReadonlySet<string> = new Set([
+  "career_ppg",
+  "career_rpg",
+  "career_apg",
+  "career_gp",
+  "career_fg_pct",
+  "career_fg3_pct",
+  "seasons_played",
+]);
+
+export async function listDraftValueRounds(): Promise<number[]> {
+  const rows = await queryObjects<{ round_number: number }>(
+    `SELECT DISTINCT round_number FROM analytics_draft_value ORDER BY round_number`,
+  );
+  return rows.map((r) => Number(r.round_number));
+}
+
+export async function getDraftValueBoard(opts?: {
+  round?: number;
+  sortBy?: string;
+  limit?: number;
+}): Promise<Row[]> {
+  const sortBy =
+    opts?.sortBy && DRAFT_VALUE_SORT_COLUMNS.has(opts.sortBy) ? opts.sortBy : "career_ppg";
+  const limit = opts?.limit ?? 50;
+  const conditions: string[] = [];
+  const params: DuckDBValue[] = [];
+  if (opts?.round !== undefined && Number.isFinite(opts.round)) {
+    conditions.push("d.round_number = ?");
+    params.push(opts.round);
+  }
+  const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+  return queryObjects(
+    `SELECT
+       d.person_id AS player_id,
+       d.player_name AS source_player_name,
+       p.full_name,
+       d.season,
+       d.round_number,
+       d.round_pick,
+       d.overall_pick,
+       d.team_id,
+       th.abbreviation AS team_abbreviation,
+       d.position,
+       d.country,
+       d.career_gp,
+       d.career_pts,
+       d.career_ppg,
+       d.career_rpg,
+       d.career_apg,
+       d.career_fg_pct,
+       d.career_fg3_pct,
+       d.seasons_played,
+       d.first_season,
+       d.last_season
+     FROM analytics_draft_value d
+     LEFT JOIN dim_player p ON p.player_id = d.person_id AND p.is_current
+     LEFT JOIN dim_team_history th ON th.team_id = d.team_id AND th.is_current
+     ${where}
+     ORDER BY d.${sortBy} DESC NULLS LAST, d.overall_pick ASC
+     LIMIT ?`,
+    [...params, limit],
   );
 }

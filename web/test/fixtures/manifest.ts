@@ -43,7 +43,12 @@ export type DatapointClass =
   | "player_advanced_stat"
   | "player_similar"
   | "retired_number"
-  | "playoff_series_stat";
+  | "playoff_series_stat"
+  | "league_leader_season"
+  | "league_leader_all_time"
+  | "franchise_leader"
+  | "player_season_rank"
+  | "draft_value";
 
 export type AssertionMode = "query_fn" | "raw_sql" | "composite";
 export type MatchMode =
@@ -131,6 +136,11 @@ const DATAPOINT_CLASSES: ReadonlySet<string> = new Set<DatapointClass>([
   "player_similar",
   "retired_number",
   "playoff_series_stat",
+  "league_leader_season",
+  "league_leader_all_time",
+  "franchise_leader",
+  "player_season_rank",
+  "draft_value",
 ]);
 
 const ASSERTION_MODES: ReadonlySet<string> = new Set<AssertionMode>([
