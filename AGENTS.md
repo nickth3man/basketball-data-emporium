@@ -108,19 +108,31 @@ from wherever the warehouse is built/shared; this repo doesn't build it.
   long-retired players. For a _current_ team roster, use
   `bridge_player_team_season` filtered to `MAX(season_year)`, deduped per
   player (see `getTeamRoster`).
-- `fact_playoff_series`'s own `wins`/`losses`/abbreviation columns are
-  unreliable — each real game is duplicated once per historical team
-  abbreviation era, and win/loss counters don't reset per series. Playoff
-  series results are re-derived from `game.wl_home`/`wl_away` instead (see
-  the comment above `getTeamPlayoffSeries`).
-- `agg_player_career` is corrupt for at least some players (verified via
-  Wes Unseld's career GP). Prefer summing `agg_player_season` for career
-  totals.
-- `agg_player_season.team_abbreviation` is unreliable (shows one team for a
-  player's entire career in some cases). Don't trust it for display.
-- `fact_team_splits` is present in schema but has 0 rows — there's no
-  in-repo ETL to backfill it. This is a warehouse-build gap, not something
-  fixable from this repo.
+- **Player season/career stats**: read from `fact_player_season_stat_resolved`
+  via the `bridge_player_bbr` crosswalk (`PLAYER_BBR_XWALK_CTE` in
+  `queries.ts`), NOT from the legacy `agg_player_career` / `agg_player_season`
+  tables. The `agg_*` layer is documented as corrupt for some players
+  (Wes Unseld verified) and `agg_player_season.team_abbreviation` is
+  unreliable. Display abbreviations are re-derived from `dim_team_history`
+  to reconcile BBR aliases (BRK↔BKN, GS↔GSW, etc.). Don't reintroduce
+  `agg_*` reads for player-facing totals — see the comment at the top of
+  `getPlayerProfile` for the migration history.
+- **Awards**: read from BBR staging tables
+  (`stg_bref_player_award_shares`, `stg_bref_end_of_season_teams`,
+  `stg_bref_all_star_selections`) via the same BBR crosswalk. Don't use
+  `fact_player_awards` — it had diacritic-name drops and a few missing
+  winner flags per `docs/data-quality-audit.md`.
+- **Playoff series**: derived from `fact_game` (full game dimension with
+  scores, including the 1994/1996/2000/2002/2006/2024/2025 runs that are
+  missing from the legacy `game` table). `fact_playoff_series` is NOT
+  used — its `wins`/`losses`/abbreviation columns are unreliable (each
+  real game is duplicated once per historical abbreviation era; counters
+  never reset per series). See the comment above `getTeamPlayoffSeries`.
+- **Empty warehouse tables**: `fact_team_splits`, `fact_team_matchups`,
+  `fact_team_lineups_overall`, and ~18 sibling `fact_team_*` tables are
+  present in schema with 0 rows. There's no in-repo ETL to backfill them
+  — these are warehouse-build gaps, not something fixable from this repo.
+  See `docs/data-quality-audit.md` for the full list.
 - Player search / name matching in the BBR scrapers is exact-match on
   ASCII-folded names; format mismatches (e.g. "Jo Jo White" vs "Jojo White")
   cause silent misses (`no_player_match` in scraper sidecars). No fuzzy

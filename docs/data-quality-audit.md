@@ -161,6 +161,30 @@ NBA.com live endpoints (e.g. via
 [sportsdataverse-py](https://sportsdataverse-py.sportsdataverse.org/docs/intro))
 are the only viable check; recommended as a follow-up spot-check, not bulk.
 
+## Remediation status (2026-07-02, post-audit)
+
+The audit's findings were fixed in the local warehouse by two in-place
+rebuild scripts (idempotent, run with the dev server stopped; they are also
+the spec for porting the fixes into the sibling repo's `build.py`):
+
+- `data/audit/rebuild_curated_layer.sql` — rebuilt `agg_player_season`
+  (+per36/per48/advanced, now including BBR PER/WS/BPM/VORP columns),
+  `agg_player_career`, `fact_player_awards` (lossless, via crosswalk),
+  healed `fact_standings` W-L/ranks and `draft_history.overall_pick`.
+  Corrupt originals kept as `*_legacy_fanout`.
+- `data/audit/rebuild_leaders_layer.sql` — rebuilt `fact_franchise_leaders`
+  (Kobe's LAL total now the exact 33,643), `agg_league_leaders` and
+  `fact_player_season_ranks` (BBR-style qualification: 58-of-82 games or
+  the per-stat total floor, schedule-scaled; Jokić 2022-23 now #2 REB/#4
+  AST), and `analytics_draft_value` (MJ at his true 30.12 career PPG).
+  `fact_player_career` was verified clean and left untouched.
+
+`getTeamPlayoffSeries` now derives from `fact_game` (complete), and the
+player/award queries read the resolved BBR layer through the crosswalk (see
+AGENTS.md conventions). Fixture suite: 206 passing incl. all former
+regressions for findings 1-5; the remaining expected-fails are jersey-
+resolver edge cases documented pre-audit.
+
 ## Ratchet
 
 - Fixture suite: 4 new regression fixtures pin findings 1-4; flip each to
