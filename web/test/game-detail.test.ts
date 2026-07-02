@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { api, type GameDetail, type PlayerProfile, type Row, type TeamProfile } from "../src/api.ts";
+import {
+  api,
+  type GameDetail,
+  type PlayerProfile,
+  type Row,
+  type TeamProfile,
+} from "../src/api.ts";
 import { renderPlayers } from "../src/views/players.ts";
 import { renderTeams } from "../src/views/teams.ts";
 import { renderGame } from "../src/views/game.ts";
