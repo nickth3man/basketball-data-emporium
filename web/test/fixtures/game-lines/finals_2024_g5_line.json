@@ -10,11 +10,29 @@
       "away_abbreviation": "DAL"
     },
     "lineScore": {
-      "line_score_source": "fact_game_total",
+      "line_score_source": "fact_game_quarter_scores",
       "team_id_home": "1610612738",
       "team_id_away": "1610612742",
+      "pts_qtr1_home": 28,
+      "pts_qtr2_home": 39,
+      "pts_qtr3_home": 19,
+      "pts_qtr4_home": 20,
       "pts_home": 106,
+      "pts_qtr1_away": 18,
+      "pts_qtr2_away": 28,
+      "pts_qtr3_away": 21,
+      "pts_qtr4_away": 21,
       "pts_away": 88
+    },
+    "coverage": {
+      "coverage_label": "Full modern box score",
+      "has_period_scores": true,
+      "has_team_box": true,
+      "has_player_box": true,
+      "has_starters": true,
+      "has_pbp": true,
+      "has_attendance": false,
+      "has_officials": false
     }
   },
   "bbr_source_url": "https://www.basketball-reference.com/boxscores/202406170BOS.html",
@@ -26,6 +44,6 @@
   "match": "objectMatching",
   "status": "stable",
   "confidence": "verified",
-  "notes": "Pins the game-detail endpoint over fact_game for a season the legacy game table is missing entirely, including the lineScore fallback orientation consumed by the hidden box-score view.",
+  "notes": "Pins the game-detail endpoint over fact_game plus modern quarter/team/player box-score tables for a season the legacy game table is missing entirely.",
   "skip_if_no_db": true
 }

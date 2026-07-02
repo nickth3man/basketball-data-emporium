@@ -265,9 +265,15 @@ export interface ShotBin {
 
 export interface GameDetail {
   header: Row | null;
+  metadata: Row | null;
   lineScore: Row | null;
+  periodScores: Row[];
+  teamBoxes: Row[];
+  playerBoxes: Row[];
   leaders: Row[];
   officials: Row[];
   starters: Row[];
   lastPlays: Row[];
+  context: Row[];
+  coverage: Row;
 }

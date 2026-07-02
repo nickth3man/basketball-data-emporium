@@ -1,10 +1,18 @@
 {
   "id": "famous_game_line.bos_phi_2026_total_fallback",
   "datapoint_class": "famous_game_line",
-  "entity": "2026 BOS-PHI Game 7 has a total-score fallback when legacy line_score has no modern row",
+  "entity": "2026 BOS-PHI Game 7 uses modern quarter scores when legacy line_score has no row",
   "expected": {
-    "line_score_source": "fact_game_total",
+    "line_score_source": "fact_game_quarter_scores",
+    "pts_qtr1_home": 19,
+    "pts_qtr2_home": 31,
+    "pts_qtr3_home": 25,
+    "pts_qtr4_home": 25,
     "pts_home": 100,
+    "pts_qtr1_away": 32,
+    "pts_qtr2_away": 23,
+    "pts_qtr3_away": 33,
+    "pts_qtr4_away": 21,
     "pts_away": 109
   },
   "bbr_source_url": "https://www.basketball-reference.com/boxscores/202605020BOS.html",
@@ -17,6 +25,6 @@
   "match": "objectMatching",
   "status": "stable",
   "confidence": "spot-checked",
-  "notes": "Modern games lack line_score rows; the app should still show a final score from fact_game without implying quarter scores exist.",
+  "notes": "Modern games can lack legacy line_score rows; the game-detail endpoint should use fact_game_quarter_scores before falling back to final-score-only totals.",
   "skip_if_no_db": true
 }

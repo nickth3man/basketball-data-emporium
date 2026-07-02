@@ -1,3 +1,6 @@
+import { existsSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   api,
@@ -9,9 +12,13 @@ import {
 import { renderPlayers } from "../src/views/players.ts";
 import { renderTeams } from "../src/views/teams.ts";
 import { renderGame } from "../src/views/game.ts";
+import { getGameDetail } from "../server/queries.ts";
 import finalsFixture from "./fixtures/game-lines/finals_2024_g5_line.json";
 
 const finalsExpected = finalsFixture.expected;
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const DB_PATH = path.resolve(__dirname, "../../data/nba.duckdb");
+const describeWithDb = existsSync(DB_PATH) ? describe : describe.skip;
 
 function nextTick(): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, 0));
@@ -50,6 +57,24 @@ function captureNavigation(): {
   return {
     events,
     cleanup: () => window.removeEventListener("nba:navigate", handler),
+  };
+}
+
+function gameDetail(overrides: Partial<GameDetail>): GameDetail {
+  return {
+    header: null,
+    metadata: null,
+    lineScore: null,
+    periodScores: [],
+    teamBoxes: [],
+    playerBoxes: [],
+    leaders: [],
+    officials: [],
+    starters: [],
+    lastPlays: [],
+    context: [],
+    coverage: {},
+    ...overrides,
   };
 }
 
@@ -121,7 +146,7 @@ afterEach(() => {
 
 describe("game detail view", () => {
   it("orders an inverted legacy line_score row by the fact_game home/away header", async () => {
-    const game: GameDetail = {
+    const game = gameDetail({
       header: {
         game_id: "0042300405",
         game_date: "2024-06-17",
@@ -139,6 +164,7 @@ describe("game detail view", () => {
         home_name: "Boston Celtics",
         away_name: "Dallas Mavericks",
       },
+      metadata: null,
       lineScore: {
         line_score_source: "line_score",
         team_id_home: finalsExpected.lineScore.team_id_away,
@@ -158,11 +184,7 @@ describe("game detail view", () => {
         pts_qtr4_away: 20,
         pts_away: finalsExpected.header.home_score,
       },
-      leaders: [],
-      officials: [],
-      starters: [],
-      lastPlays: [],
-    };
+    });
     vi.spyOn(api, "getGameDetail").mockResolvedValue(game);
 
     const container = document.createElement("div");
@@ -181,6 +203,105 @@ describe("game detail view", () => {
     );
     expect(rowText(rows[0])).toEqual(["Dallas Mavericks", "18", "28", "21", "21", "88"]);
     expect(rowText(rows[1])).toEqual(["Boston Celtics", "28", "39", "19", "20", "106"]);
+  });
+
+  it("renders a historical partial box without unavailable modern stat columns", async () => {
+    const game = gameDetail({
+      header: {
+        game_id: "0024600063",
+        game_date: "1946-11-30",
+        season_year: "1946-47",
+        season_type: "Regular",
+        home_team_id: "1610612752",
+        away_team_id: "1610612744",
+        home_score: 64,
+        away_score: 60,
+        home_abbreviation: "NYK",
+        away_abbreviation: "PHW",
+        home_name: "New York Knicks",
+        away_name: "Philadelphia Warriors",
+      },
+      lineScore: {
+        line_score_source: "line_score",
+        team_id_home: "1610612752",
+        team_id_away: "1610612744",
+        team_city_name_home: "New York",
+        team_nickname_home: "Knicks",
+        team_city_name_away: "Philadelphia",
+        team_nickname_away: "Warriors",
+        pts_home: 64,
+        pts_away: 60,
+      },
+      playerBoxes: [
+        {
+          player_id: "76764",
+          full_name: "Joe Fulks",
+          team_id: "1610612744",
+          team_side: "away",
+          team_name: "Philadelphia Warriors",
+          fgm: 7,
+          ftm: 12,
+          points: 26,
+          coverage_level: "scoring_only",
+        },
+      ],
+      coverage: {
+        coverage_label: "Partial historical box score",
+        has_period_scores: false,
+        has_team_box: false,
+        has_officials: false,
+        has_attendance: false,
+        has_pbp: false,
+      },
+    });
+    vi.spyOn(api, "getGameDetail").mockResolvedValue(game);
+
+    const container = document.createElement("div");
+    renderGame(container, "0024600063");
+
+    const playerSection = await waitFor(() =>
+      container.querySelector("#game-player-box")?.closest("section"),
+    );
+    const headings = Array.from(playerSection.querySelectorAll("th")).map(
+      (heading) => heading.textContent ?? "",
+    );
+
+    expect(container.textContent).toContain("Partial historical box score");
+    expect(playerSection.textContent).toContain("Joe Fulks");
+    expect(headings).toContain("FGM");
+    expect(headings).toContain("FTM");
+    expect(headings).not.toContain("REB");
+    expect(headings).not.toContain("AST");
+  });
+});
+
+describeWithDb("game detail query", () => {
+  it("uses modern quarter, team, and player box-score tables for 2024 Finals Game 5", async () => {
+    const game = await getGameDetail("0042300405");
+
+    expect(game.lineScore).toMatchObject(finalsExpected.lineScore);
+    expect(game.coverage).toMatchObject(finalsExpected.coverage);
+    expect(game.periodScores).toHaveLength(8);
+    expect(game.teamBoxes.find((row) => String(row.team_id) === "1610612738")).toMatchObject({
+      team_name: "Boston Celtics",
+      reb: 51,
+    });
+    expect(game.teamBoxes.find((row) => String(row.team_id) === "1610612742")).toMatchObject({
+      team_name: "Dallas Mavericks",
+      reb: 35,
+    });
+    expect(game.playerBoxes.find((row) => row.full_name === "Jayson Tatum")).toMatchObject({
+      points: 31,
+      reb: 8,
+      assists: 11,
+      coverage_level: "modern",
+    });
+    expect(game.playerBoxes.find((row) => row.full_name === "Luka Doncic")).toMatchObject({
+      points: 28,
+      reb: 12,
+      assists: 5,
+      coverage_level: "modern",
+    });
   });
 });
 
