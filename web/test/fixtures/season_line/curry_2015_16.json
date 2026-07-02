@@ -5,19 +5,21 @@
   "expected": {
     "season_year": "2015-16",
     "season_type": "Regular",
-    "gp": 79,
+    "gp": "79",
     "avg_pts": 30.063291139240505,
     "avg_reb": 5.443037974683544,
     "avg_ast": 6.670886075949367
   },
   "bbr_source_url": "https://www.basketball-reference.com/players/c/curryst01.html",
-  "assertion_mode": "raw_sql",
+  "assertion_mode": "query_fn",
   "query_target": {
-    "sql": "SELECT season_year, season_type, CAST(gp AS INTEGER) AS gp, avg_pts, avg_reb, avg_ast FROM agg_player_season WHERE player_id = 201939 AND season_year = '2015-16' AND season_type = 'Regular' LIMIT 1"
+    "fn": "getPlayerProfile",
+    "params": [201939],
+    "extract": "seasons"
   },
   "match": "containsObject",
   "status": "stable",
   "confidence": "verified",
-  "notes": "Historic completed season; match:containsObject with exact values. Re-pinned 2026-07 after the curated-layer rebuild: BBR says 79 GP / 30.1 PPG (2375 pts, 430 reb, 527 ast); the pre-rebuild table claimed 82 GP / 29.0 PPG. The 402 three-pointers are a separate stat (total_fg3m) not pinned here.",
+  "notes": "Asserts the migrated player profile season row derived from fact_player_season_stat_resolved, including JSON string form for summed integer GP.",
   "skip_if_no_db": true
 }

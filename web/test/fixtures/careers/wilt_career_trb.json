@@ -1,17 +1,18 @@
 {
   "id": "career_total.wilt_trb",
   "datapoint_class": "career_total",
-  "entity": "Wilt Chamberlain career total rebounds = 23,924 (BBR all-time leader); warehouse sum from agg_player_season currently undercounts at 23,840 (delta 84)",
+  "entity": "Wilt Chamberlain career total rebounds = 23,924 (BBR all-time leader); clean profile total)",
   "expected": 23924,
   "bbr_source_url": "https://www.basketball-reference.com/players/c/chambwi01.html",
-  "assertion_mode": "raw_sql",
+  "assertion_mode": "query_fn",
   "query_target": {
-    "sql": "SELECT ROUND(SUM(avg_reb * gp)) AS career_reb FROM agg_player_season WHERE player_id = 76375 AND season_type = 'Regular'",
-    "extract": "[0].career_reb"
+    "fn": "getPlayerProfile",
+    "params": [76375],
+    "extract": "career.career_reb"
   },
   "match": "equals",
   "status": "stable",
   "confidence": "verified",
-  "notes": "REGRESSION: warehouse SUM(avg_reb*gp) is 23,840 but BBR's career regular-season rebound total is 23,924. The 84-rebound gap (14 seasons) is small but consistent with a few rows in agg_player_season being missing rebounds or whole seasons being incomplete. test.fails keeps the suite green until the warehouse is repaired. FIXED 2026-07 by the curated-layer rebuild (data/audit/rebuild_curated_layer.sql) + fact_game-based playoff derivation; flipped regression -> stable.",
+  "notes": "Asserts the migrated player profile career total derived from fact_player_season_stat_resolved, not the legacy aggregate layer.",
   "skip_if_no_db": true
 }

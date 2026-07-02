@@ -4,14 +4,15 @@
   "entity": "Kevin Durant career regular-season total points floor = 30,000 (active player; warehouse = 30,828 as of refresh, will drift upward)",
   "expected": 30000,
   "bbr_source_url": "https://www.basketball-reference.com/players/d/duranke01.html",
-  "assertion_mode": "raw_sql",
+  "assertion_mode": "query_fn",
   "query_target": {
-    "sql": "SELECT ROUND(SUM(avg_pts * gp)) AS career_pts FROM agg_player_season WHERE player_id = 201142 AND season_type = 'Regular'",
-    "extract": "[0].career_pts"
+    "fn": "getPlayerProfile",
+    "params": [201142],
+    "extract": "career.career_pts"
   },
   "match": "gte",
   "status": "stable",
   "confidence": "spot-checked",
-  "notes": "Kevin Durant is still active (HOU 2025-26 in the warehouse). The floor of 30,000 sits below the current warehouse value of 30,828, so the gte test passes today. Raise the floor over time as the warehouse ETL is refreshed with new seasons. ROUND() returns DOUBLE so the value comes through as a JSON number. Use gte (not equals) because the value will keep growing while Durant remains active.",
+  "notes": "Asserts the migrated player profile career total derived from fact_player_season_stat_resolved, not the legacy aggregate layer.",
   "skip_if_no_db": true
 }

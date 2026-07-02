@@ -1,6 +1,5 @@
-// Human-readable labels for award types. fact_player_awards contains both
-// selection rows (Title-case) and voting-share rows (lower-case) for the same
-// award; the UI consolidates on the Title-case rows and hides raw voting rows.
+// Human-readable labels for award types. Server-side award queries expose
+// selection rows plus major-award winners from the BBR staging tables.
 export const HONOR_LABELS: Record<string, string> = {
   "All-NBA": "All-NBA",
   "All-Rookie": "All-Rookie",
@@ -13,7 +12,7 @@ export const HONOR_LABELS: Record<string, string> = {
   "nba smoy": "SMOY",
 };
 
-// Awards we show as honors/badges. Lower-case voting rows are filtered out.
+// Awards we show as honors/badges.
 export const HONOR_AWARD_TYPES = new Set(["All-NBA", "All-Rookie", "All-Defense", "All-Star"]);
 
 export function labelAwardType(type: string): string {

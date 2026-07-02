@@ -6,7 +6,7 @@
   "bbr_source_url": "https://www.basketball-reference.com/players/d/duncati01.html",
   "assertion_mode": "raw_sql",
   "query_target": {
-    "sql": "SELECT cast(count(*) AS INTEGER) AS n FROM fact_player_awards WHERE player_id = 1495 AND award_type = 'All-Star'",
+    "sql": "SELECT cast(count(DISTINCT season) AS INTEGER) AS n FROM stg_bref_all_star_selections WHERE nba_player_id = 1495 AND lg = 'NBA'",
     "extract": "[0].n"
   },
   "match": "equals",

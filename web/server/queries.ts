@@ -45,6 +45,154 @@ if (BBR_COACHES_AVAILABLE) {
   console.log(`[queries] BBR coach history enabled: ${BBR_COACHES_PATH}`);
 }
 
+const BBR_SEASON_YEAR_SQL =
+  "CAST(season - 1 AS VARCHAR) || '-' || lpad(CAST(season % 100 AS VARCHAR), 2, '0')";
+
+const PLAYER_BBR_XWALK_CTE = `player_bbr_xwalk AS (
+         SELECT bbr_player_id, nba_player_id
+         FROM (
+           SELECT
+             b.bbr_player_id,
+             b.nba_player_id,
+             ROW_NUMBER() OVER (
+               PARTITION BY b.bbr_player_id
+               ORDER BY COALESCE(g.gp, 0) DESC, b.nba_player_id
+             ) AS rn
+           FROM bridge_player_bbr b
+           LEFT JOIN (
+             SELECT player_id, COUNT(*) AS gp
+             FROM fact_player_game_log
+             GROUP BY player_id
+           ) g ON g.player_id = b.nba_player_id
+         )
+         WHERE rn = 1
+       )`;
+
+const PLAYER_SEASON_STATS_CTE = `${PLAYER_BBR_XWALK_CTE},
+       resolved_player_season_source AS (
+         SELECT COALESCE(r.person_id, x.nba_player_id) AS player_id, r.*
+         FROM fact_player_season_stat_resolved r
+         LEFT JOIN player_bbr_xwalk x
+           ON r.person_id IS NULL AND x.bbr_player_id = r.slug
+         WHERE COALESCE(r.person_id, x.nba_player_id) IS NOT NULL
+       ),
+       player_season_stats AS (
+         SELECT
+           player_id,
+           team_id,
+           team_abbrev AS source_team_abbreviation,
+           ${BBR_SEASON_YEAR_SQL} AS season_year,
+           CASE WHEN is_playoffs THEN 'Playoffs' ELSE 'Regular' END AS season_type,
+           CAST(gp AS BIGINT) AS gp,
+           CAST(min AS DOUBLE) AS total_min,
+           min / NULLIF(gp, 0) AS avg_min,
+           CAST(pts AS DOUBLE) AS total_pts,
+           pts / NULLIF(gp, 0) AS avg_pts,
+           CAST(COALESCE(trb, orb + drb) AS DOUBLE) AS total_reb,
+           COALESCE(trb, orb + drb) / NULLIF(gp, 0) AS avg_reb,
+           CAST(ast AS DOUBLE) AS total_ast,
+           ast / NULLIF(gp, 0) AS avg_ast,
+           CAST(stl AS DOUBLE) AS total_stl,
+           stl / NULLIF(gp, 0) AS avg_stl,
+           CAST(blk AS DOUBLE) AS total_blk,
+           blk / NULLIF(gp, 0) AS avg_blk,
+           CAST(tov AS DOUBLE) AS total_tov,
+           tov / NULLIF(gp, 0) AS avg_tov,
+           CAST(fg AS DOUBLE) AS total_fgm,
+           CAST(fga AS DOUBLE) AS total_fga,
+           fg / NULLIF(fga, 0) AS fg_pct,
+           CAST(tp AS DOUBLE) AS total_fg3m,
+           CAST(tpa AS DOUBLE) AS total_fg3a,
+           tp / NULLIF(tpa, 0) AS fg3_pct,
+           CAST(ft AS DOUBLE) AS total_ftm,
+           CAST(fta AS DOUBLE) AS total_fta,
+           ft / NULLIF(fta, 0) AS ft_pct,
+           ortg AS avg_off_rating,
+           drtg AS avg_def_rating,
+           ortg - drtg AS avg_net_rating,
+           pts / NULLIF(2 * (fga + 0.44 * fta), 0) AS avg_ts_pct,
+           usgp / 100.0 AS avg_usg_pct,
+           (fg + 0.5 * tp) / NULLIF(fga, 0) AS avg_efg_pct,
+           astp / 100.0 AS avg_ast_pct,
+           orbp / 100.0 AS avg_oreb_pct,
+           drbp / 100.0 AS avg_dreb_pct,
+           trbp / 100.0 AS avg_reb_pct,
+           tovp / 100.0 AS avg_tov_pct,
+           per,
+           ows,
+           dws,
+           ows + dws AS ws,
+           obpm,
+           dbpm,
+           obpm + dbpm AS bpm,
+           vorp
+         FROM resolved_player_season_source
+       )`;
+
+const PLAYER_AWARD_ROWS_CTE = `${PLAYER_BBR_XWALK_CTE},
+       award_rows AS (
+         SELECT *
+         FROM (
+           SELECT
+             COALESCE(s.nba_player_id, x.nba_player_id) AS player_id,
+             s.award || CASE WHEN s.winner THEN ' winner' ELSE ' (received votes)' END AS description,
+             CAST(NULL AS BIGINT) AS all_nba_team_number,
+             CAST(s.season AS VARCHAR) AS season,
+             CAST(NULL AS VARCHAR) AS month,
+             CAST(NULL AS VARCHAR) AS week,
+             CAST(NULL AS VARCHAR) AS conference,
+             s.award AS award_type,
+             CASE WHEN s.winner THEN 'Selected' END AS subtype1,
+             CAST(s.share AS VARCHAR) AS subtype2,
+             CAST(NULL AS VARCHAR) AS subtype3
+           FROM stg_bref_player_award_shares s
+           LEFT JOIN player_bbr_xwalk x
+             ON x.bbr_player_id = s.bref_player_id
+           WHERE s.winner
+             AND s.award IN ('nba mvp', 'nba roy', 'nba dpoy', 'nba mip', 'nba smoy')
+
+           UNION ALL
+
+           SELECT
+             COALESCE(t.nba_player_id, x.nba_player_id) AS player_id,
+             t.type || ' ' || t.number_tm || ' Team' AS description,
+             CASE t.number_tm WHEN '1st' THEN 1 WHEN '2nd' THEN 2 WHEN '3rd' THEN 3 END AS all_nba_team_number,
+             CAST(t.season AS VARCHAR) AS season,
+             NULL AS month,
+             NULL AS week,
+             NULL AS conference,
+             t.type AS award_type,
+             NULL AS subtype1,
+             NULL AS subtype2,
+             NULL AS subtype3
+           FROM stg_bref_end_of_season_teams t
+           LEFT JOIN player_bbr_xwalk x
+             ON x.bbr_player_id = t.bref_player_id
+           WHERE t.lg = 'NBA'
+             AND t.type IN ('All-NBA', 'All-Rookie', 'All-Defense')
+
+           UNION ALL
+
+           SELECT DISTINCT
+             COALESCE(a.nba_player_id, x.nba_player_id) AS player_id,
+             'NBA All-Star' AS description,
+             CAST(NULL AS BIGINT) AS all_nba_team_number,
+             CAST(a.season AS VARCHAR) AS season,
+             NULL AS month,
+             NULL AS week,
+             NULL AS conference,
+             'All-Star' AS award_type,
+             NULL AS subtype1,
+             NULL AS subtype2,
+             NULL AS subtype3
+           FROM stg_bref_all_star_selections a
+           LEFT JOIN player_bbr_xwalk x
+             ON x.bbr_player_id = a.bref_player_id
+           WHERE a.lg = 'NBA'
+         )
+         WHERE player_id IS NOT NULL
+       )`;
+
 // Jersey-history SQL template. ``$BBR_CTE`` is replaced with the BBR
 // CTE (or empty when the file is missing); ``$BBR_UNION`` is replaced
 // with the corresponding ranked source branch (or empty). The body is the
@@ -54,7 +202,8 @@ if (BBR_COACHES_AVAILABLE) {
 // here because that would intermingle SQL and JS-quoting concerns —
 // a plain string with two placeholders, spliced in buildJerseyQuery,
 // is the cleanest split.
-const JERSEY_SQL_TEMPLATE = `WITH per_game AS (
+const JERSEY_SQL_TEMPLATE = `WITH ${PLAYER_SEASON_STATS_CTE},
+       per_game AS (
          SELECT
            TRY_CAST(ip.team_id AS BIGINT) AS team_id,
            TRIM(ip.jersey_num) AS jersey_num,
@@ -67,7 +216,7 @@ const JERSEY_SQL_TEMPLATE = `WITH per_game AS (
          WHERE ip.player_id = ? AND TRIM(ip.jersey_num) != ''
            AND EXISTS (
              SELECT 1
-             FROM agg_player_season inactive_season
+             FROM player_season_stats inactive_season
              WHERE inactive_season.player_id = ip.player_id
                AND inactive_season.team_id = TRY_CAST(ip.team_id AS BIGINT)
                AND inactive_season.season_year = CASE WHEN MONTH(g.game_date) >= 8
@@ -96,7 +245,7 @@ const JERSEY_SQL_TEMPLATE = `WITH per_game AS (
            AND TRIM(jersey_number) != ''
            AND EXISTS (
              SELECT 1
-             FROM agg_player_season bridge_season
+             FROM player_season_stats bridge_season
              WHERE bridge_season.player_id = bridge_player_team_season.player_id
                AND bridge_season.team_id = TRY_CAST(bridge_player_team_season.team_id AS BIGINT)
                AND bridge_season.season_year = bridge_player_team_season.season_year
@@ -127,7 +276,7 @@ const JERSEY_SQL_TEMPLATE = `WITH per_game AS (
        ),
        player_team_seasons AS (
          SELECT DISTINCT TRY_CAST(team_id AS BIGINT) AS team_id, season_year
-         FROM agg_player_season
+         FROM player_season_stats
          WHERE player_id = ?
            AND season_type = 'Regular'
            AND gp > 0
@@ -298,8 +447,9 @@ function buildJerseyQuery(playerId: number): { sql: string; params: DuckDBValue[
 //
 // dim_player is a slowly-changing-dimension table (one row per team stint),
 // so every lookup filters to is_current=true to get exactly one row per
-// player. agg_player_season/career/fact_player_awards/draft_history key
-// directly on player_id and don't need that filter.
+// player. Player-facing season/career stats are read from the imported clean
+// BBR-resolved season table, and awards are read from BBR staging rows via the
+// player bridge rather than the lossy legacy award fact.
 // ---------------------------------------------------------------------------
 
 export async function searchPlayers(q: string): Promise<Row[]> {
@@ -323,25 +473,33 @@ export async function searchPlayers(q: string): Promise<Row[]> {
 // ---------------------------------------------------------------------------
 // Home page: featured (random current) player
 //
-// Career line is recomputed as a games-weighted average from
-// agg_player_season rather than read from agg_player_career, which is
-// unreliable (see the getPlayerProfile comment on this same pattern below).
+// Career line is recomputed from the imported clean BBR season table rather
+// than read from the legacy aggregate layer, which is unreliable.
 // ---------------------------------------------------------------------------
 
 export async function getFeaturedPlayer(): Promise<Row | null> {
   const rows = await queryObjects(
-    `WITH featured AS (
+    `WITH ${PLAYER_SEASON_STATS_CTE},
+     featured AS (
        SELECT player_id FROM dim_player WHERE is_current ORDER BY random() LIMIT 1
+     ),
+     career AS (
+       SELECT
+         player_id,
+         SUM(gp) AS career_gp,
+         SUM(total_pts) / NULLIF(SUM(gp), 0) AS career_ppg
+       FROM player_season_stats
+       WHERE season_type = 'Regular'
+       GROUP BY player_id
      )
      SELECT
        p.player_id, p.full_name, p.position, th.abbreviation AS team_abbreviation,
-       SUM(s.gp) AS career_gp,
-       SUM(s.avg_pts * s.gp) / NULLIF(SUM(s.gp), 0) AS career_ppg
+       c.career_gp,
+       c.career_ppg
      FROM featured f
      JOIN dim_player p ON p.player_id = f.player_id AND p.is_current
      LEFT JOIN dim_team_history th ON th.team_id = p.team_id AND th.is_current
-     LEFT JOIN agg_player_season s ON s.player_id = p.player_id AND s.season_type = 'Regular'
-     GROUP BY p.player_id, p.full_name, p.position, th.abbreviation`,
+     LEFT JOIN career c ON c.player_id = p.player_id`,
   );
   return rows[0] ?? null;
 }
@@ -353,31 +511,63 @@ export async function getFeaturedPlayer(): Promise<Row | null> {
 export async function getPlayerPerRates(playerId: number): Promise<{ per36: Row[]; per48: Row[] }> {
   const [per36, per48] = await Promise.all([
     queryObjects(
-      `SELECT s.*,
-              CASE WHEN s.season_type = 'Cup' THEN NOT EXISTS (
-                SELECT 1
-                FROM fact_player_game_log gl
-                WHERE gl.player_id = s.player_id
-                  AND gl.season_year = s.season_year
-                  AND gl.season_type = 'Cup'
-              ) END AS is_cup_final_only
-       FROM agg_player_season_per36 s
+      `WITH ${PLAYER_SEASON_STATS_CTE}
+       SELECT
+         s.player_id,
+         s.team_id,
+         s.season_year,
+         s.season_type,
+         s.gp,
+         s.avg_min,
+         COALESCE(th.abbreviation, s.source_team_abbreviation) AS team_abbreviation,
+         s.total_pts * 36 / NULLIF(s.total_min, 0) AS pts_per36,
+         s.total_reb * 36 / NULLIF(s.total_min, 0) AS reb_per36,
+         s.total_ast * 36 / NULLIF(s.total_min, 0) AS ast_per36,
+         s.total_stl * 36 / NULLIF(s.total_min, 0) AS stl_per36,
+         s.total_blk * 36 / NULLIF(s.total_min, 0) AS blk_per36,
+         s.total_tov * 36 / NULLIF(s.total_min, 0) AS tov_per36,
+         false AS is_cup_final_only
+       FROM player_season_stats s
+       LEFT JOIN dim_team_history th ON th.team_id = s.team_id
        WHERE s.player_id = ?
-       ORDER BY season_year, season_type`,
+       QUALIFY ROW_NUMBER() OVER (
+         PARTITION BY s.team_id, s.season_year, s.season_type
+         ORDER BY
+           CASE WHEN s.season_year >= th.valid_from AND (th.valid_to IS NULL OR s.season_year < th.valid_to)
+                THEN 0 ELSE 1 END,
+           th.valid_from ASC
+       ) = 1
+       ORDER BY s.season_year, s.season_type`,
       [playerId],
     ),
     queryObjects(
-      `SELECT s.*,
-              CASE WHEN s.season_type = 'Cup' THEN NOT EXISTS (
-                SELECT 1
-                FROM fact_player_game_log gl
-                WHERE gl.player_id = s.player_id
-                  AND gl.season_year = s.season_year
-                  AND gl.season_type = 'Cup'
-              ) END AS is_cup_final_only
-       FROM agg_player_season_per48 s
+      `WITH ${PLAYER_SEASON_STATS_CTE}
+       SELECT
+         s.player_id,
+         s.team_id,
+         s.season_year,
+         s.season_type,
+         s.gp,
+         s.avg_min,
+         COALESCE(th.abbreviation, s.source_team_abbreviation) AS team_abbreviation,
+         s.total_pts * 48 / NULLIF(s.total_min, 0) AS pts_per48,
+         s.total_reb * 48 / NULLIF(s.total_min, 0) AS reb_per48,
+         s.total_ast * 48 / NULLIF(s.total_min, 0) AS ast_per48,
+         s.total_stl * 48 / NULLIF(s.total_min, 0) AS stl_per48,
+         s.total_blk * 48 / NULLIF(s.total_min, 0) AS blk_per48,
+         s.total_tov * 48 / NULLIF(s.total_min, 0) AS tov_per48,
+         false AS is_cup_final_only
+       FROM player_season_stats s
+       LEFT JOIN dim_team_history th ON th.team_id = s.team_id
        WHERE s.player_id = ?
-       ORDER BY season_year, season_type`,
+       QUALIFY ROW_NUMBER() OVER (
+         PARTITION BY s.team_id, s.season_year, s.season_type
+         ORDER BY
+           CASE WHEN s.season_year >= th.valid_from AND (th.valid_to IS NULL OR s.season_year < th.valid_to)
+                THEN 0 ELSE 1 END,
+           th.valid_from ASC
+       ) = 1
+       ORDER BY s.season_year, s.season_type`,
       [playerId],
     ),
   ]);
@@ -385,28 +575,81 @@ export async function getPlayerPerRates(playerId: number): Promise<{ per36: Row[
 }
 
 // ---------------------------------------------------------------------------
-// NBA-API advanced stats per season
+// Advanced stats per season
 //
-// agg_player_season_advanced has the NBA-stats-API advanced columns
-// (OffRtg/DefRtg/NetRtg + the four factors + USG%/TS%/eFG%/PIE). PER/WS/BPM
-// are BBR-proprietary and not in this warehouse. Same era-matched
-// team_abbreviation trick as getPlayerProfile so trades in a single
-// season show the right era abbreviation (1996-97 Seattle SuperSonics vs
-// today's Thunder, etc.).
+// BBR-derived value metrics come from fact_player_season_stat_resolved; NBA
+// tracking-only context (pace/PIE/AST ratio) is overlaid from clean per-game
+// advanced facts where available. Same era-matched team_abbreviation trick as
+// getPlayerProfile so trades in a single season show the right era
+// abbreviation (1996-97 Seattle SuperSonics vs today's Thunder, etc.).
 // ---------------------------------------------------------------------------
 
 export async function getPlayerAdvancedStats(playerId: number): Promise<Row[]> {
   return queryObjects(
-    `SELECT s.* EXCLUDE (team_id),
-            th.abbreviation AS team_abbreviation,
-            CASE WHEN s.season_type = 'Cup' THEN NOT EXISTS (
-              SELECT 1
-              FROM fact_player_game_log gl
-              WHERE gl.player_id = s.player_id
-                AND gl.season_year = s.season_year
-                AND gl.season_type = 'Cup'
-            ) END AS is_cup_final_only
-     FROM agg_player_season_advanced s
+    `WITH ${PLAYER_SEASON_STATS_CTE},
+     nba_tracking AS (
+       SELECT
+         a.player_id,
+         a.team_id,
+         a.season_year,
+         gl.season_type,
+         SUM(a.off_rating * a.poss) / NULLIF(SUM(a.poss), 0) AS avg_off_rating,
+         SUM(a.def_rating * a.poss) / NULLIF(SUM(a.poss), 0) AS avg_def_rating,
+         SUM(a.net_rating * a.poss) / NULLIF(SUM(a.poss), 0) AS avg_net_rating,
+         SUM(a.ts_pct * a.poss) / NULLIF(SUM(a.poss), 0) AS avg_ts_pct,
+         SUM(a.usg_pct * a.poss) / NULLIF(SUM(a.poss), 0) AS avg_usg_pct,
+         SUM(a.efg_pct * a.poss) / NULLIF(SUM(a.poss), 0) AS avg_efg_pct,
+         SUM(a.ast_pct * a.poss) / NULLIF(SUM(a.poss), 0) AS avg_ast_pct,
+         SUM(a.ast_ratio * a.poss) / NULLIF(SUM(a.poss), 0) AS avg_ast_ratio,
+         SUM(a.oreb_pct * a.poss) / NULLIF(SUM(a.poss), 0) AS avg_oreb_pct,
+         SUM(a.dreb_pct * a.poss) / NULLIF(SUM(a.poss), 0) AS avg_dreb_pct,
+         SUM(a.reb_pct * a.poss) / NULLIF(SUM(a.poss), 0) AS avg_reb_pct,
+         SUM(a.pace * a.poss) / NULLIF(SUM(a.poss), 0) AS avg_pace,
+         SUM(a.pie * a.poss) / NULLIF(SUM(a.poss), 0) AS avg_pie
+       FROM fact_player_game_advanced a
+       JOIN fact_player_game_log gl
+         ON gl.game_id = a.game_id
+         AND gl.player_id = a.player_id
+         AND gl.team_id = a.team_id
+       WHERE a.player_id = ?
+       GROUP BY a.player_id, a.team_id, a.season_year, gl.season_type
+     )
+     SELECT
+       s.player_id,
+       s.season_year,
+       s.season_type,
+       s.gp,
+       COALESCE(n.avg_off_rating, s.avg_off_rating) AS avg_off_rating,
+       COALESCE(n.avg_def_rating, s.avg_def_rating) AS avg_def_rating,
+       COALESCE(n.avg_net_rating, s.avg_net_rating) AS avg_net_rating,
+       COALESCE(n.avg_ts_pct, s.avg_ts_pct) AS avg_ts_pct,
+       COALESCE(n.avg_usg_pct, s.avg_usg_pct) AS avg_usg_pct,
+       COALESCE(n.avg_efg_pct, s.avg_efg_pct) AS avg_efg_pct,
+       COALESCE(n.avg_ast_pct, s.avg_ast_pct) AS avg_ast_pct,
+       n.avg_ast_ratio,
+       COALESCE(n.avg_oreb_pct, s.avg_oreb_pct) AS avg_oreb_pct,
+       COALESCE(n.avg_dreb_pct, s.avg_dreb_pct) AS avg_dreb_pct,
+       COALESCE(n.avg_reb_pct, s.avg_reb_pct) AS avg_reb_pct,
+       s.avg_tov_pct,
+       n.avg_pace,
+       n.avg_pie,
+       s.per,
+       s.ows,
+       s.dws,
+       s.ws,
+       s.obpm,
+       s.dbpm,
+       s.bpm,
+       s.vorp,
+       th.abbreviation AS team_abbreviation,
+       s.team_id,
+       false AS is_cup_final_only
+     FROM player_season_stats s
+     LEFT JOIN nba_tracking n
+       ON n.player_id = s.player_id
+       AND n.team_id = s.team_id
+       AND n.season_year = s.season_year
+       AND n.season_type = s.season_type
      LEFT JOIN dim_team_history th ON th.team_id = s.team_id
      WHERE s.player_id = ?
      QUALIFY ROW_NUMBER() OVER (
@@ -417,83 +660,89 @@ export async function getPlayerAdvancedStats(playerId: number): Promise<Row[]> {
          th.valid_from ASC
      ) = 1
      ORDER BY s.season_year, s.season_type`,
-    [playerId],
+    [playerId, playerId],
   );
 }
 
 // ---------------------------------------------------------------------------
 // Per-100-possession player view
 //
-// Derive from existing per-game totals + team pace, rather than reading a
-// pre-computed per-100 table that may or may not exist for a given era.
-//
-//   per_100 = total_stat * 4800 / (total_min * team_pace)
-//
-// 4800 = 48 minutes * 100 possessions, i.e. one full game at 100 poss/48min.
-// Assumptions baked into the formula (documented inline so the next reader
-// can find them):
-//   1. Player's on-court pace ≈ team pace — standard approximation; a
-//      per-player on/off pace would need lineup data we don't have.
-//   2. Pace is joined on (team_id, season_year, season_type) so a player
-//      traded mid-season gets that team's pace for *that* stint, not the
-//      season-blended average. Verified against the agg_player_season
-//      row shape, which already keeps per-stint team_id separate.
-//   3. Pre-tracking-era seasons (no pace data) leave the per-100 columns
-//      NULL rather than fabricating a number. Same for any row with
-//      total_min = 0 (degenerate but defensive).
+// BBR imports carry real per-100 possession rows for the regular season. Those
+// rows are preferred over the old pace-estimated aggregate path, which depended
+// on the corrupted season aggregate and had no pre-tracking-era coverage.
 // ---------------------------------------------------------------------------
 
 export async function getPlayerPer100(playerId: number): Promise<Row[]> {
   return queryObjects(
-    `WITH stint_base AS (
-       SELECT s.season_year, s.season_type, s.team_id,
-              th.abbreviation AS team_abbreviation,
-              s.gp, s.total_min,
-              s.total_pts, s.total_reb, s.total_ast,
-              s.total_stl, s.total_blk, s.total_tov,
-              s.total_fgm, s.total_fga, s.total_fg3m, s.total_fg3a,
-              s.total_ftm, s.total_fta,
-              p.avg_pace,
-              CASE WHEN s.season_type = 'Cup' THEN NOT EXISTS (
-                SELECT 1
-                FROM fact_player_game_log gl
-                WHERE gl.player_id = s.player_id
-                  AND gl.season_year = s.season_year
-                  AND gl.season_type = 'Cup'
-              ) END AS is_cup_final_only
-       FROM agg_player_season s
-       LEFT JOIN agg_player_season_advanced p
-         ON p.player_id = s.player_id
-         AND p.team_id = s.team_id
-         AND p.season_year = s.season_year
-         AND p.season_type = s.season_type
-       LEFT JOIN dim_team_history th ON th.team_id = s.team_id
-       WHERE s.player_id = ?
-       QUALIFY ROW_NUMBER() OVER (
-         PARTITION BY s.team_id, s.season_year, s.season_type
-         ORDER BY
-           CASE WHEN s.season_year >= th.valid_from
-                 AND (th.valid_to IS NULL OR s.season_year < th.valid_to)
-                THEN 0 ELSE 1 END,
-           th.valid_from ASC
-       ) = 1
+    `WITH ${PLAYER_BBR_XWALK_CTE},
+     per100 AS (
+       SELECT
+         COALESCE(p.nba_player_id, x.nba_player_id) AS player_id,
+         bt.team_id,
+         CAST(p.season - 1 AS VARCHAR) || '-' || lpad(CAST(p.season % 100 AS VARCHAR), 2, '0') AS season_year,
+         'Regular' AS season_type,
+         p.team AS source_team_abbreviation,
+         p.g AS gp,
+         p.mp AS total_min,
+         CAST(NULL AS DOUBLE) AS avg_pace,
+         false AS is_cup_final_only,
+         p.pts_per_100_poss AS pts_per100,
+         p.trb_per_100_poss AS reb_per100,
+         p.ast_per_100_poss AS ast_per100,
+         p.stl_per_100_poss AS stl_per100,
+         p.blk_per_100_poss AS blk_per100,
+         p.tov_per_100_poss AS tov_per100,
+         p.fg_per_100_poss AS fgm_per100,
+         p.fga_per_100_poss AS fga_per100,
+         p.x3p_per_100_poss AS fg3m_per100,
+         p.x3pa_per_100_poss AS fg3a_per100,
+         p.ft_per_100_poss AS ftm_per100,
+         p.fta_per_100_poss AS fta_per100
+       FROM stg_bref_per_100_poss p
+       LEFT JOIN player_bbr_xwalk x
+         ON x.bbr_player_id = p.bref_player_id
+       LEFT JOIN bridge_team_bbr bt
+         ON bt.season = p.season
+         AND bt.bbr_abbreviation = p.team
+         AND bt.lg = p.lg
+       WHERE p.lg = 'NBA'
+         AND p.team NOT IN ('TOT', '2TM', '3TM', '4TM', '5TM')
      )
      SELECT
-       season_year, season_type, team_abbreviation, gp, total_min, avg_pace, is_cup_final_only,
-       4800.0 * total_pts / NULLIF(total_min * avg_pace, 0)  AS pts_per100,
-       4800.0 * total_reb / NULLIF(total_min * avg_pace, 0)  AS reb_per100,
-       4800.0 * total_ast / NULLIF(total_min * avg_pace, 0)  AS ast_per100,
-       4800.0 * total_stl / NULLIF(total_min * avg_pace, 0)  AS stl_per100,
-       4800.0 * total_blk / NULLIF(total_min * avg_pace, 0)  AS blk_per100,
-       4800.0 * total_tov / NULLIF(total_min * avg_pace, 0)  AS tov_per100,
-       4800.0 * total_fgm / NULLIF(total_min * avg_pace, 0)  AS fgm_per100,
-       4800.0 * total_fga / NULLIF(total_min * avg_pace, 0)  AS fga_per100,
-       4800.0 * total_fg3m / NULLIF(total_min * avg_pace, 0) AS fg3m_per100,
-       4800.0 * total_fg3a / NULLIF(total_min * avg_pace, 0) AS fg3a_per100,
-       4800.0 * total_ftm / NULLIF(total_min * avg_pace, 0)  AS ftm_per100,
-       4800.0 * total_fta / NULLIF(total_min * avg_pace, 0)  AS fta_per100
-     FROM stint_base
-     ORDER BY season_year, season_type`,
+       p.season_year,
+       p.season_type,
+       COALESCE(th.abbreviation, bt.team_abbreviation, p.source_team_abbreviation) AS team_abbreviation,
+       p.team_id,
+       p.gp,
+       p.total_min,
+       p.avg_pace,
+       p.is_cup_final_only,
+       p.pts_per100,
+       p.reb_per100,
+       p.ast_per100,
+       p.stl_per100,
+       p.blk_per100,
+       p.tov_per100,
+       p.fgm_per100,
+       p.fga_per100,
+       p.fg3m_per100,
+       p.fg3a_per100,
+       p.ftm_per100,
+       p.fta_per100
+     FROM per100 p
+     LEFT JOIN bridge_team_bbr bt
+       ON bt.team_id = p.team_id
+       AND bt.season = CAST(SUBSTRING(p.season_year, 1, 4) AS INTEGER) + 1
+     LEFT JOIN dim_team_history th ON th.team_id = p.team_id
+     WHERE p.player_id = ?
+     QUALIFY ROW_NUMBER() OVER (
+       PARTITION BY p.team_id, p.season_year, p.season_type
+       ORDER BY
+         CASE WHEN p.season_year >= th.valid_from AND (th.valid_to IS NULL OR p.season_year < th.valid_to)
+              THEN 0 ELSE 1 END,
+         th.valid_from ASC
+     ) = 1
+     ORDER BY p.season_year, p.season_type`,
     [playerId],
   );
 }
@@ -501,10 +750,10 @@ export async function getPlayerPer100(playerId: number): Promise<Row[]> {
 // ---------------------------------------------------------------------------
 // Career/game highs
 //
-// analytics_player_game_complete has one row per player-game with a rich set
-// of box-score columns. Each stat's high is found independently (a single
-// game rarely holds every career high at once), each paired with the date/
-// team on which it happened, BBR-style ("50 pts on 3/2/2001 vs LAL").
+// fact_player_game_log has one row per player-game with the box-score columns
+// needed here. Each stat's high is found independently (a single game rarely
+// holds every career high at once), each paired with the date/team on which it
+// happened, BBR-style ("50 pts on 3/2/2001 vs LAL").
 // ---------------------------------------------------------------------------
 
 const GAME_HIGH_STATS: { key: string; label: string }[] = [
@@ -522,9 +771,9 @@ export async function getPlayerHighs(playerId: number): Promise<Row[]> {
   const unions = GAME_HIGH_STATS.map(
     (s) =>
       `(SELECT '${s.label}' AS stat, ${s.key} AS value, game_date, team_abbreviation
-        FROM analytics_player_game_complete
+        FROM fact_player_game_log
         WHERE player_id = ? AND ${s.key} IS NOT NULL
-        ORDER BY ${s.key} DESC, game_date ASC
+        ORDER BY ${s.key} DESC, TRY_CAST(game_date AS DATE) ASC
         LIMIT 1)`,
   );
   return queryObjects(
@@ -778,17 +1027,18 @@ export async function getPlayerDraftCombine(playerId: number): Promise<Row | nul
 
 export async function getSimilarPlayers(playerId: number, limit = 10): Promise<Row[]> {
   return queryObjects(
-    `WITH career AS (
+    `WITH ${PLAYER_SEASON_STATS_CTE},
+     career AS (
        SELECT
          player_id,
          SUM(gp) AS career_gp,
-         SUM(avg_pts * gp) / NULLIF(SUM(gp), 0) AS ppg,
-         SUM(avg_reb * gp) / NULLIF(SUM(gp), 0) AS rpg,
-         SUM(avg_ast * gp) / NULLIF(SUM(gp), 0) AS apg,
-         SUM(avg_stl * gp) / NULLIF(SUM(gp), 0) AS spg,
-         SUM(avg_blk * gp) / NULLIF(SUM(gp), 0) AS bpg,
+         SUM(total_pts) / NULLIF(SUM(gp), 0) AS ppg,
+         SUM(total_reb) / NULLIF(SUM(gp), 0) AS rpg,
+         SUM(total_ast) / NULLIF(SUM(gp), 0) AS apg,
+         SUM(total_stl) / NULLIF(SUM(gp), 0) AS spg,
+         SUM(total_blk) / NULLIF(SUM(gp), 0) AS bpg,
          SUM(total_fg3m) / NULLIF(SUM(gp), 0) AS fg3mpg
-       FROM agg_player_season
+       FROM player_season_stats
        WHERE season_type = 'Regular'
        GROUP BY player_id
        HAVING SUM(gp) >= 100
@@ -905,9 +1155,8 @@ export interface PlayerProfile {
   jerseyHistory: JerseyStint[];
 }
 
-/** Formats a fact_player_awards-style single end-year ("1969") as a BBR-style
- *  season range ("1968-69"). agg_league_leaders.season_year is already in
- *  that range form and needs no conversion. */
+/** Formats an award end-year ("1969") as a BBR-style season range ("1968-69").
+ *  League-leader badges already use season-year range form. */
 function seasonRangeFromEndYear(yearLike: unknown): string {
   const year = Number(yearLike);
   if (!Number.isFinite(year)) return String(yearLike);
@@ -923,7 +1172,6 @@ export async function getPlayerProfile(playerId: number): Promise<PlayerProfile>
     awards,
     draft,
     hofRows,
-    efgRows,
     allStarRows,
     honorRows,
     leaderRows,
@@ -944,55 +1192,40 @@ export async function getPlayerProfile(playerId: number): Promise<PlayerProfile>
       `SELECT * FROM common_player_info WHERE TRY_CAST(person_id AS BIGINT) = ? LIMIT 1`,
       [playerId],
     ),
-    // agg_player_career is unreliable — verified corrupt for at least some
-    // players (e.g. Wes Unseld: career_gp=1103 vs the real/BBR 984, and
-    // career_fg3_pct=1.5 i.e. 150%, traced to a single season row with
-    // fg3m=12 > fg3a=6, which is impossible). Its "total_*" columns are
-    // similarly untrustworthy (found inflated ~6x vs gp*avg_* on the same
-    // rows). Recomputed instead as a games-weighted average of the
-    // per-season avg_*/`*_pct` fields (which check out against known
-    // history), from agg_player_season directly. Any single-season pct
-    // outside [0,1] is treated as missing rather than averaged in.
+    // Legacy agg_player_career / agg_player_season rows are not used for
+    // player-facing career totals. BBR's resolved season table carries clean
+    // regular-season totals across all eras, with bridge fallback for source
+    // rows whose original player id was unresolved.
     queryObjects(
-      `SELECT
+      `WITH ${PLAYER_SEASON_STATS_CTE}
+       SELECT
          SUM(gp) AS career_gp,
-         SUM(avg_pts * gp) / NULLIF(SUM(gp), 0) AS career_ppg,
-         SUM(avg_reb * gp) / NULLIF(SUM(gp), 0) AS career_rpg,
-         SUM(avg_ast * gp) / NULLIF(SUM(gp), 0) AS career_apg,
-         SUM(CASE WHEN fg_pct BETWEEN 0 AND 1 THEN fg_pct * gp END)
-           / NULLIF(SUM(CASE WHEN fg_pct BETWEEN 0 AND 1 THEN gp END), 0) AS career_fg_pct,
-         SUM(CASE WHEN fg3_pct BETWEEN 0 AND 1 THEN fg3_pct * gp END)
-           / NULLIF(SUM(CASE WHEN fg3_pct BETWEEN 0 AND 1 THEN gp END), 0) AS career_fg3_pct,
-         SUM(CASE WHEN ft_pct BETWEEN 0 AND 1 THEN ft_pct * gp END)
-           / NULLIF(SUM(CASE WHEN ft_pct BETWEEN 0 AND 1 THEN gp END), 0) AS career_ft_pct
-       FROM agg_player_season
+         SUM(total_min) AS career_min,
+         SUM(total_pts) AS career_pts,
+         SUM(total_reb) AS career_reb,
+         SUM(total_ast) AS career_ast,
+         SUM(total_stl) AS career_stl,
+         SUM(total_blk) AS career_blk,
+         SUM(total_pts) / NULLIF(SUM(gp), 0) AS career_ppg,
+         SUM(total_reb) / NULLIF(SUM(gp), 0) AS career_rpg,
+         SUM(total_ast) / NULLIF(SUM(gp), 0) AS career_apg,
+         SUM(total_fgm) / NULLIF(SUM(total_fga), 0) AS career_fg_pct,
+         SUM(total_fg3m) / NULLIF(SUM(total_fg3a), 0) AS career_fg3_pct,
+         SUM(total_ftm) / NULLIF(SUM(total_fta), 0) AS career_ft_pct,
+         (SUM(total_fgm) + 0.5 * SUM(total_fg3m)) / NULLIF(SUM(total_fga), 0) AS career_efg_pct
+       FROM player_season_stats
        WHERE player_id = ? AND season_type = 'Regular'`,
       [playerId],
     ),
     queryObjects(
-      // agg_player_season.team_abbreviation is unreliable in the source data
-      // (e.g. it shows "PHI" for every Stephen Curry season including ones
-      // with the Warriors) even though team_id is correct, so the
-      // abbreviation is re-derived from team_id, matched to the
-      // dim_team_history era whose [valid_from, valid_to) range contains
-      // that season (e.g. Durant's 2007-08 resolves to SEA, 2008-09+ to
-      // OKC) rather than always using the team's current name. dim_team_history
-      // only tracks eras from 1996-97 onward, so seasons before that fall back
-      // to the earliest known era for the team (tiebreak rank 1 below) — a team
-      // renamed/relocated before 1996-97 (e.g. Minneapolis->LA Lakers in 1960)
-      // will still show its post-1996-97 name for those older seasons.
-      // QUALIFY (not a plain dedup) is needed because in-season trades give a
-      // player multiple team_id rows in the same season_year/season_type.
-      `SELECT s.* EXCLUDE (team_abbreviation),
-              th.abbreviation AS team_abbreviation,
-              CASE WHEN s.season_type = 'Cup' THEN NOT EXISTS (
-                SELECT 1
-                FROM fact_player_game_log gl
-                WHERE gl.player_id = s.player_id
-                  AND gl.season_year = s.season_year
-                  AND gl.season_type = 'Cup'
-              ) END AS is_cup_final_only
-       FROM agg_player_season s
+      // The BBR source team abbreviation can differ from this app's
+      // dim_team_history abbreviation (e.g. BRK vs BKN, GS vs GSW), so display
+      // abbreviations are re-derived from team_id and season era.
+      `WITH ${PLAYER_SEASON_STATS_CTE}
+       SELECT s.* EXCLUDE (source_team_abbreviation),
+              COALESCE(th.abbreviation, s.source_team_abbreviation) AS team_abbreviation,
+              false AS is_cup_final_only
+       FROM player_season_stats s
        LEFT JOIN dim_team_history th ON th.team_id = s.team_id
        WHERE s.player_id = ?
        QUALIFY ROW_NUMBER() OVER (
@@ -1005,17 +1238,13 @@ export async function getPlayerProfile(playerId: number): Promise<PlayerProfile>
        ORDER BY s.season_year, s.season_type`,
       [playerId],
     ),
-    // Player-facing awards table: show only real selections (Title-case team
-    // honors and award winners). Hide the lower-case voting-share rows that
-    // otherwise clutter the table with "Finalist, 0.005, 1" entries.
+    // Player-facing awards come from the lossless BBR staging tables via the
+    // player bridge. Only real selections/winners are surfaced.
     queryObjects(
-      `SELECT season, award_type, description
-       FROM fact_player_awards
+      `WITH ${PLAYER_AWARD_ROWS_CTE}
+       SELECT season, award_type, description
+       FROM award_rows
        WHERE player_id = ?
-         AND (
-           award_type IN ('All-NBA', 'All-Rookie', 'All-Defense', 'All-Star')
-           OR (award_type IN ('nba mvp', 'nba roy', 'nba dpoy', 'nba mip', 'nba smoy') AND subtype1 = 'Selected')
-         )
        ORDER BY season, award_type`,
       [playerId],
     ),
@@ -1031,59 +1260,58 @@ export async function getPlayerProfile(playerId: number): Promise<PlayerProfile>
     queryObjects(`SELECT DISTINCT year FROM stg_team_retired WHERE playerid = ? LIMIT 1`, [
       playerId,
     ]),
-    // No career-level eFG% column exists; derive a games-weighted average
-    // from the per-season advanced table. PER and Win Shares aren't present
-    // anywhere in this database (BBR-proprietary metrics, not part of the
-    // NBA stats API this warehouse is built from).
     queryObjects(
-      `SELECT SUM(CASE WHEN avg_efg_pct BETWEEN 0 AND 1 THEN avg_efg_pct * gp END)
-                / NULLIF(SUM(CASE WHEN avg_efg_pct BETWEEN 0 AND 1 THEN gp END), 0) AS career_efg_pct
-       FROM agg_player_season_advanced
-       WHERE player_id = ? AND season_type = 'Regular'`,
+      `WITH ${PLAYER_AWARD_ROWS_CTE}
+       SELECT COUNT(*) AS n
+       FROM award_rows
+       WHERE player_id = ? AND award_type = 'All-Star'`,
       [playerId],
     ),
+    // Award rows are already filtered to real selections/winners in the CTE.
     queryObjects(
-      `SELECT count(*) AS n FROM fact_player_awards WHERE player_id = ? AND award_type = 'All-Star'`,
-      [playerId],
-    ),
-    // All-NBA/All-Rookie/All-Defense rows are always real selections. The
-    // lowercase award_types (nba mvp/roy/dpoy/mip/smoy) are voting *records*
-    // — most rows are "received votes", only subtype1='Selected' rows are
-    // actual wins (verified: LeBron's 4 real MVPs are exactly the 4 rows
-    // with subtype1='Selected' out of ~16 nba-mvp rows total).
-    queryObjects(
-      `SELECT season, award_type
-       FROM fact_player_awards
+      `WITH ${PLAYER_AWARD_ROWS_CTE}
+       SELECT season, award_type
+       FROM award_rows
        WHERE player_id = ?
-         AND (
-           award_type IN ('All-NBA', 'All-Rookie', 'All-Defense')
-           OR (award_type IN ('nba mvp', 'nba roy', 'nba dpoy', 'nba mip', 'nba smoy') AND subtype1 = 'Selected')
+         AND award_type IN (
+           'All-NBA', 'All-Rookie', 'All-Defense',
+           'nba mvp', 'nba roy', 'nba dpoy', 'nba mip', 'nba smoy'
          )
        ORDER BY season`,
       [playerId],
     ),
     // League-leader "Champ" badges (e.g. BBR's "1974-75 TRB Champ"), regular
     // season only — statistical titles aren't awarded for the playoffs.
-    // Each stat has an era cutoff below which agg_league_leaders' rank=1 is a
-    // mass tie-at-zero artifact from before the NBA tracked that stat, not a
-    // real title (verified: e.g. 253 different players "tied" for the 1968-69
-    // steals lead, all at 0.0 — steals/blocks weren't recorded until 1973-74;
-    // rebounds/assists were unreliable before 1950-51/1949-50 respectively).
+    // Recompute ranks from the clean BBR season rows rather than
+    // agg_league_leaders.
     queryObjects(
-      `SELECT season_year, 'Scoring Champ' AS label FROM agg_league_leaders
-        WHERE player_id = ? AND season_type = 'Regular' AND pts_rank = 1
+      `WITH ${PLAYER_SEASON_STATS_CTE},
+       ranked AS (
+         SELECT
+           player_id,
+           season_year,
+           RANK() OVER (PARTITION BY season_year ORDER BY avg_pts DESC NULLS LAST) AS pts_rank,
+           RANK() OVER (PARTITION BY season_year ORDER BY avg_reb DESC NULLS LAST) AS reb_rank,
+           RANK() OVER (PARTITION BY season_year ORDER BY avg_ast DESC NULLS LAST) AS ast_rank,
+           RANK() OVER (PARTITION BY season_year ORDER BY avg_stl DESC NULLS LAST) AS stl_rank,
+           RANK() OVER (PARTITION BY season_year ORDER BY avg_blk DESC NULLS LAST) AS blk_rank
+         FROM player_season_stats
+         WHERE season_type = 'Regular' AND gp > 0
+       )
+       SELECT season_year, 'Scoring Champ' AS label FROM ranked
+        WHERE player_id = ? AND pts_rank = 1
        UNION ALL
-       SELECT season_year, 'Rebounding Champ' FROM agg_league_leaders
-        WHERE player_id = ? AND season_type = 'Regular' AND reb_rank = 1 AND season_year >= '1950-51'
+       SELECT season_year, 'Rebounding Champ' FROM ranked
+        WHERE player_id = ? AND reb_rank = 1 AND season_year >= '1950-51'
        UNION ALL
-       SELECT season_year, 'Assists Champ' FROM agg_league_leaders
-        WHERE player_id = ? AND season_type = 'Regular' AND ast_rank = 1 AND season_year >= '1949-50'
+       SELECT season_year, 'Assists Champ' FROM ranked
+        WHERE player_id = ? AND ast_rank = 1 AND season_year >= '1949-50'
        UNION ALL
-       SELECT season_year, 'Steals Champ' FROM agg_league_leaders
-        WHERE player_id = ? AND season_type = 'Regular' AND stl_rank = 1 AND season_year >= '1973-74'
+       SELECT season_year, 'Steals Champ' FROM ranked
+        WHERE player_id = ? AND stl_rank = 1 AND season_year >= '1973-74'
        UNION ALL
-       SELECT season_year, 'Blocks Champ' FROM agg_league_leaders
-        WHERE player_id = ? AND season_type = 'Regular' AND blk_rank = 1 AND season_year >= '1973-74'
+       SELECT season_year, 'Blocks Champ' FROM ranked
+        WHERE player_id = ? AND blk_rank = 1 AND season_year >= '1973-74'
        ORDER BY 1`,
       [playerId, playerId, playerId, playerId, playerId],
     ),
@@ -1163,7 +1391,7 @@ export async function getPlayerProfile(playerId: number): Promise<PlayerProfile>
 
   const bio = bioRows[0] ? { ...bioRows[0], ...commonInfoRows[0] } : null;
   const hofYear = hofRows[0]?.year;
-  const efg = efgRows[0]?.career_efg_pct;
+  const efg = career[0]?.career_efg_pct;
 
   return {
     bio,
@@ -1545,17 +1773,17 @@ export async function getDraftYear(season: string): Promise<Row[]> {
 
 export async function listAwardSeasons(): Promise<string[]> {
   const rows = await queryObjects<{ season: string }>(
-    `SELECT DISTINCT season FROM fact_player_awards ORDER BY season DESC`,
+    `WITH ${PLAYER_AWARD_ROWS_CTE}
+     SELECT DISTINCT season FROM award_rows ORDER BY season DESC`,
   );
   return rows.map((r) => r.season);
 }
 
 export async function listAwardTypes(): Promise<string[]> {
   const rows = await queryObjects<{ award_type: string }>(
-    `SELECT DISTINCT award_type
-     FROM fact_player_awards
-     WHERE award_type IN ('All-NBA', 'All-Rookie', 'All-Defense', 'All-Star')
-        OR (award_type IN ('nba mvp', 'nba roy', 'nba dpoy', 'nba mip', 'nba smoy') AND subtype1 = 'Selected')
+    `WITH ${PLAYER_AWARD_ROWS_CTE}
+     SELECT DISTINCT award_type
+     FROM award_rows
      ORDER BY award_type`,
   );
   return rows.map((r) => r.award_type);
@@ -1569,14 +1797,11 @@ export async function getAwards(season: string, awardType: string | null): Promi
     params.push(awardType);
   }
   return queryObjects(
-    `SELECT a.*, p.full_name
-     FROM fact_player_awards a
+    `WITH ${PLAYER_AWARD_ROWS_CTE}
+     SELECT a.*, p.full_name
+     FROM award_rows a
      LEFT JOIN dim_player p ON p.player_id = a.player_id AND p.is_current
      WHERE ${conditions.join(" AND ")}
-       AND (
-         a.award_type IN ('All-NBA', 'All-Rookie', 'All-Defense', 'All-Star')
-         OR (a.award_type IN ('nba mvp', 'nba roy', 'nba dpoy', 'nba mip', 'nba smoy') AND a.subtype1 = 'Selected')
-       )
      ORDER BY a.award_type, p.full_name`,
     params,
   );

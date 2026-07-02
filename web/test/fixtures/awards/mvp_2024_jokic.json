@@ -18,6 +18,6 @@
   "match": "containsObject",
   "status": "stable",
   "confidence": "verified",
-  "notes": "getAwards filters fact_player_awards to subtype1='Selected' rows for nba mvp; the season param is the end-year (2024 = 2023-24 season). The '2024' season year is the warehouse's internal format, not the BBR display '2023-24'.",
+  "notes": "getAwards reads BBR award staging and surfaces only winner rows for nba mvp; the season param is the end-year (2024 = 2023-24 season), not the BBR display '2023-24'.",
   "skip_if_no_db": true
 }

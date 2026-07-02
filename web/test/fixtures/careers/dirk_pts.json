@@ -4,14 +4,15 @@
   "entity": "Dirk Nowitzki career regular-season total points = 31,560 (BBR #6 all-time). Warehouse SUM(avg_pts*gp) undercounts at 30,610 (delta 950)",
   "expected": 31560,
   "bbr_source_url": "https://www.basketball-reference.com/players/n/nowitdi01.html",
-  "assertion_mode": "raw_sql",
+  "assertion_mode": "query_fn",
   "query_target": {
-    "sql": "SELECT ROUND(SUM(avg_pts * gp)) AS career_pts FROM agg_player_season WHERE player_id = 1717 AND season_type = 'Regular'",
-    "extract": "[0].career_pts"
+    "fn": "getPlayerProfile",
+    "params": [1717],
+    "extract": "career.career_pts"
   },
   "match": "equals",
   "status": "stable",
   "confidence": "verified",
-  "notes": "REGRESSION: warehouse sums to 30,610 PTS but BBR's official Dirk Nowitzki career regular-season total is 31,560. The 950-point gap over 21 seasons is consistent with the same agg_player_season gap pattern. Flip to stable when the warehouse value equals 31,560. FIXED 2026-07 by the curated-layer rebuild (data/audit/rebuild_curated_layer.sql) + fact_game-based playoff derivation; flipped regression -> stable.",
+  "notes": "Asserts the migrated player profile career total derived from fact_player_season_stat_resolved, not the legacy aggregate layer.",
   "skip_if_no_db": true
 }

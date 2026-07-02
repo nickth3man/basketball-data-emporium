@@ -10,14 +10,14 @@
     "opponent_abbreviation": "SAS"
   },
   "bbr_source_url": "https://www.basketball-reference.com/playoffs/2013-nba-finals.html",
-  "assertion_mode": "raw_sql",
+  "assertion_mode": "query_fn",
   "query_target": {
-    "sql": "WITH real_games AS (SELECT DISTINCT season_id, series_id, game_id, home_team_id, away_team_id FROM fact_playoff_series WHERE ? IN (home_team_id, away_team_id)), joined AS (SELECT rg.season_id, rg.series_id, g.game_date, CASE WHEN rg.home_team_id = ? THEN g.wl_home ELSE g.wl_away END AS team_wl, CASE WHEN rg.home_team_id = ? THEN rg.away_team_id ELSE rg.home_team_id END AS opponent_team_id FROM real_games rg JOIN game g ON g.game_id = rg.game_id), series_agg AS (SELECT season_id, series_id, opponent_team_id, MIN(game_date) AS series_start, COUNT(*) FILTER (WHERE team_wl = 'W') AS wins, COUNT(*) FILTER (WHERE team_wl = 'L') AS losses FROM joined GROUP BY season_id, series_id, opponent_team_id), numbered AS (SELECT sa.season_id, sa.wins, sa.losses, sa.opponent_team_id, ROW_NUMBER() OVER (PARTITION BY sa.season_id ORDER BY sa.series_start) AS round_number FROM series_agg sa) SELECT n.season_id, n.wins, n.losses, n.round_number, COALESCE(th_era.abbreviation, th_current.abbreviation) AS opponent_abbreviation FROM numbered n LEFT JOIN dim_team_history th_era ON th_era.team_id = n.opponent_team_id AND n.season_id >= th_era.valid_from AND (th_era.valid_to IS NULL OR n.season_id < th_era.valid_to) LEFT JOIN dim_team_history th_current ON th_current.team_id = n.opponent_team_id AND th_current.is_current WHERE n.season_id = '2012-13' AND n.round_number = 4",
-    "params": [1610612748, 1610612748, 1610612748]
+    "fn": "getTeamPlayoffSeries",
+    "params": [1610612748]
   },
   "match": "containsObject",
   "status": "stable",
   "confidence": "verified",
-  "notes": "Indexed from the MIA side (1610612748). The 2013 Finals SQL explicitly filters to round_number=4 (the Finals round) at the query level rather than via containsObject post-filter, which is the contracts difference between the playoff_series and finals_result datapoint classes. Re-derived wins/losses match BBR's official 4-3 result.",
+  "notes": "Asserts the migrated playoff-series query, which derives series rows from fact_game and pins the Finals row via containsObject.",
   "skip_if_no_db": true
 }

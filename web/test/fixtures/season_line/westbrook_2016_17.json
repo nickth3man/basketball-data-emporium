@@ -5,19 +5,21 @@
   "expected": {
     "season_year": "2016-17",
     "season_type": "Regular",
-    "gp": 81,
+    "gp": "81",
     "avg_pts": 31.580246913580247,
     "avg_reb": 10.666666666666666,
     "avg_ast": 10.37037037037037
   },
   "bbr_source_url": "https://www.basketball-reference.com/players/w/westbru01.html",
-  "assertion_mode": "raw_sql",
+  "assertion_mode": "query_fn",
   "query_target": {
-    "sql": "SELECT season_year, season_type, CAST(gp AS INTEGER) AS gp, avg_pts, avg_reb, avg_ast FROM agg_player_season WHERE player_id = 201566 AND season_year = '2016-17' AND season_type = 'Regular' LIMIT 1"
+    "fn": "getPlayerProfile",
+    "params": [201566],
+    "extract": "seasons"
   },
   "match": "containsObject",
   "status": "stable",
   "confidence": "verified",
-  "notes": "Retired player; match:containsObject with exact values. Re-pinned 2026-07 after the curated-layer rebuild: BBR says 81 GP (2558 pts / 864 reb / 840 ast); the pre-rebuild table claimed 82 GP with diluted averages. The fixture pins per-game averages and GP only.",
+  "notes": "Asserts the migrated player profile season row derived from fact_player_season_stat_resolved, including JSON string form for summed integer GP.",
   "skip_if_no_db": true
 }

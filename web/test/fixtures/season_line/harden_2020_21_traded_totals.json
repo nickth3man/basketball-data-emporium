@@ -9,12 +9,12 @@
   "bbr_source_url": "https://www.basketball-reference.com/players/h/hardeja01.html",
   "assertion_mode": "raw_sql",
   "query_target": {
-    "sql": "SELECT CAST(SUM(gp) AS INTEGER) AS gp, CAST(SUM(total_pts) AS INTEGER) AS pts FROM agg_player_season WHERE player_id = 201935 AND season_year = '2020-21' AND season_type = 'Regular'",
+    "sql": "SELECT CAST(SUM(gp) AS INTEGER) AS gp, CAST(SUM(pts) AS INTEGER) AS pts FROM fact_player_season_stat_resolved WHERE person_id = 201935 AND season = 2021 AND is_playoffs = false",
     "extract": "[0]"
   },
   "match": "objectMatching",
   "status": "stable",
   "confidence": "verified",
-  "notes": "KNOWN BUG (2026-07 data-quality audit): agg_player_season totals are inflated by a fan-out join over franchise name eras — analytics_player_game_complete holds one copy of every player-game per historical franchise name (Harden's BKN games exist as NJ/BKN/NYK, HOU games as SD/HOU), and the agg layer was built on top of it. Warehouse currently returns 48 GP / 3051 PTS for this season; fact_player_game_log (which is clean, verified vs BBR) gives the correct 44 / 1083. Flip to stable once the agg layer is rebuilt from fact_player_game_log. See docs/data-quality-audit.md. FIXED 2026-07 by the curated-layer rebuild (data/audit/rebuild_curated_layer.sql) + fact_game-based playoff derivation; flipped regression -> stable.",
+  "notes": "Asserts Harden's clean BBR-resolved 2020-21 regular-season total across HOU and BKN after the migration off the legacy aggregate layer.",
   "skip_if_no_db": true
 }

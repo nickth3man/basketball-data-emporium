@@ -17,6 +17,6 @@
   "match": "containsObject",
   "status": "stable",
   "confidence": "verified",
-  "notes": "KNOWN BUG (2026-07 data-quality audit): Luka Doncic has ZERO rows in fact_player_awards — no 2019 ROY, none of his five All-NBA First Team selections, no All-Star selections. Same for Bogdan Bogdanovic and Bojan Bogdanovic. The award ETL appears to have dropped players whose names carry diacritics (Doncic/Bogdanovic). Flip to stable once fact_player_awards is reloaded with id-based (not name-based) matching. See docs/data-quality-audit.md. FIXED 2026-07 by the curated-layer rebuild (data/audit/rebuild_curated_layer.sql) + fact_game-based playoff derivation; flipped regression -> stable.",
+  "notes": "Asserts that getAwards reads BBR award staging through the player bridge, preserving diacritic-name matches such as Luka Doncic's 2019 ROY row.",
   "skip_if_no_db": true
 }

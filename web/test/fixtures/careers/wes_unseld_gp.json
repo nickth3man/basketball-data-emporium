@@ -1,7 +1,7 @@
 {
   "id": "career_total.wes_unseld_gp_composite",
   "datapoint_class": "career_total",
-  "entity": "Wes Unseld career GP must equal the raw agg_player_season sum (both 984). Anchors the agg_player_career corruption gotcha: agg_player_career shows 1103 GP and 1.5 FG3% for Unseld, but the curated getPlayerProfile recomputes from agg_player_season and must agree with the raw sum.",
+  "entity": "Wes Unseld career GP must equal the clean profile total and clean BBR-resolved season sum (984).",
   "expected": ["984", "984"],
   "bbr_source_url": "https://www.basketball-reference.com/players/u/unselwe01.html",
   "assertion_mode": "composite",
@@ -15,7 +15,7 @@
       },
       {
         "mode": "raw_sql",
-        "sql": "SELECT SUM(gp) AS career_gp FROM agg_player_season WHERE player_id = 78392 AND season_type = 'Regular'",
+        "sql": "SELECT SUM(gp) AS career_gp FROM fact_player_season_stat_resolved WHERE person_id = 78392 AND is_playoffs = false",
         "extract": "[0].career_gp"
       }
     ]
@@ -23,6 +23,6 @@
   "match": "equals",
   "status": "stable",
   "confidence": "verified",
-  "notes": "Both sub-assertions go through queryObjects, which serialises BIGINT to a JSON string ('984'). The expected array uses the matching string form. agg_player_career is intentionally bypassed by getPlayerProfile — this composite proves the curated resolver and the raw aggregation agree, and pins the value at BBR's 984 GP (vs the corrupt 1103 in agg_player_career).",
+  "notes": "Both sub-assertions go through queryObjects, which serialises summed integer columns to JSON strings. The profile resolver and raw clean source aggregation must agree at BBR's 984 GP.",
   "skip_if_no_db": true
 }

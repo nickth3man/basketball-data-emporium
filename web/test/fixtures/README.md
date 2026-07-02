@@ -190,7 +190,7 @@ regression to stable without verifying the underlying fix.
 `jerseyHistory` items look like:
 `{ team_id, abbreviation, team_name, jersey_num, start_year, end_year, primary, trim }`.
 
-## Copy-paste template — raw_sql career-total fixture
+## Copy-paste template — profile career-total fixture
 
 ```json
 {
@@ -199,11 +199,11 @@ regression to stable without verifying the underlying fix.
   "entity": "Career total of <stat> for <player>",
   "expected": 1234,
   "bbr_source_url": "https://www.basketball-reference.com/players/<id>/<slug>.html",
-  "assertion_mode": "raw_sql",
+  "assertion_mode": "query_fn",
   "query_target": {
-    "sql": "SELECT SUM(gp) AS career_gp FROM agg_player_season WHERE player_id = ? AND season_type = 'Regular'",
+    "fn": "getPlayerProfile",
     "params": [201939],
-    "extract": "[0].career_gp"
+    "extract": "career.career_gp"
   },
   "match": "closeTo",
   "tolerance": 0,

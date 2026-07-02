@@ -5,19 +5,21 @@
   "expected": {
     "season_year": "1961-62",
     "season_type": "Regular",
-    "gp": 80,
+    "gp": "80",
     "avg_pts": 50.3625,
     "avg_reb": 25.65,
     "avg_ast": 2.4
   },
   "bbr_source_url": "https://www.basketball-reference.com/players/c/chambwi01.html",
-  "assertion_mode": "raw_sql",
+  "assertion_mode": "query_fn",
   "query_target": {
-    "sql": "SELECT season_year, season_type, CAST(gp AS INTEGER) AS gp, avg_pts, avg_reb, avg_ast FROM agg_player_season WHERE player_id = 76375 AND season_year = '1961-62' AND season_type = 'Regular' LIMIT 1"
+    "fn": "getPlayerProfile",
+    "params": [76375],
+    "extract": "seasons"
   },
   "match": "containsObject",
   "status": "stable",
   "confidence": "verified",
-  "notes": "Retired player; match:containsObject with exact values. agg_player_season.total_pts is unreliable for historical players (inflated by a factor of ~3x for Wilt), so the fixture pins avg_pts (which checks out at 50.4 PPG, matching BBR). team_abbreviation shows 'PHI' for this season (dim_team format) rather than 'PHW'; the fixture omits it to avoid the unreliable column.",
+  "notes": "Asserts the migrated player profile season row derived from fact_player_season_stat_resolved, including JSON string form for summed integer GP.",
   "skip_if_no_db": true
 }

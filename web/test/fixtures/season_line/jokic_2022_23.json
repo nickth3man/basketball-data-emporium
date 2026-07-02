@@ -5,19 +5,21 @@
   "expected": {
     "season_year": "2022-23",
     "season_type": "Regular",
-    "gp": 69,
+    "gp": "69",
     "avg_pts": 24.492753623188406,
     "avg_reb": 11.840579710144928,
     "avg_ast": 9.826086956521738
   },
   "bbr_source_url": "https://www.basketball-reference.com/players/j/jokicni01.html",
-  "assertion_mode": "raw_sql",
+  "assertion_mode": "query_fn",
   "query_target": {
-    "sql": "SELECT season_year, season_type, CAST(gp AS INTEGER) AS gp, avg_pts, avg_reb, avg_ast FROM agg_player_season WHERE player_id = 203999 AND season_year = '2022-23' AND season_type = 'Regular' LIMIT 1"
+    "fn": "getPlayerProfile",
+    "params": [203999],
+    "extract": "seasons"
   },
   "match": "containsObject",
   "status": "stable",
   "confidence": "verified",
-  "notes": "Retired player's historic season (Jokić is still active, but this fixture pins a specific completed championship season); match:containsObject with exact values. team_abbreviation is omitted (reliable here at 'DEN' but the binding constraint is to not rely on it for season_line fixtures). The fixture pins per-game averages and GP only.",
+  "notes": "Asserts the migrated player profile season row derived from fact_player_season_stat_resolved, including JSON string form for summed integer GP.",
   "skip_if_no_db": true
 }

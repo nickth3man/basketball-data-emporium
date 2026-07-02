@@ -689,6 +689,12 @@ function advancedColumns(): Parameters<typeof renderTable>[0] {
     { key: "avg_reb_pct", label: "TRB%", format: formatPct },
     { key: "avg_tov_pct", label: "TOV%", format: formatPct },
     { key: "avg_pie", label: "PIE%", format: formatPct },
+    { key: "per", label: "PER" },
+    { key: "ws", label: "WS" },
+    { key: "obpm", label: "OBPM" },
+    { key: "dbpm", label: "DBPM" },
+    { key: "bpm", label: "BPM" },
+    { key: "vorp", label: "VORP" },
   ];
 }
 
@@ -698,6 +704,7 @@ function advancedColumnGroups(): Parameters<typeof renderTable>[2] {
     { label: "Ratings", span: 4 },
     { label: "Efficiency", span: 4 },
     { label: "Rebounding / Ball", span: 5 },
+    { label: "BBR Value", span: 6 },
   ];
 }
 
@@ -715,7 +722,7 @@ function renderPer100Table(rows: Row[]): HTMLElement {
     rows,
     per100Columns(),
     [],
-    [tableNote("Estimated from team pace; rows without pace or minute data are left blank.")],
+    [tableNote("BBR regular-season per-100 possession rows.")],
   );
 }
 
@@ -725,7 +732,7 @@ function renderAdvancedStatsTable(rows: Row[]): HTMLElement {
     rows,
     advancedColumns(),
     advancedColumnGroups(),
-    [tableNote("NBA Stats API advanced fields only; PER, WS, and BPM are not in this warehouse.")],
+    [tableNote("BBR season metrics with NBA tracking context where available.")],
   );
 }
 

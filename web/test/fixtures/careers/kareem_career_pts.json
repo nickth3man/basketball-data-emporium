@@ -4,14 +4,15 @@
   "entity": "Kareem Abdul-Jabbar career total points = 38,387 (BBR all-time leader)",
   "expected": 38387,
   "bbr_source_url": "https://www.basketball-reference.com/players/a/abdulka01.html",
-  "assertion_mode": "raw_sql",
+  "assertion_mode": "query_fn",
   "query_target": {
-    "sql": "SELECT ROUND(SUM(avg_pts * gp)) AS career_pts FROM agg_player_season WHERE player_id = 76003 AND season_type = 'Regular'",
-    "extract": "[0].career_pts"
+    "fn": "getPlayerProfile",
+    "params": [76003],
+    "extract": "career.career_pts"
   },
   "match": "equals",
   "status": "stable",
   "confidence": "verified",
-  "notes": "Sum of avg_pts*gp from agg_player_season (regular season only). BBR's 38,387 figure is the all-time NBA record. ROUND() to drop the floating-point noise (real sum is 38387.0000...).",
+  "notes": "Asserts the migrated player profile career total derived from fact_player_season_stat_resolved, not the legacy aggregate layer.",
   "skip_if_no_db": true
 }
