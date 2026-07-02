@@ -1,0 +1,22 @@
+{
+  "id": "team_season_stat.bos_2023_24_regular_gp",
+  "datapoint_class": "team_season_stat",
+  "entity": "Boston Celtics 2023-24 regular-season team profile row has 82 games",
+  "expected": {
+    "season_year": "2023-24",
+    "season_type": "Regular",
+    "gp": "82"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/BOS/2024.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getTeamProfile",
+    "params": [1610612738],
+    "extract": "seasons"
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Prevents the team season table from regressing to agg_team_season's stale 77-game 2023-24 Boston row.",
+  "skip_if_no_db": true
+}

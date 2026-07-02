@@ -3,21 +3,29 @@
   "datapoint_class": "famous_game_line",
   "entity": "2024 NBA Finals Game 5 (2024-06-17): Celtics 106, Mavericks 88 — Boston clinches banner 18",
   "expected": {
-    "home_score": 106,
-    "away_score": 88,
-    "home_abbreviation": "BOS",
-    "away_abbreviation": "DAL"
+    "header": {
+      "home_score": 106,
+      "away_score": 88,
+      "home_abbreviation": "BOS",
+      "away_abbreviation": "DAL"
+    },
+    "lineScore": {
+      "line_score_source": "fact_game_total",
+      "team_id_home": "1610612738",
+      "team_id_away": "1610612742",
+      "pts_home": 106,
+      "pts_away": 88
+    }
   },
   "bbr_source_url": "https://www.basketball-reference.com/boxscores/202406170BOS.html",
   "assertion_mode": "query_fn",
   "query_target": {
     "fn": "getGameDetail",
-    "params": ["0042300405"],
-    "extract": "header"
+    "params": ["0042300405"]
   },
   "match": "objectMatching",
   "status": "stable",
   "confidence": "verified",
-  "notes": "Pins the game-detail endpoint over fact_game for a season the legacy game table is missing entirely.",
+  "notes": "Pins the game-detail endpoint over fact_game for a season the legacy game table is missing entirely, including the lineScore fallback orientation consumed by the hidden box-score view.",
   "skip_if_no_db": true
 }

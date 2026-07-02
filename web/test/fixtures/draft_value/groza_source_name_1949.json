@@ -1,0 +1,29 @@
+{
+  "id": "draft_value.groza_source_name_1949",
+  "datapoint_class": "draft_value",
+  "entity": "Alex Groza appears by source name in draft value rankings despite lacking a dim_player row",
+  "expected": {
+    "season": "1949",
+    "overall_pick": "2",
+    "source_player_name": "Alex Groza",
+    "full_name": "Alex Groza",
+    "career_gp": "130"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/draft/BAA_1949.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getDraftValueBoard",
+    "params": [
+      {
+        "round": 1,
+        "sortBy": "career_ppg",
+        "limit": 100
+      }
+    ]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Prevents blank player cells by falling back to BBR draft source names when dim_player has no current row.",
+  "skip_if_no_db": true
+}

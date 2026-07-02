@@ -1,13 +1,13 @@
 {
   "id": "player_bio.hakeem_olajuwon",
   "datapoint_class": "player_bio",
-  "entity": "Hakeem Olajuwon (player_id 165) bio: height 7-00 (warehouse dim_player format), weight 255, born 1963-01-21, position F (dim_player has 'F' not 'C' for Hakeem), country Nigeria (no common_player_info row; bio is dim_player alone)",
+  "entity": "Hakeem Olajuwon (player_id 165) bio from BBR career info fallback: height 7-0, weight 255, born 1963-01-21, position C, country Nigeria",
   "expected": {
     "full_name": "Hakeem Olajuwon",
-    "height": "7-00",
+    "height": "7-0",
     "weight": "255",
     "birth_date": "1963-01-21",
-    "position": "F",
+    "position": "C",
     "country": "Nigeria"
   },
   "bbr_source_url": "https://www.basketball-reference.com/players/o/olajuha01.html",
@@ -20,6 +20,6 @@
   "match": "objectMatching",
   "status": "stable",
   "confidence": "verified",
-  "notes": "Olajuwon has no common_player_info row, so the bio is just dim_player. height is '7-00' (zero-padded inch, dim_player format); BBR-canonical height is 7-0. The fixture pins the warehouse value; if dim_player is fixed to 7-0 the test will fail and the fixture should be updated.",
+  "notes": "Olajuwon has no common_player_info row, so getPlayerProfile uses stg_bref_player_career_info via bridge_player_bbr to avoid the corrupted dim_player position/height formatting.",
   "skip_if_no_db": true
 }

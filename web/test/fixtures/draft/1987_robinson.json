@@ -6,8 +6,8 @@
     "season": "1987",
     "overall_pick": "1",
     "player_name": "David Robinson",
-    "team_abbreviation": "SAN",
-    "organization": "Navy"
+    "team_abbreviation": "SAS",
+    "organization": "United States Naval Academy"
   },
   "bbr_source_url": "https://www.basketball-reference.com/draft/NBA_1987.html",
   "assertion_mode": "query_fn",
@@ -18,6 +18,6 @@
   "match": "containsObject",
   "status": "stable",
   "confidence": "verified",
-  "notes": "David Robinson was the #1 pick out of the Naval Academy; he fulfilled his two-year military service commitment before joining the Spurs in 1989. SAN is the era-matched abbreviation for the 1987 San Antonio Spurs (current era is SAS).",
+  "notes": "David Robinson was the #1 pick out of the Naval Academy; he fulfilled his two-year military service commitment before joining the Spurs in 1989. Draft rows now use the BBR draft source abbreviation and school name.",
   "skip_if_no_db": true
 }

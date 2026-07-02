@@ -45,6 +45,7 @@ const tabButtons: HTMLButtonElement[] = [];
 
 function activate(tabId: string, focusTab = false, detailId?: string): void {
   const tab = TABS.find((t) => t.id === tabId) ?? TABS[0];
+  let labelledByVisibleTab = false;
   for (const btn of tabButtons) {
     const isActive = btn.dataset.tab === tab.id;
     btn.classList.toggle("active", isActive);
@@ -52,7 +53,13 @@ function activate(tabId: string, focusTab = false, detailId?: string): void {
     btn.tabIndex = isActive ? 0 : -1;
     if (isActive) {
       viewEl.setAttribute("aria-labelledby", btn.id);
+      viewEl.removeAttribute("aria-label");
+      labelledByVisibleTab = true;
     }
+  }
+  if (!labelledByVisibleTab) {
+    viewEl.removeAttribute("aria-labelledby");
+    viewEl.setAttribute("aria-label", tab.label);
   }
   viewEl.replaceChildren();
   announceStatus(`${tab.label} tab selected`);

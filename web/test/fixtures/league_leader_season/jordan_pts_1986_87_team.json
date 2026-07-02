@@ -1,0 +1,23 @@
+{
+  "id": "league_leader_season.jordan_pts_1986_87_team",
+  "datapoint_class": "league_leader_season",
+  "entity": "Michael Jordan 1986-87 scoring leader displays his season team Chicago, not his latest team",
+  "expected": {
+    "player_id": "893",
+    "full_name": "Michael Jordan",
+    "season_year": "1986-87",
+    "season_type": "Regular",
+    "team_abbreviation": "CHI"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/leagues/NBA_1987_per_game.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getSeasonLeaders",
+    "params": ["1986-87", "pts", 5]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Prevents leaderboards from joining to dim_player.team_id/current team and showing WAS for Jordan's Bulls scoring title.",
+  "skip_if_no_db": true
+}

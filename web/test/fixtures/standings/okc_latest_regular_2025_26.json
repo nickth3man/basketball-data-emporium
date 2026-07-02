@@ -1,0 +1,23 @@
+{
+  "id": "standings_record.okc_latest_regular_2025_26",
+  "datapoint_class": "standings_record",
+  "entity": "Oklahoma City Thunder latest team profile record is the 2025-26 regular-season record, not the playoff row",
+  "expected": {
+    "season_year": "2025-26",
+    "season_type": "Regular",
+    "wins": "64",
+    "losses": "18"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/OKC/2026.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getTeamProfile",
+    "params": [1610612760],
+    "extract": "currentStanding"
+  },
+  "match": "objectMatching",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Pins ORDER BY season_type to prefer Regular over Playoffs for currentStanding.",
+  "skip_if_no_db": true
+}

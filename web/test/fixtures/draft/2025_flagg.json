@@ -1,0 +1,23 @@
+{
+  "id": "draft_first_pick.2025_flagg",
+  "datapoint_class": "draft_first_pick",
+  "entity": "Cooper Flagg was the 1st overall pick in the 2025 NBA Draft",
+  "expected": {
+    "season": "2025",
+    "overall_pick": "1",
+    "round_number": "1",
+    "player_name": "Cooper Flagg",
+    "team_abbreviation": "DAL"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/draft/NBA_2025.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getDraftYear",
+    "params": ["2025"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Pins draft pages to BBR staging/fact coverage beyond stale draft_history, which stopped at 2023.",
+  "skip_if_no_db": true
+}

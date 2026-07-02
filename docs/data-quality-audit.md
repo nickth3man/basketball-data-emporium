@@ -185,6 +185,35 @@ AGENTS.md conventions). Fixture suite: 206 passing incl. all former
 regressions for findings 1-5; the remaining expected-fails are jersey-
 resolver edge cases documented pre-audit.
 
+## App-query remediation follow-up (2026-07-02)
+
+The app layer was hardened again after a follow-up data-quality audit. No
+warehouse tables were rebuilt or mutated in this repo; the changes are
+read-only query substitutions and regression fixtures in `web/`.
+
+- Player bios now prefer `stg_bref_player_career_info` through
+  `bridge_player_bbr` when `dim_player` has corrupted or placeholder height,
+  weight, position, birth date, or school values.
+- Player awards and the standalone awards tab read BBR staging rows through
+  the bridge and preserve source names for historical rows with no warehouse
+  player id, so null-id winners such as 1950 Alex Groza are not silently
+  dropped.
+- Draft pages and draft-value views now use `stg_bref_draft_pick_history` as
+  the draft source of truth. `fact_draft_history` and `analytics_draft_value`
+  are retained only as fallback metadata/value sources for rows that cannot
+  be fully resolved through the BBR bridge.
+- Team profile season rows avoid regular-season GP from `agg_team_season` and
+  latest standings prefer Regular over Playoffs. Franchise leaders are
+  recomputed from `fact_franchise_players` instead of trusting the stale
+  single-row `fact_franchise_leaders` summary.
+- Season leaderboards derive player team labels from the resolved
+  player-season rows instead of current `dim_player.team_id`, and modern game
+  detail pages fall back to final scores from `fact_game` when legacy
+  `line_score` rows are absent.
+
+Regression fixture suite after this pass: 216 passing, 5 expected-fail
+fixtures.
+
 ## Ratchet
 
 - Fixture suite: 4 new regression fixtures pin findings 1-4; flip each to

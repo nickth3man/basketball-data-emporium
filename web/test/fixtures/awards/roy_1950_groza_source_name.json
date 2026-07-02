@@ -1,0 +1,22 @@
+{
+  "id": "roy.1950_groza_source_name",
+  "datapoint_class": "roy",
+  "entity": "Alex Groza 1950 Rookie of the Year winner is preserved with source name even without a dim_player mapping",
+  "expected": {
+    "season": "1950",
+    "award_type": "nba roy",
+    "full_name": "Alex Groza",
+    "description": "nba roy winner"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/awards/awards_1950.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getAwards",
+    "params": ["1950", "nba roy"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Pins award list behavior so null-ID historical winners are not silently dropped.",
+  "skip_if_no_db": true
+}

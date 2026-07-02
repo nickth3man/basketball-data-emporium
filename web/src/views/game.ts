@@ -79,23 +79,27 @@ function renderLineScore(container: HTMLElement, game: GameDetail): void {
   const ls = game.lineScore;
   const h = game.header;
   if (!ls || !h) return;
-  // The legacy line_score table's home/away column suffixes disagree with
-  // the verified fact_game orientation for ~47% of games (audited). Each
-  // side's quarters/total are internally consistent with that side's team
-  // name, so resolve which suffix is really "home" by team id and order the
-  // rows away-then-home per the trusted header.
+  // The API normalizes legacy line_score orientation against fact_game, but
+  // keep the same team-id check here so the view still renders correctly when
+  // tests or future callers pass an older/raw shape.
   const trueHomeSide: "home" | "away" =
     String(ls.team_id_home) === String(h.home_team_id) ? "home" : "away";
   const trueAwaySide: "home" | "away" = trueHomeSide === "home" ? "away" : "home";
-  const quarters = ["1", "2", "3", "4"];
+  const hasPeriodScores = ls.line_score_source !== "fact_game_total";
+  const quarters = hasPeriodScores ? ["1", "2", "3", "4"] : [];
   const overtimes: string[] = [];
-  for (let ot = 1; ot <= 10; ot++) {
-    if (ls[`pts_ot${ot}_home`] != null || ls[`pts_ot${ot}_away`] != null)
-      overtimes.push(String(ot));
+  if (hasPeriodScores) {
+    for (let ot = 1; ot <= 10; ot++) {
+      if (ls[`pts_ot${ot}_home`] != null || ls[`pts_ot${ot}_away`] != null)
+        overtimes.push(String(ot));
+    }
   }
   const sideRow = (side: "home" | "away"): Row => {
     const row: Row = {
-      team: `${formatValue(ls[`team_city_name_${side}`])} ${formatValue(ls[`team_nickname_${side}`])}`,
+      team: [ls[`team_city_name_${side}`], ls[`team_nickname_${side}`]]
+        .filter(Boolean)
+        .map(formatValue)
+        .join(" "),
     };
     for (const q of quarters) row[`q${q}`] = ls[`pts_qtr${q}_${side}`];
     for (const ot of overtimes) row[`ot${ot}`] = ls[`pts_ot${ot}_${side}`];

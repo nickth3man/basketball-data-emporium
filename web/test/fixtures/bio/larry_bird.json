@@ -1,10 +1,10 @@
 {
   "id": "player_bio.larry_bird",
   "datapoint_class": "player_bio",
-  "entity": "Larry Bird (player_id 1449) bio: height 7-09 (warehouse dim_player format), weight 220, born 1956-12-07, position F, country USA (no common_player_info row; bio is dim_player alone)",
+  "entity": "Larry Bird (player_id 1449) bio from BBR career info fallback: height 6-9, weight 220, born 1956-12-07, position F, country USA",
   "expected": {
     "full_name": "Larry Bird",
-    "height": "7-09",
+    "height": "6-9",
     "weight": "220",
     "birth_date": "1956-12-07",
     "position": "F",
@@ -20,6 +20,6 @@
   "match": "objectMatching",
   "status": "stable",
   "confidence": "verified",
-  "notes": "Bird has no common_player_info row, so the bio is just dim_player. height is '7-09' (zero-padded inch, dim_player format); BBR-canonical height is 6-9. The fixture pins the warehouse value; if dim_player is fixed to 6-9 the test will fail and the fixture should be updated.",
+  "notes": "Bird has no common_player_info row, so getPlayerProfile uses stg_bref_player_career_info via bridge_player_bbr to avoid the corrupted dim_player height.",
   "skip_if_no_db": true
 }

@@ -1,13 +1,13 @@
 {
   "id": "player_bio.magic_johnson",
   "datapoint_class": "player_bio",
-  "entity": "Magic Johnson (player_id 77142) bio: height 7-09 (warehouse dim_player format), weight 220, born 1959-08-14, position G, country USA (no common_player_info row; bio is dim_player alone)",
+  "entity": "Magic Johnson (player_id 77142) bio from BBR career info fallback: height 6-9, weight 215, born 1959-08-14, position G-F, country USA",
   "expected": {
     "full_name": "Magic Johnson",
-    "height": "7-09",
-    "weight": "220",
+    "height": "6-9",
+    "weight": "215",
     "birth_date": "1959-08-14",
-    "position": "G",
+    "position": "G-F",
     "country": "USA"
   },
   "bbr_source_url": "https://www.basketball-reference.com/players/j/johnsma02.html",
@@ -20,6 +20,6 @@
   "match": "objectMatching",
   "status": "stable",
   "confidence": "verified",
-  "notes": "Magic has no common_player_info row, so the bio is just dim_player. height is '7-09' (zero-padded inch, dim_player format); BBR-canonical height is 6-9. The fixture pins the warehouse value; if dim_player is fixed to 6-9 the test will fail and the fixture should be updated.",
+  "notes": "Magic has no common_player_info row, so getPlayerProfile uses stg_bref_player_career_info via bridge_player_bbr instead of the corrupted dim_player height/weight/position.",
   "skip_if_no_db": true
 }

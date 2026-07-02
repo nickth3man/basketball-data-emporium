@@ -1,0 +1,22 @@
+{
+  "id": "famous_game_line.bos_phi_2026_total_fallback",
+  "datapoint_class": "famous_game_line",
+  "entity": "2026 BOS-PHI Game 7 has a total-score fallback when legacy line_score has no modern row",
+  "expected": {
+    "line_score_source": "fact_game_total",
+    "pts_home": 100,
+    "pts_away": 109
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/boxscores/202605020BOS.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getGameDetail",
+    "params": ["0042500117"],
+    "extract": "lineScore"
+  },
+  "match": "objectMatching",
+  "status": "stable",
+  "confidence": "spot-checked",
+  "notes": "Modern games lack line_score rows; the app should still show a final score from fact_game without implying quarter scores exist.",
+  "skip_if_no_db": true
+}

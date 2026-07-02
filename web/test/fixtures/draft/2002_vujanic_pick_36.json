@@ -1,0 +1,24 @@
+{
+  "id": "draft_first_pick.2002_vujanic_pick_36",
+  "datapoint_class": "draft_first_pick",
+  "entity": "Milos Vujanic was pick 36, not a duplicate pick 35, in the 2002 NBA Draft",
+  "expected": {
+    "season": "2002",
+    "overall_pick": "36",
+    "round_number": "2",
+    "round_pick": "7",
+    "player_name": "Milos Vujanic",
+    "team_abbreviation": "NYK"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/draft/NBA_2002.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getDraftYear",
+    "params": ["2002"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Guards against the stale mixed-source draft_history duplicate-pick bug around forfeited picks.",
+  "skip_if_no_db": true
+}
