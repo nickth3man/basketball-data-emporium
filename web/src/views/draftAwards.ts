@@ -3,17 +3,36 @@ import { api, type Row } from "../api.ts";
 import {
   announceStatus,
   el,
+  formatPct,
   formatValue,
   labeledSelect,
   navigateToDetail,
+  playerCell,
   renderTable,
 } from "../dom.ts";
+
+const CAREER_VALUE_LIMIT = 50;
+const CAREER_VALUE_DEFAULT_SORT = "career_ppg";
+const CAREER_VALUE_SORTS: readonly { value: string; label: string }[] = [
+  { value: "career_ppg", label: "PPG" },
+  { value: "career_rpg", label: "RPG" },
+  { value: "career_apg", label: "APG" },
+  { value: "career_gp", label: "GP" },
+  { value: "career_fg_pct", label: "FG%" },
+  { value: "career_fg3_pct", label: "3P%" },
+  { value: "seasons_played", label: "Seasons" },
+];
 
 export async function renderDraftAwards(container: HTMLElement): Promise<void> {
   const draftSection = el("section", { className: "subsection" });
   const awardsSection = el("section", { className: "subsection" });
-  container.append(draftSection, awardsSection);
-  await Promise.all([renderDraftSection(draftSection), renderAwardsSection(awardsSection)]);
+  const careerValueSection = el("section", { className: "subsection" });
+  container.append(draftSection, awardsSection, careerValueSection);
+  await Promise.all([
+    renderDraftSection(draftSection),
+    renderAwardsSection(awardsSection),
+    renderCareerValueSection(careerValueSection),
+  ]);
 }
 
 async function renderDraftSection(container: HTMLElement): Promise<void> {
@@ -136,6 +155,103 @@ function cellButton(label: string, onClick: () => void, ariaLabel: string): HTML
   });
   button.addEventListener("click", onClick);
   return button;
+}
+
+async function renderCareerValueSection(container: HTMLElement): Promise<void> {
+  container.append(
+    el("h2", { text: "Best career value" }),
+    el("p", { className: "muted", text: "Loading…" }),
+  );
+  announceStatus("Loading career value…");
+  try {
+    const rounds = await api.listDraftValueRounds();
+    container.replaceChildren(el("h2", { text: "Best career value" }));
+
+    const roundOptions = [
+      { value: "", label: "All rounds" },
+      ...rounds.map((r) => ({ value: String(r), label: String(r) })),
+    ];
+    const defaultSort = CAREER_VALUE_SORTS.find((s) => s.value === CAREER_VALUE_DEFAULT_SORT);
+    if (!defaultSort) {
+      throw new Error(`Default sort key '${CAREER_VALUE_DEFAULT_SORT}' is not registered.`);
+    }
+
+    const { wrapper: roundWrapper, select: roundSelect } = labeledSelect(
+      "Round",
+      roundOptions,
+      "career-value-round",
+    );
+    const { wrapper: sortWrapper, select: sortSelect } = labeledSelect(
+      "Sort by",
+      CAREER_VALUE_SORTS.map((s) => ({ value: s.value, label: s.label })),
+      "career-value-sort",
+    );
+    sortSelect.value = defaultSort.value;
+    const resultDiv = el("div");
+    container.append(el("div", { className: "controls" }, [roundWrapper, sortWrapper]), resultDiv);
+
+    async function load(): Promise<void> {
+      resultDiv.replaceChildren(el("p", { className: "muted", text: "Loading…" }));
+      announceStatus("Loading career value…");
+      try {
+        const roundRaw = roundSelect.value;
+        const round = roundRaw !== "" ? Number(roundRaw) : undefined;
+        const sort = sortSelect.value;
+        const sortLabel = CAREER_VALUE_SORTS.find((s) => s.value === sort)?.label ?? sort;
+        const rows = await api.getDraftValueBoard({
+          round,
+          sort,
+          limit: CAREER_VALUE_LIMIT,
+        });
+        if (rows.length === 0) {
+          resultDiv.replaceChildren(
+            el("p", { className: "muted", text: "No rows for this selection." }),
+          );
+          announceStatus("No rows for this selection.");
+          return;
+        }
+        resultDiv.replaceChildren(
+          renderTable(
+            [
+              {
+                key: "__index",
+                label: "#",
+                format: (_v, row) => formatValue(row.__index),
+              },
+              { key: "full_name", label: "Player", render: playerCell },
+              { key: "overall_pick", label: "Pick" },
+              { key: "round_number", label: "Rd" },
+              { key: "position", label: "Pos" },
+              { key: "seasons_played", label: "Seasons" },
+              { key: "career_gp", label: "GP" },
+              { key: "career_ppg", label: "PPG" },
+              { key: "career_rpg", label: "RPG" },
+              { key: "career_apg", label: "APG" },
+              { key: "career_fg_pct", label: "FG%", format: formatPct },
+              { key: "career_fg3_pct", label: "3P%", format: formatPct },
+            ],
+            rows.map((row, index) => ({ ...row, __index: index + 1 })),
+          ),
+        );
+        announceStatus(`Loaded top ${rows.length} by career ${sortLabel}.`);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Failed to load career value.";
+        resultDiv.replaceChildren(el("p", { className: "muted", text: `Error: ${message}` }));
+        announceStatus(`Failed to load career value: ${message}`);
+      }
+    }
+
+    roundSelect.addEventListener("change", () => void load());
+    sortSelect.addEventListener("change", () => void load());
+    await load();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to load career value rounds.";
+    container.replaceChildren(
+      el("h2", { text: "Best career value" }),
+      el("p", { className: "muted", text: `Error: ${message}` }),
+    );
+    announceStatus(`Failed to load career value: ${message}`);
+  }
 }
 
 function draftPlayerCell(value: unknown, row: Row): Node | string {
