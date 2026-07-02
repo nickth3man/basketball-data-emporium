@@ -471,6 +471,112 @@ app.get(
   }),
 );
 
+// --- Player splits / estimated metrics / shot chart ----------------------
+
+app.get(
+  "/api/players/:id/location-splits",
+  asyncRoute(async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      res.status(400).json({ error: "Invalid player id" });
+      return;
+    }
+    res.json(await q.getPlayerLocationSplits(id));
+  }),
+);
+
+app.get(
+  "/api/players/:id/estimated-metrics",
+  asyncRoute(async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      res.status(400).json({ error: "Invalid player id" });
+      return;
+    }
+    res.json(await q.getPlayerEstimatedMetrics(id));
+  }),
+);
+
+app.get(
+  "/api/players/:id/shot-chart/seasons",
+  asyncRoute(async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      res.status(400).json({ error: "Invalid player id" });
+      return;
+    }
+    res.json(await q.listPlayerShotSeasons(id));
+  }),
+);
+
+app.get(
+  "/api/players/:id/shot-chart",
+  asyncRoute(async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      res.status(400).json({ error: "Invalid player id" });
+      return;
+    }
+    const season =
+      typeof req.query.season === "string" && req.query.season !== "" ? req.query.season : null;
+    res.json(await q.getPlayerShotChart(id, season));
+  }),
+);
+
+// --- Team head-to-head + season context -----------------------------------
+
+app.get(
+  "/api/teams/:id/head-to-head",
+  asyncRoute(async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      res.status(400).json({ error: "Invalid team id" });
+      return;
+    }
+    res.json(await q.getTeamHeadToHead(id));
+  }),
+);
+
+app.get(
+  "/api/teams/:id/season-context",
+  asyncRoute(async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      res.status(400).json({ error: "Invalid team id" });
+      return;
+    }
+    res.json(await q.getTeamSeasonContext(id));
+  }),
+);
+
+// --- Game detail -----------------------------------------------------------
+
+app.get(
+  "/api/games/:id",
+  asyncRoute(async (req, res) => {
+    const id = String(req.params.id);
+    // 10-char zero-padded numeric id shared by every game-keyed table.
+    if (!/^\d{8,10}$/.test(id)) {
+      res.status(400).json({ error: "Invalid game id" });
+      return;
+    }
+    res.json(await q.getGameDetail(id.padStart(10, "0")));
+  }),
+);
+
+// --- Award voting detail ----------------------------------------------------
+
+app.get(
+  "/api/awards/voting",
+  asyncRoute(async (req, res) => {
+    const season = requireQueryString(req, res, "season");
+    if (!season) return;
+    const award = requireQueryString(req, res, "award");
+    if (!award) return;
+    res.json(await q.getAwardVoting(season, award));
+  }),
+);
+
 // --- Generic table browser (developer escape hatch, not used by the UI) --
 
 app.get("/api/admin/tables", async (_req, res) => {

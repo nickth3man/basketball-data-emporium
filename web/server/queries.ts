@@ -2309,3 +2309,204 @@ export async function getDraftValueBoard(opts?: {
     [...params, limit],
   );
 }
+
+// ---------------------------------------------------------------------------
+// Player splits / estimated metrics / shot chart
+//
+// analytics_player_general_splits only carries the Location split type
+// (Home/Away) — W/L / month / pre-post-ASG splits were never built upstream.
+// The shot chart bins analytics_shooting_efficiency's raw loc_x/loc_y
+// (tenths of feet, x -250..250 from the hoop centerline, y -52..418 toward
+// halfcourt) into 25-unit (2.5 ft) cells server-side so the client renders a
+// small fixed grid instead of pulling 6.5M rows.
+// ---------------------------------------------------------------------------
+
+export async function getPlayerLocationSplits(playerId: number): Promise<Row[]> {
+  return queryObjects(
+    `SELECT season_year, group_value, gp, w, l, w_pct, min, pts, reb, ast,
+            fg_pct, fg3_pct, ft_pct, plus_minus
+     FROM analytics_player_general_splits
+     WHERE player_id = ? AND split_type = 'Location' AND season_type = 'Regular'
+     ORDER BY season_year, group_value`,
+    [playerId],
+  );
+}
+
+export async function getPlayerEstimatedMetrics(playerId: number): Promise<Row[]> {
+  return queryObjects(
+    `SELECT season_year, gp, w, l,
+            e_off_rating, e_def_rating, e_net_rating, e_pace,
+            e_usg_pct, e_reb_pct, e_tov_pct
+     FROM fact_player_estimated_metrics
+     WHERE player_id = ?
+     ORDER BY season_year`,
+    [playerId],
+  );
+}
+
+export async function listPlayerShotSeasons(playerId: number): Promise<string[]> {
+  const rows = await queryObjects<{ season_year: string }>(
+    `SELECT DISTINCT season_year FROM analytics_shooting_efficiency
+     WHERE player_id = ? ORDER BY season_year DESC`,
+    [playerId],
+  );
+  return rows.map((r) => r.season_year);
+}
+
+export async function getPlayerShotChart(playerId: number, season: string | null): Promise<Row[]> {
+  const conditions = ["player_id = ?", "loc_y BETWEEN -52 AND 418", "loc_x BETWEEN -250 AND 250"];
+  const params: DuckDBValue[] = [playerId];
+  if (season) {
+    conditions.push("season_year = ?");
+    params.push(season);
+  }
+  return queryObjects(
+    `SELECT CAST(floor(loc_x / 25) AS INTEGER) AS bin_x,
+            CAST(floor(loc_y / 25) AS INTEGER) AS bin_y,
+            count(*) AS attempts,
+            CAST(sum(shot_made_flag) AS BIGINT) AS makes,
+            round(avg(league_avg_fg_pct), 3) AS league_fg_pct
+     FROM analytics_shooting_efficiency
+     WHERE ${conditions.join(" AND ")}
+     GROUP BY 1, 2`,
+    params,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Team head-to-head + season context
+// ---------------------------------------------------------------------------
+
+export async function getTeamHeadToHead(teamId: number): Promise<Row[]> {
+  return queryObjects(
+    `SELECT h.opponent_team_id,
+            coalesce(th.abbreviation, max(h.opponent_abbr)) AS opponent_abbreviation,
+            coalesce(th.nickname, max(h.opponent_abbr)) AS opponent_name,
+            CAST(sum(h.games_played) AS BIGINT) AS gp,
+            CAST(sum(h.wins) AS BIGINT) AS wins,
+            CAST(sum(h.losses) AS BIGINT) AS losses,
+            round(sum(h.avg_pts_scored * h.games_played) / nullif(sum(h.games_played), 0), 1) AS avg_pts_scored,
+            round(sum(h.avg_pts_allowed * h.games_played) / nullif(sum(h.games_played), 0), 1) AS avg_pts_allowed,
+            round(sum(h.avg_margin * h.games_played) / nullif(sum(h.games_played), 0), 1) AS avg_margin
+     FROM analytics_head_to_head h
+     LEFT JOIN dim_team_history th ON th.team_id = h.opponent_team_id AND th.is_current
+     WHERE h.team_id = ?
+     GROUP BY h.opponent_team_id, th.abbreviation, th.nickname
+     ORDER BY gp DESC, wins DESC`,
+    [teamId],
+  );
+}
+
+// BBR team-season context (SRS, pace, ratings, four factors both ways).
+// stg_bref_team_summaries is keyed by BBR abbreviation+season and carries the
+// crosswalk-resolved nba_team_id added at import time.
+export async function getTeamSeasonContext(teamId: number): Promise<Row[]> {
+  return queryObjects(
+    `SELECT season, w, l, pw, pl, srs, sos, pace, o_rtg, d_rtg, n_rtg,
+            e_fg_percent, tov_percent, orb_percent, ft_fga,
+            opp_e_fg_percent, opp_tov_percent, drb_percent, opp_ft_fga,
+            attend_g
+     FROM stg_bref_team_summaries
+     WHERE nba_team_id = ? AND NOT playoffs
+     ORDER BY season DESC`,
+    [teamId],
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Game detail
+//
+// All game-keyed tables share the same 10-char zero-padded game_id
+// (verified: fact_game, line_score, officials, fact_game_leaders,
+// fact_starting_lineup_player, fact_pbp_events). The PBP tail returns the
+// final scoring plays in reverse chronological order (client re-reverses).
+// ---------------------------------------------------------------------------
+
+export interface GameDetail {
+  header: Row | null;
+  lineScore: Row | null;
+  leaders: Row[];
+  officials: Row[];
+  starters: Row[];
+  lastPlays: Row[];
+}
+
+export async function getGameDetail(gameId: string): Promise<GameDetail> {
+  const [header, lineScore, leaders, officials, starters, lastPlays] = await Promise.all([
+    queryObjects(
+      `SELECT g.game_id, g.game_date, g.season_year, g.season_type,
+              g.game_label, g.game_sub_label, g.series_game_number,
+              g.home_team_id, g.away_team_id, g.home_score, g.away_score,
+              g.winner_team_id, g.arena_name, g.arena_city, g.arena_state,
+              g.attendance, g.is_overtime, g.odds_home, g.odds_away,
+              th_home.abbreviation AS home_abbreviation, th_home.nickname AS home_name,
+              th_away.abbreviation AS away_abbreviation, th_away.nickname AS away_name
+       FROM fact_game g
+       LEFT JOIN dim_team_history th_home ON th_home.team_id = g.home_team_id AND th_home.is_current
+       LEFT JOIN dim_team_history th_away ON th_away.team_id = g.away_team_id AND th_away.is_current
+       WHERE g.game_id = ?
+       LIMIT 1`,
+      [gameId],
+    ),
+    queryObjects(`SELECT * FROM line_score WHERE game_id = ? LIMIT 1`, [gameId]),
+    queryObjects(
+      `SELECT l.leader_type, l.person_id, l.name, l.team_tricode,
+              l.points, l.rebounds, l.assists
+       FROM fact_game_leaders l
+       WHERE l.game_id = ?
+       ORDER BY l.leader_type, l.points DESC`,
+      [gameId],
+    ),
+    queryObjects(
+      `SELECT official_id, first_name, last_name, jersey_num
+       FROM officials WHERE game_id = ? ORDER BY last_name`,
+      [gameId],
+    ),
+    queryObjects(
+      `SELECT s.team_id, s.person_id, s.starting_position,
+              p.full_name,
+              th.abbreviation AS team_abbreviation
+       FROM fact_starting_lineup_player s
+       LEFT JOIN dim_player p ON p.player_id = s.person_id AND p.is_current
+       LEFT JOIN dim_team_history th ON th.team_id = s.team_id AND th.is_current
+       WHERE s.game_id = ?
+       ORDER BY s.team_id, s.starting_position`,
+      [gameId],
+    ),
+    queryObjects(
+      `SELECT period, clock, description, score_home, score_away, points_total
+       FROM fact_pbp_events
+       WHERE game_id = ? AND score_home IS NOT NULL
+         AND points_total IS NOT NULL AND points_total > 0
+       ORDER BY seconds_elapsed DESC
+       LIMIT 12`,
+      [gameId],
+    ),
+  ]);
+  return {
+    header: header[0] ?? null,
+    lineScore: lineScore[0] ?? null,
+    leaders,
+    officials,
+    starters,
+    lastPlays,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Award voting detail (BBR voting shares via the crosswalk)
+// ---------------------------------------------------------------------------
+
+export async function getAwardVoting(season: string, award: string): Promise<Row[]> {
+  return queryObjects(
+    `SELECT s.nba_player_id AS player_id,
+            coalesce(p.full_name, s.player) AS full_name,
+            s.age, s.first AS first_place_votes,
+            s.pts_won, s.pts_max, s.share, s.winner
+     FROM stg_bref_player_award_shares s
+     LEFT JOIN dim_player p ON p.player_id = s.nba_player_id AND p.is_current
+     WHERE s.season = TRY_CAST(? AS INTEGER) AND s.award = ?
+     ORDER BY s.pts_won DESC NULLS LAST, s.share DESC NULLS LAST`,
+    [season, award],
+  );
+}
