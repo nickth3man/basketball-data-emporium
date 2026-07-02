@@ -1,0 +1,14 @@
+{
+  "id": "jersey.paul_lac_3",
+  "datapoint_class": "jersey",
+  "entity": "Chris Paul LAC 2011-2017 wore #3 (stable anchor)",
+  "expected": { "abbreviation": "LAC", "start_year": 2011, "end_year": 2017, "jersey_num": "3" },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/LAC/numbers.html",
+  "assertion_mode": "query_fn",
+  "query_target": { "fn": "getPlayerProfile", "params": [101108], "extract": "jerseyHistory" },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "spot-checked",
+  "notes": "Paul wore #3 for his six Clippers seasons (2011-12 through 2016-17) after being traded from New Orleans. The data correctly surfaces a 2011-2017 LAC #3 stint. Paul is still active as of 2025 (PHX stint through 2022-23 is the latest in the warehouse). spot-checked because the data may be refreshed with later seasons.",
+  "skip_if_no_db": true
+}

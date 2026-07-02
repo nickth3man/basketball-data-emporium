@@ -1,0 +1,14 @@
+{
+  "id": "jersey.oneal_lal_34",
+  "datapoint_class": "jersey",
+  "entity": "Shaquille O'Neal LAL career must be #34 (stable anchor)",
+  "expected": { "abbreviation": "LAL", "start_year": 1996, "jersey_num": "34" },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/LAL/numbers.html",
+  "assertion_mode": "query_fn",
+  "query_target": { "fn": "getPlayerProfile", "params": [406], "extract": "jerseyHistory" },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "O'Neal wore #34 for his entire Lakers career (1996-2004). Three-peat with Kobe.",
+  "skip_if_no_db": true
+}

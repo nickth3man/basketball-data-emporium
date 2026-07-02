@@ -1,0 +1,14 @@
+{
+  "id": "jersey.garnett_min_21",
+  "datapoint_class": "jersey",
+  "entity": "Kevin Garnett MIN career must be #21 (stable anchor)",
+  "expected": { "abbreviation": "MIN", "start_year": 1995, "jersey_num": "21" },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/MIN/numbers.html",
+  "assertion_mode": "query_fn",
+  "query_target": { "fn": "getPlayerProfile", "params": [708], "extract": "jerseyHistory" },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Garnett wore #21 for both of his Timberwolves stints (1995-2007 and 2014-2016). The Big Ticket.",
+  "skip_if_no_db": true
+}

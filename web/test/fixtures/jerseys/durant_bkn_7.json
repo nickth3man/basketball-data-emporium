@@ -1,0 +1,14 @@
+{
+  "id": "jersey.durant_bkn_7",
+  "datapoint_class": "jersey",
+  "entity": "Kevin Durant BKN 2020-2023 switched to #7 (free-agency number-change scenario, stable anchor)",
+  "expected": { "abbreviation": "BKN", "start_year": 2020, "jersey_num": "7" },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/BKN/numbers.html",
+  "assertion_mode": "query_fn",
+  "query_target": { "fn": "getPlayerProfile", "params": [201142], "extract": "jerseyHistory" },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "After wearing #35 in OKC and GSW, Durant changed to #7 when he joined the Brooklyn Nets in 2020-21. The data correctly surfaces a 2020-2023 BKN #7 stint. Pairs with jersey.durant_okc_35 to cover the free-agency number-change scenario.",
+  "skip_if_no_db": true
+}

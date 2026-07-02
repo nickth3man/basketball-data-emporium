@@ -127,9 +127,18 @@ Dependencies: Python 3 stdlib plus `duckdb` (optional — without it, or without
 `data/nba.duckdb`, the script still caches HTML and emits rows with null IDs
 for inspection).
 
+Before touching the cache or network, the scraper filters the requested
+team-season cross product through `BBR_TEAM_SEASON_RANGES` in
+`scrape_team_rosters.py`. Those ranges are BBR URL eras, not warehouse team
+IDs: for example `SDR` is valid only for 1968-1971, `MLH` only for 1952-1955,
+and `WSB` only for 1975-1997. This keeps bulk runs from probing historical
+aliases deep into later decades. The sidecar records `pages_requested`,
+`pages_planned`, and `pages_skipped_out_of_era` for each run.
+
 Rate limiting: honour `--delay` on live fetches. Bulk runs can hit HTTP 429;
-use cache-first workflows (`--no-network` after seeding HTML) and smaller
-team batches. See `scrape_run.log` for an example of a throttled run.
+use cache-first workflows (`--no-network` after seeding HTML), smaller team
+batches, and the era-bounded planner above. See `scrape_run.log` for an
+example of a throttled run.
 
 ## BBR → warehouse team abbreviations
 
@@ -137,7 +146,8 @@ BBR URL abbreviations sometimes differ from `dim_team.abbreviation`. The
 scraper maps them in `BBR_TO_DIM_ABBREV` inside `scrape_team_rosters.py`
 (e.g. `PHO`→`PHX`, `BRK`→`BKN`, `NOJ`→`NEO`, `WSB`→`WAS`, `PHW`→`PHI`).
 Rows where the mapped abbreviation still has no `dim_team` match are skipped
-(`no_team_match` in the sidecar).
+(`no_team_match` in the sidecar). Valid BBR seasons for each URL abbreviation
+are separately bounded by `BBR_TEAM_SEASON_RANGES`.
 
 ## Manifest generator
 

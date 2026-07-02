@@ -1,0 +1,22 @@
+{
+  "id": "team_identity.noj_to_neo",
+  "datapoint_class": "team_identity",
+  "entity": "BBR source abbreviation NOJ maps to warehouse canonical NEO (New Orleans Jazz pre-relocation era, 1974)",
+  "expected": {
+    "team_id": "1610612762",
+    "abbreviation": "NEO",
+    "full_name": "New Orleans Jazz",
+    "city": "New Orleans",
+    "year_founded": "1974"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/NOJ/",
+  "assertion_mode": "raw_sql",
+  "query_target": {
+    "sql": "SELECT team_id, abbreviation, full_name, city, state, arena, year_founded FROM dim_team WHERE team_id = '1610612762' AND abbreviation = 'NEO'"
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "NOJ is the BBR source abbreviation for the New Orleans Jazz (1974-79 before relocation to Utah). dim_team_history only starts at 1996-97, so the modern Jazz era is UTA there; the historical NOJ era is captured in dim_team with abbreviation NEO.",
+  "skip_if_no_db": true
+}

@@ -1,0 +1,23 @@
+{
+  "id": "mvp.2020_giannis",
+  "datapoint_class": "mvp",
+  "entity": "2019-20 NBA MVP: Giannis Antetokounmpo (back-to-back MVP)",
+  "expected": {
+    "season": "2020",
+    "award_type": "nba mvp",
+    "subtype1": "Selected",
+    "player_id": "203507",
+    "full_name": "Giannis Antetokounmpo"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/awards/mvp.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getAwards",
+    "params": ["2020", "nba mvp"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "spot-checked",
+  "notes": "Giannis Antetokounmpo won the 2019-20 MVP (warehouse season end-year 2020) — his 2nd consecutive MVP (back-to-back with 2018-19). Still active.",
+  "skip_if_no_db": true
+}

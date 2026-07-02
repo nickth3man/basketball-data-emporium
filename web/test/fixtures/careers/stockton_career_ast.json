@@ -1,0 +1,17 @@
+{
+  "id": "career_total.stockton_ast",
+  "datapoint_class": "career_total",
+  "entity": "John Stockton career total assists = 15,806 (BBR all-time leader); warehouse sum from agg_player_season currently undercounts at 15,442 (delta 364, ~2.4%)",
+  "expected": 15806,
+  "bbr_source_url": "https://www.basketball-reference.com/players/s/stockjo01.html",
+  "assertion_mode": "raw_sql",
+  "query_target": {
+    "sql": "SELECT ROUND(SUM(avg_ast * gp)) AS career_ast FROM agg_player_season WHERE player_id = 304 AND season_type = 'Regular'",
+    "extract": "[0].career_ast"
+  },
+  "match": "equals",
+  "status": "regression",
+  "confidence": "verified",
+  "notes": "REGRESSION: warehouse SUM(avg_ast*gp) is 15,442 but BBR's career regular-season assist total is 15,806. The 364-assist gap suggests agg_player_season is missing data from one or more of Stockton's 19 seasons or a per-season row is missing assists. Promoting to stable requires the warehouse ETL to add the missing rows.",
+  "skip_if_no_db": true
+}

@@ -1,0 +1,21 @@
+{
+  "id": "standings_record.okc_2025_68_14",
+  "datapoint_class": "standings_record",
+  "entity": "2024-25 Oklahoma City Thunder regular-season record 68-14 (1-seed in West, SGA MVP, best OKC season since 1995-96 Seattle SuperSonics)",
+  "expected": {
+    "abbreviation": "OKC",
+    "wins": "68",
+    "losses": "14"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/leagues/NBA_2025_standings.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getStandings",
+    "params": ["2024-25", "Regular"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Warehouse row matches BBR (68-14, 1st in West/Northwest). SGA won his first MVP; the 68 wins were the 2nd-most in OKC/SEA history (behind the 1995-96 Sonics' 64-win season, since OKC's all-time record was already captured).",
+  "skip_if_no_db": true
+}

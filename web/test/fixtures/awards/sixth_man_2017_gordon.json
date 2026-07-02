@@ -1,0 +1,23 @@
+{
+  "id": "sixth_man.2017_gordon",
+  "datapoint_class": "sixth_man",
+  "entity": "2016-17 NBA Sixth Man of the Year: Eric Gordon (only SMOY)",
+  "expected": {
+    "season": "2017",
+    "award_type": "nba smoy",
+    "subtype1": "Selected",
+    "player_id": "201569",
+    "full_name": "Eric Gordon"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/awards/smoy.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getAwards",
+    "params": ["2017", "nba smoy"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "spot-checked",
+  "notes": "Eric Gordon won the 2016-17 Sixth Man (warehouse season end-year 2017) — his only career SMOY, in his first season with the Rockets.",
+  "skip_if_no_db": true
+}

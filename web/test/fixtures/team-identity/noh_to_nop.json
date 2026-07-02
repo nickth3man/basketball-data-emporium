@@ -1,0 +1,20 @@
+{
+  "id": "team_identity.noh_to_nop",
+  "datapoint_class": "team_identity",
+  "entity": "BBR source abbreviation NOH (New Orleans Hornets 2002-13) maps to warehouse canonical NOP (New Orleans Pelicans 2013+); same franchise, rebranded 2013 (team_id 1610612740)",
+  "expected": {
+    "noh_row_count": 2,
+    "nop_row_count": 1
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/NOH/",
+  "assertion_mode": "raw_sql",
+  "query_target": {
+    "sql": "SELECT (SELECT cast(count(*) AS INTEGER) FROM dim_team WHERE team_id = '1610612740' AND city = 'New Orleans' AND abbreviation = 'NOH') AS noh_row_count, (SELECT cast(count(*) AS INTEGER) FROM dim_team WHERE team_id = '1610612740' AND city = 'New Orleans' AND abbreviation = 'NOP') AS nop_row_count",
+    "extract": "[0]"
+  },
+  "match": "objectMatching",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "dim_team has two NOH rows (one founded 2002, one re-founded 2007 after the temporary Oklahoma City Hornets stint 2005-07 from Hurricane Katrina) and one NOP row (founded 2013). All share team_id 1610612740. CAST(... AS INTEGER) keeps counts as JSON numbers. NOTE: the task spec asked for `query_fn: getTeamIdentity` but no such function exists — using raw_sql per the existing team_identity fixture pattern.",
+  "skip_if_no_db": true
+}

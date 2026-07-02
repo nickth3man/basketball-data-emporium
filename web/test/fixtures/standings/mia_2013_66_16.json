@@ -1,0 +1,21 @@
+{
+  "id": "standings_record.mia_2013_66_16",
+  "datapoint_class": "standings_record",
+  "entity": "2012-13 Miami Heat regular-season record 66-16 (the 27-game winning streak season, 1-seed in East, eventual back-to-back NBA champions)",
+  "expected": {
+    "abbreviation": "MIA",
+    "wins": "66",
+    "losses": "16"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/leagues/NBA_2013_standings.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getStandings",
+    "params": ["2012-13", "Regular"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Warehouse row matches BBR (66-16, 1st in East/Southeast). MIA's 27-game streak (Feb 3 - Mar 27) is the 2nd-longest in NBA history. Pairs with the finals_result.2013_mia_sas fixture for the title-winning season.",
+  "skip_if_no_db": true
+}

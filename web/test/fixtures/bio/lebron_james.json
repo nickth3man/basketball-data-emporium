@@ -1,0 +1,25 @@
+{
+  "id": "player_bio.lebron_james",
+  "datapoint_class": "player_bio",
+  "entity": "LeBron James (player_id 2544) bio: height 7-09 (warehouse value; BBR-canonical is 6-09), weight 250, born 1984-12-30, position F, country USA",
+  "expected": {
+    "full_name": "LeBron James",
+    "height": "7-09",
+    "weight": "250",
+    "birth_date": "1984-12-30",
+    "position": "F",
+    "country": "USA"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/players/j/jamesle01.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getPlayerProfile",
+    "params": [2544],
+    "extract": "bio"
+  },
+  "match": "objectMatching",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "LeBron's bio comes from dim_player (he has no common_player_info row, so country/position are populated from dim_player). Warehouse value for height is '7-09' (zero-padded inch, dim_player format); BBR-canonical height is 6-09. The fixture pins the warehouse value; if dim_player is fixed to 6-09 the test will fail and the fixture should be updated.",
+  "skip_if_no_db": true
+}

@@ -1,0 +1,23 @@
+{
+  "id": "playoff_series.finals_2011_dal_mia",
+  "datapoint_class": "playoff_series",
+  "entity": "2010-11 NBA Finals: Dallas Mavericks def. Miami Heat 4-2",
+  "expected": {
+    "season_id": "2010-11",
+    "round_number": "4",
+    "wins": "4",
+    "losses": "2",
+    "opponent_abbreviation": "MIA"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/playoffs/2011-nba-finals.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getTeamPlayoffSeries",
+    "params": [1610612742]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Indexed from the DAL side (1610612742). The re-derived series wins/losses (from game.wl_home/wl_away, not fact_playoff_series) match BBR's official Finals result.",
+  "skip_if_no_db": true
+}

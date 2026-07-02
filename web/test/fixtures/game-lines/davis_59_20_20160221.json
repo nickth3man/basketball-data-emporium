@@ -1,0 +1,17 @@
+{
+  "id": "famous_game_line.davis_59_20_20160221",
+  "datapoint_class": "famous_game_line",
+  "entity": "Anthony Davis 59 PTS + 20 REB vs Detroit Pistons on 2016-02-21 (NOP 111-106; one of only a handful of 50-point/20-rebound games in NBA history)",
+  "expected": 59,
+  "bbr_source_url": "https://www.basketball-reference.com/boxscores/201602210NOP.html",
+  "assertion_mode": "raw_sql",
+  "query_target": {
+    "sql": "SELECT pts FROM fact_player_game_log WHERE player_name = 'Anthony Davis' AND game_date = '2016-02-21' AND pts = 59 AND reb = 20",
+    "extract": "[0].pts"
+  },
+  "match": "gte",
+  "status": "stable",
+  "confidence": "spot-checked",
+  "notes": "Active player; match:gte per the active-player convention. The SQL includes reb=20 as a discriminator to uniquely identify the row (Davis has multiple 59+ point games). The fixture pins the 50-point/20-rebound combo on the date BBR records it.",
+  "skip_if_no_db": true
+}

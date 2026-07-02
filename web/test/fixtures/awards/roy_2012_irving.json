@@ -1,0 +1,23 @@
+{
+  "id": "roy.2012_irving",
+  "datapoint_class": "roy",
+  "entity": "2011-12 NBA Rookie of the Year: Kyrie Irving",
+  "expected": {
+    "season": "2012",
+    "award_type": "nba roy",
+    "subtype1": "Selected",
+    "player_id": "202681",
+    "full_name": "Kyrie Irving"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/awards/roy.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getAwards",
+    "params": ["2012", "nba roy"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "spot-checked",
+  "notes": "Kyrie Irving won the 2011-12 ROY (warehouse season end-year 2012) — the 2011 #1 overall pick. Still active.",
+  "skip_if_no_db": true
+}

@@ -1,0 +1,23 @@
+{
+  "id": "draft_first_pick.1997_duncan",
+  "datapoint_class": "draft_first_pick",
+  "entity": "1997 NBA Draft #1 overall pick: Tim Duncan (SAS, 'The Big Fundamental')",
+  "expected": {
+    "season": "1997",
+    "overall_pick": "1",
+    "player_name": "Tim Duncan",
+    "team_abbreviation": "SAS",
+    "organization": "Wake Forest"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/draft/NBA_1997.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getDraftYear",
+    "params": ["1997"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Tim Duncan was the #1 pick out of Wake Forest; the Spurs held the pick via a draft-day trade. 5-time NBA champion, 3x Finals MVP.",
+  "skip_if_no_db": true
+}

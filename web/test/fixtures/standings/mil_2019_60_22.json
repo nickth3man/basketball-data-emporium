@@ -1,0 +1,21 @@
+{
+  "id": "standings_record.mil_2019_60_22",
+  "datapoint_class": "standings_record",
+  "entity": "2018-19 Milwaukee Bucks regular-season record 60-22 (Giannis's first MVP year, 1-seed in East, lost ECF to eventual champion TOR)",
+  "expected": {
+    "abbreviation": "MIL",
+    "wins": "60",
+    "losses": "22"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/leagues/NBA_2019_standings.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getStandings",
+    "params": ["2018-19", "Regular"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Warehouse row matches BBR (60-22, 1st in East/Central). Giannis averaged 27.7/12.5/5.9 and won his first of two straight MVPs.",
+  "skip_if_no_db": true
+}

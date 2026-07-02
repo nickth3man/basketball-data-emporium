@@ -1,0 +1,24 @@
+{
+  "id": "player_bio.nikola_jokic",
+  "datapoint_class": "player_bio",
+  "entity": "Nikola Jokić (player_id 203999) bio: height 6-11, weight 284 lbs, position C (Center per common_player_info), country Serbia",
+  "expected": {
+    "full_name": "Nikola Jokic",
+    "height": "6-11",
+    "weight": "284",
+    "position": "Center",
+    "country": "Serbia"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/players/j/jokicni01.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getPlayerProfile",
+    "params": [203999],
+    "extract": "bio"
+  },
+  "match": "objectMatching",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Jokić has a common_player_info row; position 'Center' and country 'Serbia' come from there. dim_player.country also has 'Serbia' for him, so either source works.",
+  "skip_if_no_db": true
+}

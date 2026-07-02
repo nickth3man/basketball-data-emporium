@@ -1,0 +1,23 @@
+{
+  "id": "playoff_series.finals_2010_lal_bos",
+  "datapoint_class": "playoff_series",
+  "entity": "2009-10 NBA Finals: Los Angeles Lakers def. Boston Celtics 4-3 (iconic Game 7, Kobe's revenge for the 2008 Finals loss)",
+  "expected": {
+    "season_id": "2009-10",
+    "round_number": "4",
+    "wins": "4",
+    "losses": "3",
+    "opponent_abbreviation": "BOS"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/playoffs/2010-nba-finals.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getTeamPlayoffSeries",
+    "params": [1610612747]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Indexed from the LAL side (1610612747). The 2009-10 LAL/BOS Finals was a 7-game thriller decided in Game 7 (LAL 83-79); Kobe Bryant won his 5th ring and 2nd consecutive Finals MVP. The 4-3 margin matches BBR; LAL went 16-7 in the 2010 playoffs (4-2 OKC, 4-0 UTA, 4-2 PHX, 4-3 BOS).",
+  "skip_if_no_db": true
+}

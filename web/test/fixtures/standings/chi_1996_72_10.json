@@ -1,0 +1,21 @@
+{
+  "id": "standings_record.chi_1996_72_10",
+  "datapoint_class": "standings_record",
+  "entity": "1995-96 Chicago Bulls regular-season record 72-10 (previous all-time record, broken by GSW's 73-9)",
+  "expected": {
+    "abbreviation": "CHI",
+    "wins": "72",
+    "losses": "10"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/leagues/NBA_1996_standings.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getStandings",
+    "params": ["1995-96", "Regular"]
+  },
+  "match": "containsObject",
+  "status": "regression",
+  "confidence": "verified",
+  "notes": "REGRESSION: fact_standings has no rows for 1995-96 — the warehouse table starts at 1996-97 (per the 'Era-matched' comment in getStandings, it was never back-filled for pre-1996-97 seasons). The API returns an empty array and containsObject fails. Flip to stable once the warehouse ETL extends fact_standings back to 1995-96 (or earlier).",
+  "skip_if_no_db": true
+}

@@ -1,0 +1,14 @@
+{
+  "id": "jersey.butler_mia_22",
+  "datapoint_class": "jersey",
+  "entity": "Jimmy Butler MIA 2019-23 must be #22 (stable anchor)",
+  "expected": { "abbreviation": "MIA", "start_year": 2019, "end_year": 2023, "jersey_num": "22" },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/MIA/numbers.html",
+  "assertion_mode": "query_fn",
+  "query_target": { "fn": "getPlayerProfile", "params": [202710], "extract": "jerseyHistory" },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Butler's first Heat stint (2019-2023) correctly shows #22. He later wore #10 in his second Heat stint.",
+  "skip_if_no_db": true
+}

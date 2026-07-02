@@ -1,0 +1,14 @@
+{
+  "id": "jersey.leonard_tor_2",
+  "datapoint_class": "jersey",
+  "entity": "Kawhi Leonard TOR 2018-2019 wore #2 en route to the 2019 NBA title (stable anchor)",
+  "expected": { "abbreviation": "TOR", "start_year": 2018, "end_year": 2019, "jersey_num": "2" },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/TOR/numbers.html",
+  "assertion_mode": "query_fn",
+  "query_target": { "fn": "getPlayerProfile", "params": [202695], "extract": "jerseyHistory" },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "spot-checked",
+  "notes": "Leonard played one season in Toronto (2018-19) wearing #2 and won Finals MVP. The data correctly surfaces a 2018-2019 TOR #2 stint. spot-checked because Leonard is still active in the 2025-26 season (LAC).",
+  "skip_if_no_db": true
+}

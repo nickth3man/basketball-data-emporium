@@ -1,0 +1,21 @@
+{
+  "id": "standings_record.phi_1973_9_73",
+  "datapoint_class": "standings_record",
+  "entity": "1972-73 Philadelphia 76ers regular-season record 9-73 (worst record in NBA history at the time)",
+  "expected": {
+    "abbreviation": "PHI",
+    "wins": "9",
+    "losses": "73"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/leagues/NBA_1973_standings.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getStandings",
+    "params": ["1972-73", "Regular"]
+  },
+  "match": "containsObject",
+  "status": "regression",
+  "confidence": "verified",
+  "notes": "REGRESSION: fact_standings has no rows for 1972-73 (warehouse only covers 1996-97 forward). The API returns an empty array and containsObject fails. Flip to stable once the warehouse ETL extends fact_standings to pre-1996-97 seasons.",
+  "skip_if_no_db": true
+}

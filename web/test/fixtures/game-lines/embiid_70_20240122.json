@@ -1,0 +1,17 @@
+{
+  "id": "famous_game_line.embiid_70_20240122",
+  "datapoint_class": "famous_game_line",
+  "entity": "Joel Embiid 70 PTS vs San Antonio Spurs on 2024-01-22 (PHI 133-123; Embiid's career high, the 12th 70-point game in NBA history)",
+  "expected": 70,
+  "bbr_source_url": "https://www.basketball-reference.com/boxscores/202401220PHI.html",
+  "assertion_mode": "raw_sql",
+  "query_target": {
+    "sql": "SELECT pts FROM fact_player_game_log WHERE player_name = 'Joel Embiid' AND game_date = '2024-01-22' AND pts = 70",
+    "extract": "[0].pts"
+  },
+  "match": "gte",
+  "status": "stable",
+  "confidence": "spot-checked",
+  "notes": "Active player; match:gte per the active-player convention. Embiid shot 24-of-41 from the field, 1-of-2 from three, and 21-of-23 from the line in this game. The fixture pins the game total (70 PTS) on the date BBR records it.",
+  "skip_if_no_db": true
+}

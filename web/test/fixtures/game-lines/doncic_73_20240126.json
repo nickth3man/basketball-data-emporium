@@ -1,0 +1,17 @@
+{
+  "id": "famous_game_line.doncic_73_20240126",
+  "datapoint_class": "famous_game_line",
+  "entity": "Luka Dončić 73 PTS vs Atlanta Hawks on 2024-01-26 (DAL 148-143; the 4th-highest single-game point total in NBA history, surpassed only by Wilt's 100, Kobe's 81, and David Robinson's 71)",
+  "expected": 73,
+  "bbr_source_url": "https://www.basketball-reference.com/boxscores/202401260DAL.html",
+  "assertion_mode": "raw_sql",
+  "query_target": {
+    "sql": "SELECT pts FROM fact_player_game_log WHERE player_name = 'Luka Dončić' AND game_date = '2024-01-26' AND pts = 73",
+    "extract": "[0].pts"
+  },
+  "match": "gte",
+  "status": "stable",
+  "confidence": "spot-checked",
+  "notes": "Active player; match:gte per the active-player convention. Dončić shot 25-of-33 from the field, 8-of-13 from three, and 15-of-16 from the line. The fixture pins the game total (73 PTS) on the date BBR records it.",
+  "skip_if_no_db": true
+}

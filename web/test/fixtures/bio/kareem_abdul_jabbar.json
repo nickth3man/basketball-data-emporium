@@ -1,0 +1,25 @@
+{
+  "id": "player_bio.kareem_abdul_jabbar",
+  "datapoint_class": "player_bio",
+  "entity": "Kareem Abdul-Jabbar (player_id 76003) bio: height 7-2, weight 225, born 1947-04-16, position Center, country USA (common_player_info overrides dim_player)",
+  "expected": {
+    "full_name": "Kareem Abdul-Jabbar",
+    "height": "7-2",
+    "weight": "225",
+    "birth_date": "1947-04-16",
+    "position": "Center",
+    "country": "USA"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/players/a/abdulka01.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getPlayerProfile",
+    "params": [76003],
+    "extract": "bio"
+  },
+  "match": "objectMatching",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Kareem has a common_player_info row; position 'Center' and height '7-2' come from there (dim_player alone shows 'C' and '7-02'). All-time NBA scoring leader until LeBron passed him in 2023.",
+  "skip_if_no_db": true
+}

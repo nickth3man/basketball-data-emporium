@@ -1,0 +1,21 @@
+{
+  "id": "standings_record.atl_2015_60_22",
+  "datapoint_class": "standings_record",
+  "entity": "2014-15 Atlanta Hawks regular-season record 60-22 (1-seed in East, best Hawks season since 1993-94; Mike Budenholzer Coach of the Year)",
+  "expected": {
+    "abbreviation": "ATL",
+    "wins": "60",
+    "losses": "22"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/leagues/NBA_2015_standings.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getStandings",
+    "params": ["2014-15", "Regular"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Warehouse row matches BBR (60-22, 1st in East/Southeast). The Hawks' 60-22 was a 26-game improvement over the prior season (36-46) and tied the 2nd-largest single-season turnaround in NBA history at the time.",
+  "skip_if_no_db": true
+}

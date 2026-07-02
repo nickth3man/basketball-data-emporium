@@ -1,0 +1,17 @@
+{
+  "id": "career_total.nash_ast",
+  "datapoint_class": "career_total",
+  "entity": "Steve Nash career regular-season total assists = 10,335 (BBR). Warehouse SUM(avg_ast*gp) undercounts at 10,062 (delta 273)",
+  "expected": 10335,
+  "bbr_source_url": "https://www.basketball-reference.com/players/n/nashst01.html",
+  "assertion_mode": "raw_sql",
+  "query_target": {
+    "sql": "SELECT ROUND(SUM(avg_ast * gp)) AS career_ast FROM agg_player_season WHERE player_id = 959 AND season_type = 'Regular'",
+    "extract": "[0].career_ast"
+  },
+  "match": "equals",
+  "status": "regression",
+  "confidence": "verified",
+  "notes": "REGRESSION: warehouse sums to 10,062 AST but BBR's official Steve Nash career regular-season assist total is 10,335. The 273-assist gap is consistent with the same agg_player_season gap seen for Stockton and Malone. Flip to stable when the warehouse value equals 10,335.",
+  "skip_if_no_db": true
+}

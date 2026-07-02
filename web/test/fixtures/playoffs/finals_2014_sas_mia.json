@@ -1,0 +1,23 @@
+{
+  "id": "playoff_series.finals_2014_sas_mia",
+  "datapoint_class": "playoff_series",
+  "entity": "2013-14 NBA Finals: San Antonio Spurs def. Miami Heat 4-1 (Spurs avenged the 2013 Finals with a 4-1 revenge series)",
+  "expected": {
+    "season_id": "2013-14",
+    "round_number": "4",
+    "wins": "4",
+    "losses": "1",
+    "opponent_abbreviation": "MIA"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/playoffs/2014-nba-finals.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getTeamPlayoffSeries",
+    "params": [1610612759]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Indexed from the SAS side (1610612759). The 4-1 margin matches BBR; this is the series where Kawhi Leonard won Finals MVP at age 22 (the 2014 Finals).",
+  "skip_if_no_db": true
+}

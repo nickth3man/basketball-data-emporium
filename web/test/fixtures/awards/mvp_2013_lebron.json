@@ -1,0 +1,23 @@
+{
+  "id": "mvp.2013_lebron",
+  "datapoint_class": "mvp",
+  "entity": "2012-13 NBA MVP: LeBron James (4th MVP, 2nd of 4-peat)",
+  "expected": {
+    "season": "2013",
+    "award_type": "nba mvp",
+    "subtype1": "Selected",
+    "player_id": "2544",
+    "full_name": "LeBron James"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/awards/mvp.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getAwards",
+    "params": ["2013", "nba mvp"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "LeBron James won the 2012-13 MVP (warehouse season end-year 2013) — his 4th career MVP and the second of four straight (2008-09 through 2012-13).",
+  "skip_if_no_db": true
+}

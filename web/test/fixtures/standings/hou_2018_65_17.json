@@ -1,0 +1,21 @@
+{
+  "id": "standings_record.hou_2018_65_17",
+  "datapoint_class": "standings_record",
+  "entity": "2017-18 Houston Rockets regular-season record 65-17 (Harden MVP year, 1-seed in West, took GSW to 7 games in WCF)",
+  "expected": {
+    "abbreviation": "HOU",
+    "wins": "65",
+    "losses": "17"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/leagues/NBA_2018_standings.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getStandings",
+    "params": ["2017-18", "Regular"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Warehouse row matches BBR (65-17, 1st in West/Southwest). HOU led the league in 3-point attempts (3,470) and made 3s (1,256) by wide margins. HOU took GSW to 7 games in WCF, with the famous 0-27 three-point-shooting streak in Game 7.",
+  "skip_if_no_db": true
+}

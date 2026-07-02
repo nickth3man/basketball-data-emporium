@@ -1,0 +1,21 @@
+{
+  "id": "standings_record.lal_2020_52_19",
+  "datapoint_class": "standings_record",
+  "entity": "2019-20 Los Angeles Lakers regular-season record 52-19 (LeBron's 1st LAL year, 1-seed in West, bubble NBA champions)",
+  "expected": {
+    "abbreviation": "LAL",
+    "wins": "52",
+    "losses": "19"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/leagues/NBA_2020_standings.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getStandings",
+    "params": ["2019-20", "Regular"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Warehouse row matches BBR (52-19, 1st in West/Pacific). The 2019-20 season was suspended March 11 and resumed in the Orlando bubble July 30. LAL went 3-0 in the bubble seeding round and 16-5 in the bubble playoffs. Pairs with the existing finals_2020_lal_mia fixture.",
+  "skip_if_no_db": true
+}

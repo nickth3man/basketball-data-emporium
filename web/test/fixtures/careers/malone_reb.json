@@ -1,0 +1,17 @@
+{
+  "id": "career_total.malone_reb",
+  "datapoint_class": "career_total",
+  "entity": "Karl Malone career regular-season total rebounds = 14,968 (BBR). Warehouse SUM(avg_reb*gp) undercounts at 14,627 (delta 341)",
+  "expected": 14968,
+  "bbr_source_url": "https://www.basketball-reference.com/players/m/malonka01.html",
+  "assertion_mode": "raw_sql",
+  "query_target": {
+    "sql": "SELECT ROUND(SUM(avg_reb * gp)) AS career_reb FROM agg_player_season WHERE player_id = 252 AND season_type = 'Regular'",
+    "extract": "[0].career_reb"
+  },
+  "match": "equals",
+  "status": "regression",
+  "confidence": "verified",
+  "notes": "REGRESSION: warehouse sums to 14,627 REB but BBR's official Karl Malone career regular-season rebounding total is 14,968. The 341-rebound gap is consistent with the same agg_player_season gap as career_total.malone_pts. Flip to stable when the warehouse value equals 14,968.",
+  "skip_if_no_db": true
+}

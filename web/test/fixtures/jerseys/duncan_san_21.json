@@ -1,0 +1,14 @@
+{
+  "id": "jersey.duncan_san_21",
+  "datapoint_class": "jersey",
+  "entity": "Tim Duncan SAN career must be #21 (stable anchor)",
+  "expected": { "abbreviation": "SAN", "start_year": 1997, "end_year": 2016, "jersey_num": "21" },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/SAS/numbers.html",
+  "assertion_mode": "query_fn",
+  "query_target": { "fn": "getPlayerProfile", "params": [1495], "extract": "jerseyHistory" },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Duncan wore #21 for his entire 19-season Spurs career (1997-2016). One continuous stint.",
+  "skip_if_no_db": true
+}

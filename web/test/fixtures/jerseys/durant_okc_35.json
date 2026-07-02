@@ -1,0 +1,14 @@
+{
+  "id": "jersey.durant_okc_35",
+  "datapoint_class": "jersey",
+  "entity": "Kevin Durant OKC/SEA 2007-2016 #35 stint (free-agency number-change scenario, stable anchor)",
+  "expected": { "abbreviation": "OKC", "start_year": 2008, "jersey_num": "35" },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/OKC/numbers.html",
+  "assertion_mode": "query_fn",
+  "query_target": { "fn": "getPlayerProfile", "params": [201142], "extract": "jerseyHistory" },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Durant wore #35 for his entire Seattle/OKC tenure (drafted 2007, left 2016). The data correctly surfaces a 2008-2016 OKC #35 stint (the 2007-08 SEA row is collapsed by the era split, but the OKC stint matches BBR). Pairs with jersey.durant_bkn_7 to cover the free-agency number-change scenario (35 -> 7).",
+  "skip_if_no_db": true
+}

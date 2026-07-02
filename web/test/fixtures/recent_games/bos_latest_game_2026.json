@@ -1,0 +1,26 @@
+{
+  "id": "team_recent_game.bos_latest_2026",
+  "datapoint_class": "team_recent_game",
+  "entity": "Boston Celtics recent games start with the 2026-05-02 playoff game vs Philadelphia",
+  "expected": {
+    "game_id": "0042500117",
+    "game_date": "2026-05-02",
+    "opponent": "PHI",
+    "location": "Home",
+    "team_pts": 100,
+    "opp_pts": 109,
+    "result": "L"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/BOS/2026_games.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getTeamProfile",
+    "params": [1610612738],
+    "extract": "recentGames[0]"
+  },
+  "match": "objectMatching",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Regression guard for stale team-page games: the legacy game table tops out at 2023-05-29 for Boston, while fact_team_game_log has the current 2025-26 playoff log.",
+  "skip_if_no_db": true
+}

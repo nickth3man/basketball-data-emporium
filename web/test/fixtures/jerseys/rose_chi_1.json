@@ -1,0 +1,14 @@
+{
+  "id": "jersey.rose_chi_1",
+  "datapoint_class": "jersey",
+  "entity": "Derrick Rose CHI 2008-16 should be #1",
+  "expected": { "abbreviation": "CHI", "start_year": 2008, "end_year": 2016, "jersey_num": "1" },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/CHI/numbers.html",
+  "assertion_mode": "query_fn",
+  "query_target": { "fn": "getPlayerProfile", "params": [201565], "extract": "jerseyHistory" },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Fixed by same-team trusted jersey inference: Rose's Bulls stint now stays #1 instead of leaking a stale #23 bridge value.",
+  "skip_if_no_db": true
+}

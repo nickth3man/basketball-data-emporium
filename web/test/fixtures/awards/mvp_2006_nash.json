@@ -1,0 +1,23 @@
+{
+  "id": "mvp.2006_nash",
+  "datapoint_class": "mvp",
+  "entity": "2005-06 NBA MVP: Steve Nash (2nd consecutive MVP)",
+  "expected": {
+    "season": "2006",
+    "award_type": "nba mvp",
+    "subtype1": "Selected",
+    "player_id": "959",
+    "full_name": "Steve Nash"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/awards/mvp.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getAwards",
+    "params": ["2006", "nba mvp"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Steve Nash won the 2005-06 MVP (warehouse season end-year 2006) — his second consecutive MVP (2004-05 and 2005-06).",
+  "skip_if_no_db": true
+}

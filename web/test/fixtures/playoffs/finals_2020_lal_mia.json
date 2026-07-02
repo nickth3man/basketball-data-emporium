@@ -1,0 +1,23 @@
+{
+  "id": "playoff_series.finals_2020_lal_mia",
+  "datapoint_class": "playoff_series",
+  "entity": "2019-20 NBA Finals: Los Angeles Lakers def. Miami Heat 4-2 (bubble title)",
+  "expected": {
+    "season_id": "2019-20",
+    "round_number": "4",
+    "wins": "4",
+    "losses": "2",
+    "opponent_abbreviation": "MIA"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/playoffs/2020-nba-finals.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getTeamPlayoffSeries",
+    "params": [1610612747]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Indexed from the LAL side (1610612747). LAL's most recent Finals win; their 2020 bubble run shows up at round 4.",
+  "skip_if_no_db": true
+}

@@ -1,0 +1,20 @@
+{
+  "id": "team_identity.van_to_mem",
+  "datapoint_class": "team_identity",
+  "entity": "BBR source abbreviation VAN (Vancouver Grizzlies 1995-2001) maps to warehouse canonical MEM (Memphis Grizzlies 2001+); same franchise, relocated 2001 (team_id 1610612763)",
+  "expected": {
+    "van_row_count": 1,
+    "mem_row_count": 1
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/VAN/",
+  "assertion_mode": "raw_sql",
+  "query_target": {
+    "sql": "SELECT (SELECT cast(count(*) AS INTEGER) FROM dim_team WHERE team_id = '1610612763' AND city = 'Vancouver' AND abbreviation = 'VAN') AS van_row_count, (SELECT cast(count(*) AS INTEGER) FROM dim_team WHERE team_id = '1610612763' AND city = 'Memphis' AND abbreviation = 'MEM') AS mem_row_count",
+    "extract": "[0]"
+  },
+  "match": "objectMatching",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Both VAN and MEM share team_id 1610612763 in dim_team, confirming the same franchise continued across the 2001 relocation. CAST(... AS INTEGER) keeps the count as a JSON number (not BIGINT-as-string) so objectMatching compares cleanly. NOTE: the task spec asked for `query_fn: getTeamIdentity` but no such function exists in web/server/queries.ts — using raw_sql against dim_team per the existing team_identity fixture pattern.",
+  "skip_if_no_db": true
+}

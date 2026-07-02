@@ -1,0 +1,17 @@
+{
+  "id": "career_total.duncan_reb",
+  "datapoint_class": "career_total",
+  "entity": "Tim Duncan career regular-season total rebounds = 15,091 (BBR). Warehouse SUM(avg_reb*gp) undercounts at 14,648 (delta 443)",
+  "expected": 15091,
+  "bbr_source_url": "https://www.basketball-reference.com/players/d/duncati01.html",
+  "assertion_mode": "raw_sql",
+  "query_target": {
+    "sql": "SELECT ROUND(SUM(avg_reb * gp)) AS career_reb FROM agg_player_season WHERE player_id = 1495 AND season_type = 'Regular'",
+    "extract": "[0].career_reb"
+  },
+  "match": "equals",
+  "status": "regression",
+  "confidence": "verified",
+  "notes": "REGRESSION: warehouse sums to 14,648 REB but BBR's official Tim Duncan career regular-season rebounding total is 15,091. The 443-rebound gap over 19 seasons is consistent with the same agg_player_season gap pattern. Flip to stable when the warehouse value equals 15,091.",
+  "skip_if_no_db": true
+}

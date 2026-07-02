@@ -1,0 +1,17 @@
+{
+  "id": "famous_game_line.lillard_71_20230226",
+  "datapoint_class": "famous_game_line",
+  "entity": "Damian Lillard 71 PTS vs Houston Rockets on 2023-02-26 (POR 131-114; the 9th-highest single-game point total in NBA history, surpassed only by Wilt, Kobe, David Robinson, and the other 70+ club members)",
+  "expected": 71,
+  "bbr_source_url": "https://www.basketball-reference.com/boxscores/202302260POR.html",
+  "assertion_mode": "raw_sql",
+  "query_target": {
+    "sql": "SELECT pts FROM fact_player_game_log WHERE player_name = 'Damian Lillard' AND game_date = '2023-02-26' AND pts = 71",
+    "extract": "[0].pts"
+  },
+  "match": "gte",
+  "status": "stable",
+  "confidence": "spot-checked",
+  "notes": "Active player (still in NBA as of 2025-26 with MIL/LAC); use match:gte per the active-player convention since stats can be revised. SQL pins date and exact PTS to locate the row, then extract[0].pts is asserted >= 71.",
+  "skip_if_no_db": true
+}

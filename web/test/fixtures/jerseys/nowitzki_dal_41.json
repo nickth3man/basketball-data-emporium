@@ -1,0 +1,14 @@
+{
+  "id": "jersey.nowitzki_dal_41",
+  "datapoint_class": "jersey",
+  "entity": "Dirk Nowitzki DAL career must be #41 (stable anchor)",
+  "expected": { "abbreviation": "DAL", "start_year": 1998, "jersey_num": "41" },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/DAL/numbers.html",
+  "assertion_mode": "query_fn",
+  "query_target": { "fn": "getPlayerProfile", "params": [1717], "extract": "jerseyHistory" },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Nowitzki wore #41 for his entire 21-season Mavericks career (1998-2019). One of the most iconic one-team-one-number careers in NBA history.",
+  "skip_if_no_db": true
+}

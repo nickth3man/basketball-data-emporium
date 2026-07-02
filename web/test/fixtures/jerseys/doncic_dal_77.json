@@ -1,0 +1,14 @@
+{
+  "id": "jersey.doncic_dal_77",
+  "datapoint_class": "jersey",
+  "entity": "Luka Doncic DAL 2018-2025 wore #77 (stable anchor)",
+  "expected": { "abbreviation": "DAL", "start_year": 2018, "end_year": 2025, "jersey_num": "77" },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/DAL/numbers.html",
+  "assertion_mode": "query_fn",
+  "query_target": { "fn": "getPlayerProfile", "params": [1629029], "extract": "jerseyHistory" },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "spot-checked",
+  "notes": "Doncic has worn #77 for his entire career (DAL 2018-2025, then LAL via 2025 trade). The data correctly surfaces a 2018-2025 DAL #77 stint. spot-checked because Doncic is still active in the 2025-26 season (LAL).",
+  "skip_if_no_db": true
+}

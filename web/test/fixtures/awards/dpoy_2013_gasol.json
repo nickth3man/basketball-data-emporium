@@ -1,0 +1,23 @@
+{
+  "id": "dpoy.2013_gasol",
+  "datapoint_class": "dpoy",
+  "entity": "2012-13 NBA Defensive Player of the Year: Marc Gasol (only DPOY)",
+  "expected": {
+    "season": "2013",
+    "award_type": "nba dpoy",
+    "subtype1": "Selected",
+    "player_id": "201188",
+    "full_name": "Marc Gasol"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/awards/dpoy.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getAwards",
+    "params": ["2013", "nba dpoy"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Marc Gasol won the 2012-13 DPOY (warehouse season end-year 2013) — his only career DPOY and the only DPOY in Grizzlies franchise history.",
+  "skip_if_no_db": true
+}

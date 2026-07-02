@@ -1,0 +1,14 @@
+{
+  "id": "jersey.irving_cle_2",
+  "datapoint_class": "jersey",
+  "entity": "Kyrie Irving CLE 2011-17 wore #2 (stable anchor)",
+  "expected": { "abbreviation": "CLE", "start_year": 2011, "end_year": 2017, "jersey_num": "2" },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/CLE/numbers.html",
+  "assertion_mode": "query_fn",
+  "query_target": { "fn": "getPlayerProfile", "params": [202681], "extract": "jerseyHistory" },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "spot-checked",
+  "notes": "Irving wore #2 throughout his Cavaliers stint; same-team trusted jersey inference keeps the full 2011-2017 CLE run together.",
+  "skip_if_no_db": true
+}

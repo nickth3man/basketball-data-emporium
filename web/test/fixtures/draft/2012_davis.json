@@ -1,0 +1,23 @@
+{
+  "id": "draft_first_pick.2012_davis",
+  "datapoint_class": "draft_first_pick",
+  "entity": "2012 NBA Draft #1 overall pick: Anthony Davis (NOH; future 2020 NBA champion and 2024-25 MVP with the Lakers)",
+  "expected": {
+    "season": "2012",
+    "overall_pick": "1",
+    "player_name": "Anthony Davis",
+    "team_abbreviation": "NOH",
+    "organization": "Kentucky"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/draft/NBA_2012.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getDraftYear",
+    "params": ["2012"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Anthony Davis was the #1 pick out of Kentucky (John Calipari's first national title team that year). NOH is the era-matched abbreviation for the 2012 New Orleans Hornets (the franchise rebranded to Pelicans in 2013-14).",
+  "skip_if_no_db": true
+}

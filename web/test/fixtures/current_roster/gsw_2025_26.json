@@ -1,0 +1,20 @@
+{
+  "id": "current_roster.gsw_2025_26",
+  "datapoint_class": "current_roster",
+  "entity": "Golden State Warriors 2025-26 roster (latest season in bridge_player_team_season): contains Stephen Curry (player_id 201939, G, #30)",
+  "expected": {
+    "player_id": "201939",
+    "full_name": "Stephen Curry"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/GSW/2026.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getTeamRoster",
+    "params": [1610612744]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "spot-checked",
+  "notes": "Active roster; match:containsObject (partial-object match) pins Curry as a marquee presence (4x NBA champion, 2x MVP, all-time 3PM leader). player_id is BIGINT and serializes as a JSON string.",
+  "skip_if_no_db": true
+}

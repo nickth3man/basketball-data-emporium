@@ -1,0 +1,23 @@
+{
+  "id": "roy.2010_evans",
+  "datapoint_class": "roy",
+  "entity": "2009-10 NBA Rookie of the Year: Tyreke Evans",
+  "expected": {
+    "season": "2010",
+    "award_type": "nba roy",
+    "subtype1": "Selected",
+    "player_id": "201936",
+    "full_name": "Tyreke Evans"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/awards/roy.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getAwards",
+    "params": ["2010", "nba roy"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Tyreke Evans won the 2009-10 ROY (warehouse season end-year 2010) — only ROY to lead all rookies in both points and assists in the same season since Oscar Robertson.",
+  "skip_if_no_db": true
+}

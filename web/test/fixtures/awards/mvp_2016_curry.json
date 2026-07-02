@@ -1,0 +1,23 @@
+{
+  "id": "mvp.2016_curry",
+  "datapoint_class": "mvp",
+  "entity": "2015-16 NBA MVP: Stephen Curry (2nd consecutive unanimous MVP)",
+  "expected": {
+    "season": "2016",
+    "award_type": "nba mvp",
+    "subtype1": "Selected",
+    "player_id": "201939",
+    "full_name": "Stephen Curry"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/awards/mvp.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getAwards",
+    "params": ["2016", "nba mvp"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "spot-checked",
+  "notes": "Stephen Curry won the 2015-16 MVP (warehouse season end-year 2016) — his 2nd consecutive MVP and the first unanimous MVP in NBA history. Still active, so future 'active vs retired' caveats apply only to count-based fixtures.",
+  "skip_if_no_db": true
+}

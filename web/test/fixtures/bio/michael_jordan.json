@@ -1,0 +1,25 @@
+{
+  "id": "player_bio.michael_jordan",
+  "datapoint_class": "player_bio",
+  "entity": "Michael Jordan (player_id 893) bio: height 6-6, weight 216, born 1963-02-17, position Guard, country USA (common_player_info overrides dim_player)",
+  "expected": {
+    "full_name": "Michael Jordan",
+    "height": "6-6",
+    "weight": "216",
+    "birth_date": "1963-02-17",
+    "position": "Guard",
+    "country": "USA"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/players/j/jordami01.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getPlayerProfile",
+    "params": [893],
+    "extract": "bio"
+  },
+  "match": "objectMatching",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Jordan has a common_player_info row, so position 'Guard' and country 'USA' come from there (dim_player alone shows 'G'). The warehouse height is 6-6 (common_player_info format, no zero-padding), which matches BBR-canonical.",
+  "skip_if_no_db": true
+}

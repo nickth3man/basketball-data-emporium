@@ -46,6 +46,10 @@ export function announceStatus(message: string): void {
   liveRegion.textContent = message;
 }
 
+export function navigateToDetail(tab: string, id?: string): void {
+  window.dispatchEvent(new CustomEvent("nba:navigate", { detail: { tab, id } }));
+}
+
 let controlIdCounter = 0;
 
 function nextControlId(prefix: string): string {
@@ -84,34 +88,77 @@ export interface Column {
   label: string;
   /** Accessible header text when `label` is empty (e.g. icon-only columns). */
   headerLabel?: string;
+  align?: "left" | "right";
   format?: (value: unknown, row: Record<string, unknown>) => string;
+  render?: (value: unknown, row: Record<string, unknown>) => Node | string;
 }
 
-export function renderTable(columns: Column[], rows: Record<string, unknown>[]): HTMLElement {
+export interface ColumnGroup {
+  label: string;
+  span: number;
+}
+
+function cellValue(column: Column, row: Record<string, unknown>): Node | string {
+  if (column.render) return column.render(row[column.key], row);
+  return column.format ? column.format(row[column.key], row) : formatValue(row[column.key]);
+}
+
+function isNumericText(value: string): boolean {
+  const trimmed = value.trim();
+  return trimmed === "—" || /^-?\d+(\.\d+)?%?$/.test(trimmed);
+}
+
+export function renderTable(
+  columns: Column[],
+  rows: Record<string, unknown>[],
+  columnGroups: ColumnGroup[] = [],
+): HTMLElement {
   if (rows.length === 0) {
     return el("p", { className: "muted", text: "No rows." });
   }
+  const renderedRows = rows.map((row) => columns.map((column) => cellValue(column, row)));
+  const numericColumns = columns.map((column, index) => {
+    if (column.align) return column.align === "right";
+    if (column.render) return false;
+    const values = renderedRows.map((row) => row[index]).filter((value) => value !== "—");
+    return values.length > 0 && values.every((value) => typeof value === "string" && isNumericText(value));
+  });
+  const groupRow =
+    columnGroups.length > 0
+      ? el(
+          "tr",
+          {},
+          columnGroups.map((group) =>
+            el("th", { scope: "colgroup", colspan: group.span, text: group.label }),
+          ),
+        )
+      : null;
   const headRow = el(
     "tr",
     {},
-    columns.map((c) => {
+    columns.map((c, index) => {
       const props: Props = { scope: "col" };
+      if (numericColumns[index]) props.className = "numeric";
       if (c.label) props.text = c.label;
       else if (c.headerLabel) props["aria-label"] = c.headerLabel;
       return el("th", props);
     }),
   );
-  const body = rows.map((row) =>
+  const body = renderedRows.map((row) =>
     el(
       "tr",
       {},
-      columns.map((c) =>
-        el("td", { text: c.format ? c.format(row[c.key], row) : formatValue(row[c.key]) }),
-      ),
+      row.map((value, index) => {
+        const props: Props = {};
+        if (numericColumns[index]) props.className = "numeric";
+        const td = el("td", props);
+        td.append(value);
+        return td;
+      }),
     ),
   );
   const table = el("table", { className: "result" }, [
-    el("thead", {}, [headRow]),
+    el("thead", {}, groupRow ? [groupRow, headRow] : [headRow]),
     el("tbody", {}, body),
   ]);
   return el("div", { className: "table-scroll" }, [table]);
@@ -141,6 +188,37 @@ export function playerPhoto(playerId: unknown, sizeClass: string, altText?: stri
   img.addEventListener("error", () => {
     wrapper.replaceChildren();
     wrapper.classList.add("player-photo-empty");
+  });
+  wrapper.append(img);
+  return wrapper;
+}
+
+/** Team logo from the NBA's official CDN, with an abbreviation fallback if the
+ *  logo fails to load (offline, defunct team, or missing id). */
+export function teamLogo(
+  teamId: unknown,
+  abbreviation: string,
+  sizeClass = "team-logo-md",
+  altText?: string,
+): HTMLElement {
+  const wrapper = el("div", { className: `team-logo ${sizeClass}` });
+  const id = Number(teamId);
+  const alt = altText?.trim() ? altText.trim() : `${abbreviation} logo`;
+  if (!Number.isFinite(id)) {
+    wrapper.classList.add("team-logo-fallback");
+    wrapper.textContent = abbreviation;
+    wrapper.setAttribute("aria-label", alt);
+    return wrapper;
+  }
+  const img = el("img", {
+    src: `https://cdn.nba.com/logos/nba/${id}/global/L/logo.svg`,
+    alt,
+    loading: "lazy",
+  }) as HTMLImageElement;
+  img.addEventListener("error", () => {
+    wrapper.replaceChildren();
+    wrapper.classList.add("team-logo-fallback");
+    wrapper.textContent = abbreviation;
   });
   wrapper.append(img);
   return wrapper;

@@ -1,0 +1,14 @@
+{
+  "id": "jersey.garnett_bos_5",
+  "datapoint_class": "jersey",
+  "entity": "Kevin Garnett BOS stint 2007-12 must be #5 (stable anchor)",
+  "expected": { "abbreviation": "BOS", "start_year": 2007, "end_year": 2012, "jersey_num": "5" },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/BOS/numbers.html",
+  "assertion_mode": "query_fn",
+  "query_target": { "fn": "getPlayerProfile", "params": [708], "extract": "jerseyHistory" },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Garnett's Celtics stint (2007-2012) correctly shows #5 after bridge rows are kept behind trusted same-team jersey evidence.",
+  "skip_if_no_db": true
+}

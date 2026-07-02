@@ -1,0 +1,14 @@
+{
+  "id": "jersey.westbrook_okc_0",
+  "datapoint_class": "jersey",
+  "entity": "Russell Westbrook OKC 2008-2019 wore #0 (stable anchor)",
+  "expected": { "abbreviation": "OKC", "start_year": 2008, "end_year": 2019, "jersey_num": "0" },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/OKC/numbers.html",
+  "assertion_mode": "query_fn",
+  "query_target": { "fn": "getPlayerProfile", "params": [201566], "extract": "jerseyHistory" },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "spot-checked",
+  "notes": "Westbrook wore #0 for his full OKC career (2008-2019); same-team trusted jersey inference now fills the early sparse seasons.",
+  "skip_if_no_db": true
+}

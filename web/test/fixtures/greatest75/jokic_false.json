@@ -1,0 +1,18 @@
+{
+  "id": "greatest75.jokic_equals_false",
+  "datapoint_class": "greatest75",
+  "entity": "Nikola Jokic is NOT on the NBA 75th Anniversary Team (greatest_75_flag = 'N')",
+  "expected": false,
+  "bbr_source_url": "https://www.basketball-reference.com/players/j/jokicni01.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getPlayerProfile",
+    "params": [203999],
+    "extract": "isGreatest75"
+  },
+  "match": "equals",
+  "status": "stable",
+  "confidence": "spot-checked",
+  "notes": "Nikola Jokic's 75th-anniversary status is explicitly 'N' in common_player_info — he debuted in 2015, after the list was finalized for the 2020-21 season. Still active, so re-verify if the underlying common_player_info data ever changes.",
+  "skip_if_no_db": true
+}

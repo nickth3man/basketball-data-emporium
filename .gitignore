@@ -49,6 +49,9 @@ ENV/
 .parcel-cache
 .vite/
 
+# Deepwork session state (local, not source)
+.slim/deepwork/
+
 # DuckDB database files are large local artifacts, not source
 data/nba.duckdb
 data/nba.duckdb.wal

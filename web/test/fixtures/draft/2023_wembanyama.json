@@ -1,0 +1,23 @@
+{
+  "id": "draft_first_pick.2023_wembanyama",
+  "datapoint_class": "draft_first_pick",
+  "entity": "2023 NBA Draft #1 overall pick: Victor Wembanyama (SAS)",
+  "expected": {
+    "season": "2023",
+    "overall_pick": "1",
+    "player_name": "Victor Wembanyama",
+    "team_abbreviation": "SAS",
+    "organization": "Metropolitans 92 (France)"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/draft/NBA_2023.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getDraftYear",
+    "params": ["2023"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Wembanyama is the consensus most-hyped #1 pick since LeBron in 2003. organization='Metropolitans 92 (France)' is a non-US 'Other Team/Club' path.",
+  "skip_if_no_db": true
+}

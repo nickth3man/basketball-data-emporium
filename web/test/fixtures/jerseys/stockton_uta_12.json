@@ -1,0 +1,14 @@
+{
+  "id": "jersey.stockton_uta_12",
+  "datapoint_class": "jersey",
+  "entity": "John Stockton UTA career must be #12 (stable anchor)",
+  "expected": { "abbreviation": "UTA", "start_year": 1984, "jersey_num": "12" },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/UTA/numbers.html",
+  "assertion_mode": "query_fn",
+  "query_target": { "fn": "getPlayerProfile", "params": [304], "extract": "jerseyHistory" },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Stockton wore #12 for his entire 19-season Jazz career (1984-2003). All-time assists leader.",
+  "skip_if_no_db": true
+}

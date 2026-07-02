@@ -1,0 +1,14 @@
+{
+  "id": "jersey.embiid_phi_21",
+  "datapoint_class": "jersey",
+  "entity": "Joel Embiid PHI 2016-2022 wore #21 (stable anchor)",
+  "expected": { "abbreviation": "PHI", "start_year": 2016, "end_year": 2022, "jersey_num": "21" },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/PHI/numbers.html",
+  "assertion_mode": "query_fn",
+  "query_target": { "fn": "getPlayerProfile", "params": [203954], "extract": "jerseyHistory" },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "spot-checked",
+  "notes": "Embiid has worn #21 for his entire Sixers career since being drafted in 2014. The data surfaces the 2016-2022 PHI #21 stint split by color era; the first sub-stint is pinned here. spot-checked because Embiid is still active in the 2025-26 season.",
+  "skip_if_no_db": true
+}

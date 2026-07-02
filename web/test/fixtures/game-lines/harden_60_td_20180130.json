@@ -1,0 +1,17 @@
+{
+  "id": "famous_game_line.harden_60_td_20180130",
+  "datapoint_class": "famous_game_line",
+  "entity": "James Harden 60 PTS + 10 REB + 11 AST vs Orlando Magic on 2018-01-30 (HOU 114-107; the only 60-point triple-double in NBA history at the time)",
+  "expected": 60,
+  "bbr_source_url": "https://www.basketball-reference.com/boxscores/201801300HOU.html",
+  "assertion_mode": "raw_sql",
+  "query_target": {
+    "sql": "SELECT pts FROM fact_player_game_log WHERE player_name = 'James Harden' AND game_date = '2018-01-30' AND pts = 60 AND reb = 10 AND ast = 11",
+    "extract": "[0].pts"
+  },
+  "match": "gte",
+  "status": "stable",
+  "confidence": "spot-checked",
+  "notes": "Active player; match:gte per the active-player convention. The SQL includes reb=10 AND ast=11 to uniquely identify the triple-double row (Harden has multiple 60+ point games). The fixture pins the 60-point triple-double on the date BBR records it.",
+  "skip_if_no_db": true
+}

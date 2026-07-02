@@ -1,0 +1,17 @@
+{
+  "id": "famous_game_line.mitchell_71_20230102",
+  "datapoint_class": "famous_game_line",
+  "entity": "Donovan Mitchell 71 PTS vs Chicago Bulls on 2023-01-02 (CLE 145-134 OT; tied for 9th-highest single-game point total in NBA history)",
+  "expected": 71,
+  "bbr_source_url": "https://www.basketball-reference.com/boxscores/202301020CLE.html",
+  "assertion_mode": "raw_sql",
+  "query_target": {
+    "sql": "SELECT pts FROM fact_player_game_log WHERE player_name = 'Donovan Mitchell' AND game_date = '2023-01-02' AND pts = 71",
+    "extract": "[0].pts"
+  },
+  "match": "gte",
+  "status": "stable",
+  "confidence": "spot-checked",
+  "notes": "Active player (still on CLE in 2025-26); match:gte per the active-player convention. Mitchell's 71 came in an overtime game, and the BBR box-score URL uses the home team (CLE) as the suffix.",
+  "skip_if_no_db": true
+}

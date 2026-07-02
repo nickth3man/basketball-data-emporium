@@ -1,0 +1,23 @@
+{
+  "id": "draft_first_pick.2003_lebron",
+  "datapoint_class": "draft_first_pick",
+  "entity": "2003 NBA Draft #1 overall pick: LeBron James (CLE, straight from high school)",
+  "expected": {
+    "season": "2003",
+    "overall_pick": "1",
+    "player_name": "LeBron James",
+    "team_abbreviation": "CLE",
+    "organization_type": "High School"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/draft/NBA_2003.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getDraftYear",
+    "params": ["2003"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "LeBron's 2003 draft entry is the famous 'Chosen One' #1 pick. organization_type='High School' is a discriminator that pins LeBron as the high-school-to-NBA path (rare for #1 picks).",
+  "skip_if_no_db": true
+}

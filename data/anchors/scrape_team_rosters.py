@@ -97,6 +97,74 @@ BBR_TO_DIM_ABBREV: Dict[str, str] = {
     "PHW": "PHI",  # Philadelphia Warriors
 }
 
+# BBR URL abbreviations are tied to franchise name/location eras.  Bulk
+# scrapes pass a broad season range across many abbreviations, so bound the
+# cross product before cache/network lookup; otherwise aliases like SDR and
+# MLH are probed for decades after those URLs stopped existing.  Values are
+# season end years, matching the YYYY in /teams/{TLA}/{YYYY}.html.
+BBR_TEAM_SEASON_RANGES: Dict[str, List[Tuple[int, Optional[int]]]] = {
+    "AND": [(1950, 1950)],
+    "ATL": [(1969, None)],
+    "BAL": [(1964, 1973)],
+    "BOS": [(1947, None)],
+    "BRK": [(2013, None)],
+    "BUF": [(1971, 1978)],
+    "CAP": [(1974, 1974)],
+    "CHA": [(2005, 2014)],
+    "CHH": [(1989, 2002)],
+    "CHI": [(1967, None)],
+    "CHO": [(2015, None)],
+    "CHP": [(1962, 1962)],
+    "CHS": [(1947, 1950)],
+    "CHZ": [(1963, 1963)],
+    "CIN": [(1958, 1972)],
+    "CLE": [(1971, None)],
+    "DAL": [(1981, None)],
+    "DEN": [(1977, None)],
+    "DET": [(1958, None)],
+    "FTW": [(1949, 1957)],
+    "GSW": [(1972, None)],
+    "HOU": [(1972, None)],
+    "IND": [(1977, None)],
+    "KCK": [(1976, 1985)],
+    "LAC": [(1985, None)],
+    "LAL": [(1961, None)],
+    "MEM": [(2002, None)],
+    "MIA": [(1989, None)],
+    "MIL": [(1969, None)],
+    "MIN": [(1990, None)],
+    "MLH": [(1952, 1955)],
+    "MNL": [(1949, 1960)],
+    "NJN": [(1978, 2012)],
+    "NOH": [(2003, 2005), (2008, 2013)],
+    "NOJ": [(1975, 1979)],
+    "NOK": [(2006, 2007)],
+    "NOP": [(2014, None)],
+    "NYK": [(1947, None)],
+    "OKC": [(2009, None)],
+    "ORL": [(1990, None)],
+    "PHI": [(1964, None)],
+    "PHO": [(1969, None)],
+    "PHW": [(1947, 1962)],
+    "POR": [(1971, None)],
+    "ROC": [(1949, 1957)],
+    "SAC": [(1986, None)],
+    "SAS": [(1977, None)],
+    "SDC": [(1979, 1984)],
+    "SDR": [(1968, 1971)],
+    "SEA": [(1968, 2008)],
+    "SFW": [(1963, 1971)],
+    "SHE": [(1950, 1950)],
+    "STL": [(1956, 1968)],
+    "SYR": [(1950, 1963)],
+    "TOR": [(1996, None)],
+    "TRI": [(1950, 1951)],
+    "UTA": [(1980, None)],
+    "VAN": [(1996, 2001)],
+    "WAS": [(1998, None)],
+    "WSB": [(1975, 1997)],
+}
+
 
 # --------------------------------------------------------------------------
 # Parsing
@@ -343,6 +411,18 @@ def expand_seasons(arg: str) -> List[int]:
     return sorted(set(out))
 
 
+def is_valid_team_season(tla: str, end_year: int) -> bool:
+    """Return whether BBR has a roster URL for ``tla`` in ``end_year``.
+
+    Unknown abbreviations are allowed through so one-off historical probes do
+    not require editing this table first.
+    """
+    ranges = BBR_TEAM_SEASON_RANGES.get(tla)
+    if ranges is None:
+        return True
+    return any(start <= end_year and (finish is None or end_year <= finish) for start, finish in ranges)
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     args = parse_args(argv)
     teams = [t.strip().upper() for t in args.teams.split(",") if t.strip()]
@@ -361,7 +441,14 @@ def main(argv: Optional[List[str]] = None) -> int:
     skip_counts = {"no_canonical": 0, "no_roster_table": 0, "no_player_match": 0, "no_team_match": 0, "blank_jersey": 0}
     fetched = cached = 0
 
-    pages_planned = [(t, s) for t in teams for s in seasons]
+    pages_requested = [(t, s) for t in teams for s in seasons]
+    pages_planned = [(t, s) for t, s in pages_requested if is_valid_team_season(t, s)]
+    pages_skipped_out_of_era = len(pages_requested) - len(pages_planned)
+    if pages_skipped_out_of_era:
+        print(
+            f"  skipped {pages_skipped_out_of_era} out-of-era team-season URLs before fetch/cache",
+            file=sys.stderr,
+        )
     for idx, (tla, end_year) in enumerate(pages_planned, 1):
         url = f"{BBR_BASE}/teams/{tla}/{end_year}.html"
         cache_path = cache_dir / f"{tla}_{end_year}.html"
@@ -434,6 +521,9 @@ def main(argv: Optional[List[str]] = None) -> int:
         "scraper": "data/anchors/scrape_team_rosters.py",
         "teams": teams,
         "seasons": seasons,
+        "pages_requested": len(pages_requested),
+        "pages_planned": len(pages_planned),
+        "pages_skipped_out_of_era": pages_skipped_out_of_era,
         "fetched": fetched,
         "cached": cached,
         "row_count": len(rows_out),
@@ -444,7 +534,9 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     print(
         f"wrote {out_path} — {len(rows_out)} rows "
-        f"({fetched} fetched, {cached} from cache, lookups={'on' if lookups.loaded else 'off'})"
+        f"({fetched} fetched, {cached} from cache, "
+        f"{pages_skipped_out_of_era} out-of-era skipped, "
+        f"lookups={'on' if lookups.loaded else 'off'})"
     )
     print(f"metadata at {meta_path}")
     for k, v in skip_counts.items():

@@ -1,0 +1,23 @@
+{
+  "id": "roy.2014_carter-williams",
+  "datapoint_class": "roy",
+  "entity": "2013-14 NBA Rookie of the Year: Michael Carter-Williams",
+  "expected": {
+    "season": "2014",
+    "award_type": "nba roy",
+    "subtype1": "Selected",
+    "player_id": "203487",
+    "full_name": "Michael Carter-Williams"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/awards/roy.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getAwards",
+    "params": ["2014", "nba roy"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Michael Carter-Williams won the 2013-14 ROY (warehouse season end-year 2014) — only ROY winner in the 76ers franchise history.",
+  "skip_if_no_db": true
+}

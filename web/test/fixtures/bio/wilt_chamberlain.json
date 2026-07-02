@@ -1,0 +1,25 @@
+{
+  "id": "player_bio.wilt_chamberlain",
+  "datapoint_class": "player_bio",
+  "entity": "Wilt Chamberlain (player_id 76375) bio: height 7-1, weight 250, born 1936-08-21, position Center, country USA (common_player_info overrides dim_player)",
+  "expected": {
+    "full_name": "Wilt Chamberlain",
+    "height": "7-1",
+    "weight": "250",
+    "birth_date": "1936-08-21",
+    "position": "Center",
+    "country": "USA"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/players/c/chambwi01.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getPlayerProfile",
+    "params": [76375],
+    "extract": "bio"
+  },
+  "match": "objectMatching",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Wilt has a common_player_info row; position 'Center' and height '7-1' come from there (dim_player alone shows 'C' and '7-01'). Holder of numerous all-time records including 100-point game and 50.4 PPG season average.",
+  "skip_if_no_db": true
+}

@@ -1,0 +1,23 @@
+{
+  "id": "sixth_man.2011_odom",
+  "datapoint_class": "sixth_man",
+  "entity": "2010-11 NBA Sixth Man of the Year: Lamar Odom (only SMOY)",
+  "expected": {
+    "season": "2011",
+    "award_type": "nba smoy",
+    "subtype1": "Selected",
+    "player_id": "1885",
+    "full_name": "Lamar Odom"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/awards/smoy.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getAwards",
+    "params": ["2011", "nba smoy"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Lamar Odom won the 2010-11 Sixth Man (warehouse season end-year 2011) — his only career SMOY, on the back-to-back champion Lakers.",
+  "skip_if_no_db": true
+}

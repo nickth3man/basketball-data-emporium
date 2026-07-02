@@ -1,0 +1,23 @@
+{
+  "id": "mip.2011_love",
+  "datapoint_class": "mip",
+  "entity": "2010-11 NBA Most Improved Player: Kevin Love (only MIP)",
+  "expected": {
+    "season": "2011",
+    "award_type": "nba mip",
+    "subtype1": "Selected",
+    "player_id": "201567",
+    "full_name": "Kevin Love"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/awards/mip.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getAwards",
+    "params": ["2011", "nba mip"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "spot-checked",
+  "notes": "Kevin Love won the 2010-11 MIP (warehouse season end-year 2011) — his only career MIP, in his first All-Star season. Still active.",
+  "skip_if_no_db": true
+}

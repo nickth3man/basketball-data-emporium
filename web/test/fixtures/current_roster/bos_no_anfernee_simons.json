@@ -1,0 +1,20 @@
+{
+  "id": "current_roster.bos_no_anfernee_simons",
+  "datapoint_class": "current_roster",
+  "entity": "Boston Celtics latest roster excludes Anfernee Simons after current-team reassignment",
+  "expected": {
+    "player_id": "1629014",
+    "full_name": "Anfernee Simons"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/players/s/simonan01.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getTeamRoster",
+    "params": [1610612738]
+  },
+  "match": "notContainsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Regression guard for season-membership contamination: bridge_player_team_season has a 2025-26 BOS row for Simons, but stg_common_all_players assigns his current team to CHI. getTeamRoster must use current team assignment, not every latest-season bridge team.",
+  "skip_if_no_db": true
+}

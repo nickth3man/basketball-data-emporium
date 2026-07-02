@@ -1,0 +1,23 @@
+{
+  "id": "dpoy.2016_leonard",
+  "datapoint_class": "dpoy",
+  "entity": "2015-16 NBA Defensive Player of the Year: Kawhi Leonard (1st of 2 consecutive)",
+  "expected": {
+    "season": "2016",
+    "award_type": "nba dpoy",
+    "subtype1": "Selected",
+    "player_id": "202695",
+    "full_name": "Kawhi Leonard"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/awards/dpoy.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getAwards",
+    "params": ["2016", "nba dpoy"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "spot-checked",
+  "notes": "Kawhi Leonard won the 2015-16 DPOY (warehouse season end-year 2016) — his first of two consecutive DPOYs (2014-15 and 2015-16). Still active.",
+  "skip_if_no_db": true
+}

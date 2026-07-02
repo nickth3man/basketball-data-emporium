@@ -1,0 +1,14 @@
+{
+  "id": "jersey.griffin_bos_91",
+  "datapoint_class": "jersey",
+  "entity": "Blake Griffin BOS stint 2022-23 must be #91 (stable anchor)",
+  "expected": { "abbreviation": "BOS", "start_year": 2022, "end_year": 2023, "jersey_num": "91" },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/BOS/numbers.html",
+  "assertion_mode": "query_fn",
+  "query_target": { "fn": "getPlayerProfile", "params": [201933], "extract": "jerseyHistory" },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Griffin's lone Celtics season (2022-23). Wore #91.",
+  "skip_if_no_db": true
+}

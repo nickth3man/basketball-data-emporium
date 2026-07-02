@@ -1,0 +1,21 @@
+{
+  "id": "player_bio.dirk_nowitzki",
+  "datapoint_class": "player_bio",
+  "entity": "Dirk Nowitzki (player_id 1717) bio: country Germany (BBR-canonical; verified warehouse has it via common_player_info)",
+  "expected": {
+    "full_name": "Dirk Nowitzki",
+    "country": "Germany"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/players/n/nowitdi01.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getPlayerProfile",
+    "params": [1717],
+    "extract": "bio"
+  },
+  "match": "objectMatching",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Dirk has a common_player_info row; country 'Germany' comes from there. The fixture pins just country to keep the test minimal but cross-checks dim_player (height, weight, birth_date, position) come from common_player_info for him.",
+  "skip_if_no_db": true
+}

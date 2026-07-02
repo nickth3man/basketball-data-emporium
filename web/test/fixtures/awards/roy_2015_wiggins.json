@@ -1,0 +1,23 @@
+{
+  "id": "roy.2015_wiggins",
+  "datapoint_class": "roy",
+  "entity": "2014-15 NBA Rookie of the Year: Andrew Wiggins (1st Canadian ROY)",
+  "expected": {
+    "season": "2015",
+    "award_type": "nba roy",
+    "subtype1": "Selected",
+    "player_id": "203952",
+    "full_name": "Andrew Wiggins"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/awards/roy.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getAwards",
+    "params": ["2015", "nba roy"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "spot-checked",
+  "notes": "Andrew Wiggins won the 2014-15 ROY (warehouse season end-year 2015) — first Canadian-born player to win the NBA ROY. Still active.",
+  "skip_if_no_db": true
+}

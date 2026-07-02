@@ -1,0 +1,22 @@
+{
+  "id": "team_identity.wsb_to_was",
+  "datapoint_class": "team_identity",
+  "entity": "BBR source abbreviation WSB maps to warehouse canonical WAS (Washington Bullets era, 1974)",
+  "expected": {
+    "team_id": "1610612764",
+    "abbreviation": "WAS",
+    "full_name": "Washington Bullets",
+    "city": "Washington",
+    "year_founded": "1974"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/WSB/",
+  "assertion_mode": "raw_sql",
+  "query_target": {
+    "sql": "SELECT team_id, abbreviation, full_name, city, state, arena, year_founded FROM dim_team WHERE team_id = '1610612764' AND abbreviation = 'WAS' AND full_name = 'Washington Bullets'"
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "WSB is the BBR source abbreviation for the Washington Bullets (1973-97 before the Wizards rename). dim_team has the historical 'Washington Bullets' row with abbreviation WAS from 1974. The franchise later became the Wizards (1997+), also stored as WAS.",
+  "skip_if_no_db": true
+}

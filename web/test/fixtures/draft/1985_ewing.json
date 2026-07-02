@@ -1,0 +1,23 @@
+{
+  "id": "draft_first_pick.1985_ewing",
+  "datapoint_class": "draft_first_pick",
+  "entity": "1985 NBA Draft #1 overall pick: Patrick Ewing (NYK; the centerpiece of the Knicks' return to relevance in the late 1990s)",
+  "expected": {
+    "season": "1985",
+    "overall_pick": "1",
+    "player_name": "Patrick Ewing",
+    "team_abbreviation": "NYK",
+    "organization": "Georgetown"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/draft/NBA_1985.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getDraftYear",
+    "params": ["1985"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Patrick Ewing was the #1 pick out of Georgetown under John Thompson. The 1985 draft lottery was the first-ever NBA draft lottery, created specifically so the Knicks could not repeat the 1984 conspiracy allegations. Ewing was the first #1 pick chosen by lottery.",
+  "skip_if_no_db": true
+}

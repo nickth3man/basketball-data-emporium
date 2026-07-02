@@ -1,0 +1,18 @@
+{
+  "id": "hall_of_fame.kobe_equals_2020",
+  "datapoint_class": "hall_of_fame",
+  "entity": "Kobe Bryant inducted into the Basketball Hall of Fame in 2020",
+  "expected": 2020,
+  "bbr_source_url": "https://www.basketball-reference.com/players/b/bryanko01.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getPlayerProfile",
+    "params": [977],
+    "extract": "hallOfFameYear"
+  },
+  "match": "equals",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Kobe Bryant was inducted into the Naismith Memorial Basketball Hall of Fame in 2020, posthumously (he died January 2020, before the ceremony). The induction year is sourced from stg_team_retired. Retired (deceased), year is fixed at 2020.",
+  "skip_if_no_db": true
+}

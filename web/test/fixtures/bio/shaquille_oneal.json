@@ -1,0 +1,25 @@
+{
+  "id": "player_bio.shaquille_oneal",
+  "datapoint_class": "player_bio",
+  "entity": "Shaquille O'Neal (player_id 406) bio: height 7-1, weight 325, born 1972-03-06, position Center, country USA (common_player_info overrides dim_player)",
+  "expected": {
+    "full_name": "Shaquille O'Neal",
+    "height": "7-1",
+    "weight": "325",
+    "birth_date": "1972-03-06",
+    "position": "Center",
+    "country": "USA"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/players/o/onealsh01.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getPlayerProfile",
+    "params": [406],
+    "extract": "bio"
+  },
+  "match": "objectMatching",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Shaq has a common_player_info row; position 'Center' and height '7-1' come from there (dim_player alone shows 'C' and '7-01'). 4-time NBA champion, 2000 MVP, 3-time Finals MVP. Note: there is a separate 'Shaquille Harrison' (pid 1627885) currently in the league; the fixture pins O'Neal specifically.",
+  "skip_if_no_db": true
+}

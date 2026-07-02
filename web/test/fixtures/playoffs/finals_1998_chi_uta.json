@@ -1,0 +1,23 @@
+{
+  "id": "playoff_series.finals_1998_chi_uta",
+  "datapoint_class": "playoff_series",
+  "entity": "1997-98 NBA Finals: Chicago Bulls def. Utah Jazz 4-2 (the Last Dance)",
+  "expected": {
+    "season_id": "1997-98",
+    "round_number": "4",
+    "wins": "4",
+    "losses": "2",
+    "opponent_abbreviation": "UTA"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/playoffs/1998-nba-finals.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getTeamPlayoffSeries",
+    "params": [1610612741]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Indexed from the CHI side (1610612741). CHI also beat UTA 4-2 in 1996-97 and PHX 4-2 in 1992-93; the season_id discriminator narrows to the 1997-98 Last Dance series.",
+  "skip_if_no_db": true
+}

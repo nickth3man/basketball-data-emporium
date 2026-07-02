@@ -1,0 +1,23 @@
+{
+  "id": "dpoy.2008_garnett",
+  "datapoint_class": "dpoy",
+  "entity": "2007-08 NBA Defensive Player of the Year: Kevin Garnett (only DPOY)",
+  "expected": {
+    "season": "2008",
+    "award_type": "nba dpoy",
+    "subtype1": "Selected",
+    "player_id": "708",
+    "full_name": "Kevin Garnett"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/awards/dpoy.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getAwards",
+    "params": ["2008", "nba dpoy"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Kevin Garnett won the 2007-08 DPOY (warehouse season end-year 2008) — his only career DPOY, in the same season he won the championship with Boston.",
+  "skip_if_no_db": true
+}

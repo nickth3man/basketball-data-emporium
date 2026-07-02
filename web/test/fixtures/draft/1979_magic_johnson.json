@@ -1,0 +1,23 @@
+{
+  "id": "draft_first_pick.1979_magic_johnson",
+  "datapoint_class": "draft_first_pick",
+  "entity": "1979 NBA Draft #1 overall pick: Magic Johnson (LAL; the 1979 draft also included Larry Bird at #6)",
+  "expected": {
+    "season": "1979",
+    "overall_pick": "1",
+    "player_name": "Magic Johnson",
+    "team_abbreviation": "LAL",
+    "organization": "Michigan State"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/draft/NBA_1979.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getDraftYear",
+    "params": ["1979"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Magic Johnson was the #1 pick out of Michigan State; went on to win 5 championships, 3 Finals MVPs, and 3 regular-season MVPs. The 1979 draft is famous for the Magic-Bird rivalry that began here (Bird was #6 to BOS).",
+  "skip_if_no_db": true
+}

@@ -1,0 +1,23 @@
+{
+  "id": "mvp.2003_duncan",
+  "datapoint_class": "mvp",
+  "entity": "2002-03 NBA MVP: Tim Duncan (2nd MVP)",
+  "expected": {
+    "season": "2003",
+    "award_type": "nba mvp",
+    "subtype1": "Selected",
+    "player_id": "1495",
+    "full_name": "Tim Duncan"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/awards/mvp.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getAwards",
+    "params": ["2003", "nba mvp"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Tim Duncan won the 2002-03 MVP (warehouse season end-year 2003) — his second of two career MVPs (joined 2002-03).",
+  "skip_if_no_db": true
+}

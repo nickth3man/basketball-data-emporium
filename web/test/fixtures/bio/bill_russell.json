@@ -1,0 +1,25 @@
+{
+  "id": "player_bio.bill_russell",
+  "datapoint_class": "player_bio",
+  "entity": "Bill Russell (player_id 78049) bio: height 6-10, weight 215, born 1934-02-12, position Center, country USA (common_player_info overrides dim_player)",
+  "expected": {
+    "full_name": "Bill Russell",
+    "height": "6-10",
+    "weight": "215",
+    "birth_date": "1934-02-12",
+    "position": "Center",
+    "country": "USA"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/players/r/russebi01.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getPlayerProfile",
+    "params": [78049],
+    "extract": "bio"
+  },
+  "match": "objectMatching",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Russell has a common_player_info row; position 'Center' and height '6-10' come from there (dim_player alone shows 'C' and '7-10'). 11-time NBA champion, 5x MVP, the foundational figure of Celtics dynasty.",
+  "skip_if_no_db": true
+}

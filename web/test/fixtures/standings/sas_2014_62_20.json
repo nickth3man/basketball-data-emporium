@@ -1,0 +1,21 @@
+{
+  "id": "standings_record.sas_2014_62_20",
+  "datapoint_class": "standings_record",
+  "entity": "2013-14 San Antonio Spurs regular-season record 62-20 (1-seed in West, eventual NBA champions — the 4-1 revenge Finals over MIA)",
+  "expected": {
+    "abbreviation": "SAS",
+    "wins": "62",
+    "losses": "20"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/leagues/NBA_2014_standings.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getStandings",
+    "params": ["2013-14", "Regular"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Warehouse row matches BBR (62-20, 1st in West/Southwest). Pairs with the playoff_series.finals_2014_sas_mia fixture for the title-winning season.",
+  "skip_if_no_db": true
+}

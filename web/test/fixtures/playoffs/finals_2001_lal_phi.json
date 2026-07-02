@@ -1,0 +1,23 @@
+{
+  "id": "playoff_series.finals_2001_lal_phi",
+  "datapoint_class": "playoff_series",
+  "entity": "2000-01 NBA Finals: Los Angeles Lakers def. Philadelphia 76ers 4-1 (Shaq's 2nd Finals MVP, AI's lone Finals appearance)",
+  "expected": {
+    "season_id": "2000-01",
+    "round_number": "4",
+    "wins": "4",
+    "losses": "1",
+    "opponent_abbreviation": "PHI"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/playoffs/2001-nba-finals.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getTeamPlayoffSeries",
+    "params": [1610612747]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Indexed from the LAL side (1610612747). The Shaq/Kobe three-peat started in 2000 (already a separate fixture pattern), continued in 2001 (this), and concluded in 2002. LAL went 15-1 in the 2001 playoffs (4-0 POR, 4-0 SAC, 4-0 SAS, 4-1 PHI), the best single-postseason record in NBA history.",
+  "skip_if_no_db": true
+}

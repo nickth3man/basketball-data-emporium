@@ -1,0 +1,14 @@
+{
+  "id": "jersey.anthony_den_15",
+  "datapoint_class": "jersey",
+  "entity": "Carmelo Anthony DEN 2003-11 should be #15 (regression: currently shows #7)",
+  "expected": { "abbreviation": "DEN", "start_year": 2003, "end_year": 2011, "jersey_num": "15" },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/DEN/numbers.html",
+  "assertion_mode": "query_fn",
+  "query_target": { "fn": "getPlayerProfile", "params": [2546], "extract": "jerseyHistory" },
+  "match": "containsObject",
+  "status": "regression",
+  "confidence": "verified",
+  "notes": "Carmelo Anthony wore #15 for most of his Nuggets career. The current data shows #7 for the 2003-2004 stint — a gap-and-islands grouping bug that assigns a wrong number to the first fragment of his Denver tenure.",
+  "skip_if_no_db": true
+}

@@ -1,0 +1,23 @@
+{
+  "id": "playoff_series.finals_2015_gsw_cle",
+  "datapoint_class": "playoff_series",
+  "entity": "2014-15 NBA Finals: Golden State Warriors def. Cleveland Cavaliers 4-2 (first Warriors title in 40 years; Iguodala Finals MVP)",
+  "expected": {
+    "season_id": "2014-15",
+    "round_number": "4",
+    "wins": "4",
+    "losses": "2",
+    "opponent_abbreviation": "CLE"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/playoffs/2015-nba-finals.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getTeamPlayoffSeries",
+    "params": [1610612744]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Indexed from the GSW side (1610612744). First GSW title since 1975; the series is also notable for Cleveland's Kevin Love being out injured and Kyrie Irving missing games 2-3. The 4-2 margin matches BBR.",
+  "skip_if_no_db": true
+}

@@ -1,0 +1,20 @@
+{
+  "id": "team_identity.mnl_to_lal_relocation",
+  "datapoint_class": "team_identity",
+  "entity": "BBR source abbreviation MNL (Minneapolis Lakers) is the same franchise as warehouse canonical LAL (Los Angeles Lakers); the franchise relocated from Minneapolis (1949) to Los Angeles (1960)",
+  "expected": {
+    "mnl_row_count": 1,
+    "lal_row_count": 1
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/MNL/",
+  "assertion_mode": "raw_sql",
+  "query_target": {
+    "sql": "SELECT (SELECT cast(count(*) AS INTEGER) FROM dim_team WHERE team_id = '1610612747' AND city = 'Minneapolis' AND abbreviation = 'LAL') AS mnl_row_count, (SELECT cast(count(*) AS INTEGER) FROM dim_team WHERE team_id = '1610612747' AND city = 'Los Angeles' AND abbreviation = 'LAL') AS lal_row_count",
+    "extract": "[0]"
+  },
+  "match": "objectMatching",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Both cities share team_id 1610612747 in dim_team, confirming the same franchise continued across the 1960 relocation. CAST(... AS INTEGER) keeps the count as a JSON number (not BIGINT-as-string) so objectMatching compares cleanly.",
+  "skip_if_no_db": true
+}

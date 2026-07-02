@@ -1,0 +1,23 @@
+{
+  "id": "season_line.harden_2018_19",
+  "datapoint_class": "season_line",
+  "entity": "James Harden 2018-19 season (HOU, Regular): 78 GP, 36.1 PPG, 6.6 RPG, 7.5 APG — the highest scoring average since Michael Jordan (1986-87) and the only 36+ PPG season in the modern era, 2018-19 scoring champion",
+  "expected": {
+    "season_year": "2018-19",
+    "season_type": "Regular",
+    "gp": 78,
+    "avg_pts": 36.12820512820513,
+    "avg_reb": 6.641025641025641,
+    "avg_ast": 7.512820512820513
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/players/h/hardeja01.html",
+  "assertion_mode": "raw_sql",
+  "query_target": {
+    "sql": "SELECT season_year, season_type, CAST(gp AS INTEGER) AS gp, avg_pts, avg_reb, avg_ast FROM agg_player_season WHERE player_id = 201935 AND season_year = '2018-19' AND season_type = 'Regular' LIMIT 1"
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Retired player's historic season (Harden is still active, but this fixture pins a specific completed season); match:containsObject with exact values. team_abbreviation is omitted because agg_player_season.team_abbreviation is unreliable (shows 'SD' for Harden's HOU seasons). 36.1 PPG is the exact BBR-canonical average.",
+  "skip_if_no_db": true
+}

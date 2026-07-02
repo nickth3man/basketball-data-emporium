@@ -1,0 +1,23 @@
+{
+  "id": "playoff_series.finals_2019_tor_gsw",
+  "datapoint_class": "playoff_series",
+  "entity": "2018-19 NBA Finals: Toronto Raptors def. Golden State Warriors 4-2 (first non-USA franchise title)",
+  "expected": {
+    "season_id": "2018-19",
+    "round_number": "4",
+    "wins": "4",
+    "losses": "2",
+    "opponent_abbreviation": "GSW"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/playoffs/2019-nba-finals.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getTeamPlayoffSeries",
+    "params": [1610612761]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Indexed from the TOR side (1610612761). TOR's only Finals appearance in the warehouse, so round_number=4 is unambiguous.",
+  "skip_if_no_db": true
+}

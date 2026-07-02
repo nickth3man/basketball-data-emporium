@@ -1,0 +1,17 @@
+{
+  "id": "all_nba_count.kareem_equals_15",
+  "datapoint_class": "all_nba_count",
+  "entity": "Kareem Abdul-Jabbar All-NBA selections = 15 (BBR-canonical and warehouse value agree)",
+  "expected": 15,
+  "bbr_source_url": "https://www.basketball-reference.com/players/a/abdulka01.html",
+  "assertion_mode": "raw_sql",
+  "query_target": {
+    "sql": "SELECT cast(count(*) AS INTEGER) AS n FROM fact_player_awards WHERE player_id = 76003 AND award_type = 'All-NBA'",
+    "extract": "[0].n"
+  },
+  "match": "equals",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Kareem's 15 All-NBA selections (record at the time, later broken by LeBron/Kobe/Duncan). BBR and warehouse agree exactly. equals 15 catches any drift in either direction. CAST(... AS INTEGER) keeps the count as a JSON number (not BIGINT-as-string) so the equals comparison is numeric.",
+  "skip_if_no_db": true
+}

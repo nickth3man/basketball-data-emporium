@@ -1,0 +1,21 @@
+{
+  "id": "standings_record.gsw_2016_73_9",
+  "datapoint_class": "standings_record",
+  "entity": "2015-16 Golden State Warriors regular-season record 73-9 (all-time NBA wins record)",
+  "expected": {
+    "abbreviation": "GSW",
+    "wins": "73",
+    "losses": "9"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/leagues/NBA_2016_standings.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getStandings",
+    "params": ["2015-16", "Regular"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Warehouse row matches BBR. The 'wins'/'losses' fields are JSON strings (BIGINT) — the expected values mirror that form.",
+  "skip_if_no_db": true
+}

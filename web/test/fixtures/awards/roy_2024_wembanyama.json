@@ -1,0 +1,23 @@
+{
+  "id": "roy.2024_wembanyama",
+  "datapoint_class": "roy",
+  "entity": "2023-24 NBA Rookie of the Year: Victor Wembanyama",
+  "expected": {
+    "season": "2024",
+    "award_type": "nba roy",
+    "subtype1": "Selected",
+    "player_id": "1641705",
+    "full_name": "Victor Wembanyama"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/awards/roy.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getAwards",
+    "params": ["2024", "nba roy"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Victor Wembanyama won the 2023-24 ROY (warehouse season end-year 2024) — his first NBA season after being the 2023 #1 overall pick.",
+  "skip_if_no_db": true
+}

@@ -1,0 +1,14 @@
+{
+  "id": "jersey.seed_curry_gsw_30",
+  "datapoint_class": "jersey",
+  "entity": "Stephen Curry GSW #30 from rookie year (stable anchor)",
+  "expected": { "abbreviation": "GSW", "start_year": 2009, "jersey_num": "30" },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/GSW/2010.html",
+  "assertion_mode": "query_fn",
+  "query_target": { "fn": "getPlayerProfile", "params": [201939], "extract": "jerseyHistory" },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Stable anchor. Seed fixture proving the stable path. Do not delete.",
+  "skip_if_no_db": true
+}

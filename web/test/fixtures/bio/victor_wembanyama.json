@@ -1,0 +1,23 @@
+{
+  "id": "player_bio.victor_wembanyama",
+  "datapoint_class": "player_bio",
+  "entity": "Victor Wembanyama (player_id 1641705) bio: height 7-4, position C, country France (no common_player_info row; bio comes from dim_player alone)",
+  "expected": {
+    "full_name": "Victor Wembanyama",
+    "height": "7-04",
+    "position": "C",
+    "country": "France"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/players/w/wembavi01.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getPlayerProfile",
+    "params": [1641705],
+    "extract": "bio"
+  },
+  "match": "objectMatching",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Wembanyama has no common_player_info row, so the bio is just dim_player. height is '7-04' (zero-padded inch). country 'France' is correctly populated from dim_player (most international players in dim_player have country filled).",
+  "skip_if_no_db": true
+}

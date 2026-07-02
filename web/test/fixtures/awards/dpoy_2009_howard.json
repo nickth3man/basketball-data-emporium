@@ -1,0 +1,23 @@
+{
+  "id": "dpoy.2009_howard",
+  "datapoint_class": "dpoy",
+  "entity": "2008-09 NBA Defensive Player of the Year: Dwight Howard (1st of 3 consecutive)",
+  "expected": {
+    "season": "2009",
+    "award_type": "nba dpoy",
+    "subtype1": "Selected",
+    "player_id": "2730",
+    "full_name": "Dwight Howard"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/awards/dpoy.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getAwards",
+    "params": ["2009", "nba dpoy"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Dwight Howard won the 2008-09 DPOY (warehouse season end-year 2009) — the first of three consecutive DPOYs (2008-09, 2009-10, 2010-11).",
+  "skip_if_no_db": true
+}

@@ -1,0 +1,17 @@
+{
+  "id": "career_total.wilt_pts",
+  "datapoint_class": "career_total",
+  "entity": "Wilt Chamberlain career regular-season total points = 31,419 (BBR). Warehouse SUM(avg_pts*gp) = 31,417 (delta 2, rounding; stable anchor)",
+  "expected": 31419,
+  "bbr_source_url": "https://www.basketball-reference.com/players/c/chambwi01.html",
+  "assertion_mode": "raw_sql",
+  "query_target": {
+    "sql": "SELECT ROUND(SUM(avg_pts * gp)) AS career_pts FROM agg_player_season WHERE player_id = 76375 AND season_type = 'Regular'",
+    "extract": "[0].career_pts"
+  },
+  "match": "equals",
+  "status": "regression",
+  "confidence": "verified",
+  "notes": "REGRESSION: warehouse sums to 31,417 PTS but BBR's official Wilt Chamberlain career regular-season total is 31,419. The 2-point delta is small (one missed field goal across 14 seasons) but real and consistent with the same agg_player_season gap pattern seen for Stockton, Wilt REB, Malone, Nash, Kidd, Russell, Olajuwon, Dirk, Duncan. Pairs with the existing career_total.wilt_trb regression (Wilt REB undercount of 84) to document that the gap extends to the PTS column as well. Flip to stable when the warehouse value equals 31,419.",
+  "skip_if_no_db": true
+}

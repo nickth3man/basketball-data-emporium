@@ -1,0 +1,14 @@
+{
+  "id": "jersey.wade_mia_3",
+  "datapoint_class": "jersey",
+  "entity": "Dwyane Wade MIA 2003-2016 wore #3 (stable anchor)",
+  "expected": { "abbreviation": "MIA", "start_year": 2003, "end_year": 2007, "jersey_num": "3" },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/MIA/numbers.html",
+  "assertion_mode": "query_fn",
+  "query_target": { "fn": "getPlayerProfile", "params": [2548], "extract": "jerseyHistory" },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Wade wore #3 for his entire Heat career (2003-2016, plus a 2017-18 return). The data surfaces the 2003-2016 MIA #3 stint split by color era; the 2003-2007 first sub-stint is pinned here. Wade changed to #9 for his brief Cavs 2017-18 return.",
+  "skip_if_no_db": true
+}

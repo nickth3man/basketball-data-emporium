@@ -68,20 +68,28 @@ export interface PerRates {
 export const api = {
   searchPlayers: (query: string, signal?: AbortSignal) =>
     getJSON<Row[]>(`/api/players${qs({ q: query })}`, signal),
+  getFeaturedPlayer: () => getJSON<Row | null>("/api/players/featured"),
   getPlayer: (id: string | number) => getJSON<PlayerProfile>(`/api/players/${id}`),
   getPlayerRates: (id: string | number) => getJSON<PerRates>(`/api/players/${id}/rates`),
+  getPlayerAdvanced: (id: string | number) => getJSON<Row[]>(`/api/players/${id}/advanced`),
+  getPlayerPer100: (id: string | number) => getJSON<Row[]>(`/api/players/${id}/per100`),
   getPlayerHighs: (id: string | number) => getJSON<Row[]>(`/api/players/${id}/highs`),
+  getPlayerRecentGames: (id: string | number) => getJSON<Row[]>(`/api/players/${id}/recent-games`),
   getPlayerShotSplits: (id: string | number) => getJSON<Row[]>(`/api/players/${id}/shot-splits`),
   getPlayerOnOff: (id: string | number) => getJSON<Row[]>(`/api/players/${id}/on-off`),
   getPlayerCombine: (id: string | number) => getJSON<Row | null>(`/api/players/${id}/combine`),
   getSimilarPlayers: (id: string | number) => getJSON<Row[]>(`/api/players/${id}/similar`),
 
-  searchTeams: (query: string) => getJSON<Row[]>(`/api/teams${qs({ q: query })}`),
+  searchTeams: (query: string, signal?: AbortSignal) =>
+    getJSON<Row[]>(`/api/teams${qs({ q: query })}`, signal),
+  getTeamsByConference: () => getJSON<Row[]>("/api/teams/by-conference"),
   getTeam: (id: string | number) => getJSON<TeamProfile>(`/api/teams/${id}`),
   getTeamRoster: (id: string | number) => getJSON<Row[]>(`/api/teams/${id}/roster`),
   getTeamPlayoffSeries: (id: string | number) => getJSON<Row[]>(`/api/teams/${id}/playoff-series`),
   getTeamLineups: (id: string | number) => getJSON<Row[]>(`/api/teams/${id}/lineups`),
   getTeamCoaches: (id: string | number) => getJSON<Row[]>(`/api/teams/${id}/coaches`),
+  getTeamRanks: (id: string | number) => getJSON<Row[]>(`/api/teams/${id}/ranks`),
+  getTeamOpponentStats: (id: string | number) => getJSON<Row[]>(`/api/teams/${id}/opponent-stats`),
 
   standingsSeasons: () => getJSON<string[]>("/api/standings/seasons"),
   standings: (season: string, type: string) =>

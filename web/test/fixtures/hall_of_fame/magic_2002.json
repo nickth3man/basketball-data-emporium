@@ -1,0 +1,18 @@
+{
+  "id": "hall_of_fame.magic_equals_2002",
+  "datapoint_class": "hall_of_fame",
+  "entity": "Magic Johnson inducted into the Basketball Hall of Fame in 2002",
+  "expected": 2002,
+  "bbr_source_url": "https://www.basketball-reference.com/players/j/johnsma02.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getPlayerProfile",
+    "params": [77142],
+    "extract": "hallOfFameYear"
+  },
+  "match": "equals",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Magic Johnson was inducted into the Naismith Memorial Basketball Hall of Fame in 2002 (his first year of eligibility). The induction year is sourced from stg_team_retired (mislabeled — its content is actually HOF records, not retired numbers). Retired, year is fixed at 2002.",
+  "skip_if_no_db": true
+}

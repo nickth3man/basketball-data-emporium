@@ -1,0 +1,23 @@
+{
+  "id": "mvp.2008_kobe",
+  "datapoint_class": "mvp",
+  "entity": "2007-08 NBA MVP: Kobe Bryant (only career MVP)",
+  "expected": {
+    "season": "2008",
+    "award_type": "nba mvp",
+    "subtype1": "Selected",
+    "player_id": "977",
+    "full_name": "Kobe Bryant"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/awards/mvp.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getAwards",
+    "params": ["2008", "nba mvp"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Kobe Bryant won the 2007-08 MVP (warehouse season end-year 2008) — his only career MVP, after multiple runner-up finishes.",
+  "skip_if_no_db": true
+}

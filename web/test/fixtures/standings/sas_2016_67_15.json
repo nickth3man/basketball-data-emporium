@@ -1,0 +1,21 @@
+{
+  "id": "standings_record.sas_2016_67_15",
+  "datapoint_class": "standings_record",
+  "entity": "2015-16 San Antonio Spurs regular-season record 67-15 (Tim Duncan's 19th and final season, 2nd in West behind the 73-9 Warriors)",
+  "expected": {
+    "abbreviation": "SAS",
+    "wins": "67",
+    "losses": "15"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/leagues/NBA_2016_standings.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getStandings",
+    "params": ["2015-16", "Regular"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Warehouse row matches BBR (67-15, 2nd in West/Southwest, behind GSW's 73-9). Spurs were bounced in R2 by OKC 4-2.",
+  "skip_if_no_db": true
+}

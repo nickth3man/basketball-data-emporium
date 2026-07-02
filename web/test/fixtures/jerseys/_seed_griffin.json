@@ -1,0 +1,14 @@
+{
+  "id": "jersey.seed_griffin_lac_32",
+  "datapoint_class": "jersey",
+  "entity": "Blake Griffin LAC stint starting 2010 must be #32",
+  "expected": { "abbreviation": "LAC", "start_year": 2010, "jersey_num": "32" },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/LAC/numbers.html",
+  "assertion_mode": "query_fn",
+  "query_target": { "fn": "getPlayerProfile", "params": [201933], "extract": "jerseyHistory" },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Fixed by same-team trusted jersey inference: Griffin's LAC gap now uses #32 instead of leaking his later Celtics #91 bridge value.",
+  "skip_if_no_db": true
+}

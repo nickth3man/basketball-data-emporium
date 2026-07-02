@@ -1,0 +1,23 @@
+{
+  "id": "mvp.2024_jokic",
+  "datapoint_class": "mvp",
+  "entity": "2023-24 NBA MVP: Nikola Jokić (3rd MVP)",
+  "expected": {
+    "season": "2024",
+    "award_type": "nba mvp",
+    "subtype1": "Selected",
+    "player_id": "203999",
+    "full_name": "Nikola Jokic"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/awards/mvp.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getAwards",
+    "params": ["2024", "nba mvp"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "getAwards filters fact_player_awards to subtype1='Selected' rows for nba mvp; the season param is the end-year (2024 = 2023-24 season). The '2024' season year is the warehouse's internal format, not the BBR display '2023-24'.",
+  "skip_if_no_db": true
+}

@@ -1,0 +1,14 @@
+{
+  "id": "jersey.kobe_lal_24",
+  "datapoint_class": "jersey",
+  "entity": "Kobe Bryant LAL 2006-2016 #24 stint should start in 2006 (regression: data shows 1996/1999 start)",
+  "expected": { "abbreviation": "LAL", "start_year": 2006, "jersey_num": "24" },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/LAL/numbers.html",
+  "assertion_mode": "query_fn",
+  "query_target": { "fn": "getPlayerProfile", "params": [977], "extract": "jerseyHistory" },
+  "match": "containsObject",
+  "status": "regression",
+  "confidence": "verified",
+  "notes": "Kobe switched from #8 to #24 at the start of the 2006-07 season. The current data shows two LAL #24 stints (1996-1999 and 1999-2016) split by color era — the 1996-1999 stint is the wrong number (should be #8), and the 1999 start of the second stint is wrong (should be 2006). Flip to stable when a single 2006-2016 LAL #24 stint replaces the two broken stints.",
+  "skip_if_no_db": true
+}

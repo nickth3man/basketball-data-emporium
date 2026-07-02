@@ -1,0 +1,23 @@
+{
+  "id": "playoff_series.finals_2023_den_mia",
+  "datapoint_class": "playoff_series",
+  "entity": "2022-23 NBA Finals: Denver Nuggets def. Miami Heat 4-1 (Jokić's first title; first championship in Nuggets franchise history)",
+  "expected": {
+    "season_id": "2022-23",
+    "round_number": "4",
+    "wins": "4",
+    "losses": "1",
+    "opponent_abbreviation": "MIA"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/playoffs/2023-nba-finals.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getTeamPlayoffSeries",
+    "params": [1610612743]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Indexed from the DEN side (1610612743). The 4-1 margin matches BBR; MIA's Finals run as an 8-seed remains the deepest 8-seed run to the Finals. Confirmed against the re-derived wl_home/wl_away series wins/losses (per the getTeamPlayoffSeries comment, fact_playoff_series own wins/losses are unreliable).",
+  "skip_if_no_db": true
+}

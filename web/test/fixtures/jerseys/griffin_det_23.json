@@ -1,0 +1,14 @@
+{
+  "id": "jersey.griffin_det_23",
+  "datapoint_class": "jersey",
+  "entity": "Blake Griffin DET stint starting 2018 must be #23 (stable anchor)",
+  "expected": { "abbreviation": "DET", "start_year": 2018, "end_year": 2021, "jersey_num": "23" },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/DET/numbers.html",
+  "assertion_mode": "query_fn",
+  "query_target": { "fn": "getPlayerProfile", "params": [201933], "extract": "jerseyHistory" },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Griffin's second Pistons stint (2018-2021) correctly shows #23. Traded to Brooklyn mid-season 2020-21.",
+  "skip_if_no_db": true
+}

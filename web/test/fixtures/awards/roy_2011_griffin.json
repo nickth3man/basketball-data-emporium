@@ -1,0 +1,23 @@
+{
+  "id": "roy.2011_griffin",
+  "datapoint_class": "roy",
+  "entity": "2010-11 NBA Rookie of the Year: Blake Griffin",
+  "expected": {
+    "season": "2011",
+    "award_type": "nba roy",
+    "subtype1": "Selected",
+    "player_id": "201933",
+    "full_name": "Blake Griffin"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/awards/roy.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getAwards",
+    "params": ["2011", "nba roy"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Blake Griffin won the 2010-11 ROY (warehouse season end-year 2011) — the same year he was the #1 overall pick.",
+  "skip_if_no_db": true
+}

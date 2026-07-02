@@ -1,0 +1,14 @@
+{
+  "id": "jersey.harden_hou_2014_13",
+  "datapoint_class": "jersey",
+  "entity": "James Harden HOU 2012-19 stint must be #13 (stable anchor)",
+  "expected": { "abbreviation": "HOU", "start_year": 2012, "end_year": 2019, "jersey_num": "13" },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/HOU/numbers.html",
+  "assertion_mode": "query_fn",
+  "query_target": { "fn": "getPlayerProfile", "params": [201935], "extract": "jerseyHistory" },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Harden's Rockets stint now stays #13 through 2018-19 instead of leaking stale #1 bridge rows from later teams.",
+  "skip_if_no_db": true
+}

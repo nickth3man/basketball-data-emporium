@@ -1,5 +1,13 @@
-import { api } from "../api.ts";
-import { announceStatus, el, labeledSelect, renderTable } from "../dom.ts";
+import { labelAwardType } from "../awards.ts";
+import { api, type Row } from "../api.ts";
+import {
+  announceStatus,
+  el,
+  formatValue,
+  labeledSelect,
+  navigateToDetail,
+  renderTable,
+} from "../dom.ts";
 
 export async function renderDraftAwards(container: HTMLElement): Promise<void> {
   const draftSection = el("section", { className: "subsection" });
@@ -33,8 +41,8 @@ async function renderDraftSection(container: HTMLElement): Promise<void> {
             [
               { key: "overall_pick", label: "Pick" },
               { key: "round_number", label: "Rd" },
-              { key: "player_name", label: "Player" },
-              { key: "team_abbreviation", label: "Team" },
+              { key: "player_name", label: "Player", render: draftPlayerCell },
+              { key: "team_abbreviation", label: "Team", render: teamCell },
               { key: "organization", label: "From" },
             ],
             rows,
@@ -74,7 +82,10 @@ async function renderAwardsSection(container: HTMLElement): Promise<void> {
     );
     const { wrapper: typeWrapper, select: typeSelect } = labeledSelect(
       "Award type",
-      [{ value: "", label: "All award types" }, ...types.map((t) => ({ value: t, label: t }))],
+      [
+        { value: "", label: "All award types" },
+        ...types.map((t) => ({ value: t, label: labelAwardType(t) })),
+      ],
       "awards-type",
     );
     const resultDiv = el("div");
@@ -88,8 +99,8 @@ async function renderAwardsSection(container: HTMLElement): Promise<void> {
         resultDiv.replaceChildren(
           renderTable(
             [
-              { key: "full_name", label: "Player" },
-              { key: "award_type", label: "Award" },
+              { key: "full_name", label: "Player", render: awardPlayerCell },
+              { key: "award_type", label: "Award", format: (v) => labelAwardType(String(v)) },
               { key: "description", label: "Detail" },
             ],
             rows,
@@ -114,4 +125,44 @@ async function renderAwardsSection(container: HTMLElement): Promise<void> {
     );
     announceStatus(`Failed to load award seasons: ${message}`);
   }
+}
+
+function cellButton(label: string, onClick: () => void, ariaLabel: string): HTMLElement {
+  const button = el("button", {
+    type: "button",
+    className: "cell-link",
+    text: label,
+    "aria-label": ariaLabel,
+  });
+  button.addEventListener("click", onClick);
+  return button;
+}
+
+function draftPlayerCell(value: unknown, row: Row): Node | string {
+  const label = formatValue(value);
+  const playerId = Number(row.person_id);
+  if (!Number.isFinite(playerId) || label === "—") return label;
+  return cellButton(
+    label,
+    () => navigateToDetail("players", String(playerId)),
+    `${label} player profile`,
+  );
+}
+
+function awardPlayerCell(value: unknown, row: Row): Node | string {
+  const label = formatValue(value);
+  const playerId = Number(row.player_id);
+  if (!Number.isFinite(playerId) || label === "—") return label;
+  return cellButton(
+    label,
+    () => navigateToDetail("players", String(playerId)),
+    `${label} player profile`,
+  );
+}
+
+function teamCell(value: unknown, row: Row): Node | string {
+  const label = formatValue(value);
+  const teamId = Number(row.team_id);
+  if (!Number.isFinite(teamId) || label === "—") return label;
+  return cellButton(label, () => navigateToDetail("teams", String(teamId)), `${label} team profile`);
 }

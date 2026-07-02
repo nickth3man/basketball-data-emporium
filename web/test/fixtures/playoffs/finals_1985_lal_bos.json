@@ -1,0 +1,23 @@
+{
+  "id": "playoff_series.finals_1985_lal_bos",
+  "datapoint_class": "playoff_series",
+  "entity": "1984-85 NBA Finals: Los Angeles Lakers def. Boston Celtics 4-2 (Kareem's 1st LAL title; first Lakers championship since 1980)",
+  "expected": {
+    "season_id": "1984-85",
+    "round_number": "4",
+    "wins": "4",
+    "losses": "2",
+    "opponent_abbreviation": "BOS"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/playoffs/1985-nba-finals.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getTeamPlayoffSeries",
+    "params": [1610612747]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Indexed from the LAL side (1610612747). Kareem Abdul-Jabbar won Finals MVP at age 38, the oldest Finals MVP in NBA history. LAL went 12-4 in the 1985 playoffs, sweeping PHX in round 1 (3-0 sweep, not 4-0), then 4-1 POR, 4-1 DEN, 4-2 BOS.",
+  "skip_if_no_db": true
+}

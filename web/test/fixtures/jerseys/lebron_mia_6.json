@@ -1,0 +1,14 @@
+{
+  "id": "jersey.lebron_mia_6",
+  "datapoint_class": "jersey",
+  "entity": "LeBron James MIA stint 2010-14 should be #6",
+  "expected": { "abbreviation": "MIA", "start_year": 2010, "end_year": 2014, "jersey_num": "6" },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/MIA/numbers.html",
+  "assertion_mode": "query_fn",
+  "query_target": { "fn": "getPlayerProfile", "params": [2544], "extract": "jerseyHistory" },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Fixed by same-team trusted jersey inference: LeBron's Miami gap now stays #6 instead of leaking his Cleveland/Lakers #23 bridge value.",
+  "skip_if_no_db": true
+}

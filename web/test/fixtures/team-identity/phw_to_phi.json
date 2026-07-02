@@ -1,0 +1,22 @@
+{
+  "id": "team_identity.phw_to_phi",
+  "datapoint_class": "team_identity",
+  "entity": "BBR source abbreviation PHW maps to warehouse canonical PHI (Philadelphia Warriors historical era, 1949)",
+  "expected": {
+    "team_id": "1610612744",
+    "abbreviation": "PHI",
+    "full_name": "Philadelphia Warriors",
+    "city": "Philadelphia",
+    "year_founded": "1949"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/PHW/",
+  "assertion_mode": "raw_sql",
+  "query_target": {
+    "sql": "SELECT team_id, abbreviation, full_name, city, state, arena, year_founded FROM dim_team WHERE team_id = '1610612744' AND abbreviation = 'PHI'"
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "PHW is the BBR source abbreviation for the Philadelphia Warriors (1949-62 before relocation to San Francisco). dim_team captures this era with abbreviation PHI, full_name 'Philadelphia Warriors', year_founded 1949. The franchise later became the San Francisco Warriors (SF, 1962) and Golden State Warriors (GSW, 1971), all stored under the same team_id 1610612744.",
+  "skip_if_no_db": true
+}

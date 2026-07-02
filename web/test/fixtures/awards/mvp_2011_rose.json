@@ -1,0 +1,23 @@
+{
+  "id": "mvp.2011_rose",
+  "datapoint_class": "mvp",
+  "entity": "2010-11 NBA MVP: Derrick Rose (youngest MVP ever at age 22)",
+  "expected": {
+    "season": "2011",
+    "award_type": "nba mvp",
+    "subtype1": "Selected",
+    "player_id": "201565",
+    "full_name": "Derrick Rose"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/awards/mvp.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getAwards",
+    "params": ["2011", "nba mvp"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Derrick Rose won the 2010-11 MVP (warehouse season end-year 2011). subtype1='Selected' is the curatorial filter that distinguishes the winner from the league-wide voting-share rows.",
+  "skip_if_no_db": true
+}

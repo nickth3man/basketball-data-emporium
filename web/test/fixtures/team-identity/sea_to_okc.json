@@ -1,0 +1,20 @@
+{
+  "id": "team_identity.sea_to_okc",
+  "datapoint_class": "team_identity",
+  "entity": "BBR source abbreviation SEA (Seattle SuperSonics 1967-2008) maps to warehouse canonical OKC (Oklahoma City Thunder 2008+); same franchise, relocated 2008 (team_id 1610612760)",
+  "expected": {
+    "sea_row_count": 1,
+    "okc_row_count": 1
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/SEA/",
+  "assertion_mode": "raw_sql",
+  "query_target": {
+    "sql": "SELECT (SELECT cast(count(*) AS INTEGER) FROM dim_team WHERE team_id = '1610612760' AND city = 'Seattle' AND abbreviation = 'SEA') AS sea_row_count, (SELECT cast(count(*) AS INTEGER) FROM dim_team WHERE team_id = '1610612760' AND city = 'Oklahoma City' AND abbreviation = 'OKC') AS okc_row_count",
+    "extract": "[0]"
+  },
+  "match": "objectMatching",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Both SEA and OKC share team_id 1610612760 in dim_team, confirming the same franchise continued across the 2008 relocation. The original Seattle SuperSonics franchise was purchased by the ownership group that moved the team to OKC; Clay Bennett's group retained the team_id. CAST(... AS INTEGER) keeps counts as JSON numbers. NOTE: the task spec asked for `query_fn: getTeamIdentity` but no such function exists — using raw_sql per the existing team_identity fixture pattern.",
+  "skip_if_no_db": true
+}

@@ -1,0 +1,14 @@
+{
+  "id": "jersey.jordan_chi_45",
+  "datapoint_class": "jersey",
+  "entity": "Michael Jordan CHI 1994-95 comeback should be #45 (regression: not present in data)",
+  "expected": { "abbreviation": "CHI", "start_year": 1994, "jersey_num": "45" },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/CHI/numbers.html",
+  "assertion_mode": "query_fn",
+  "query_target": { "fn": "getPlayerProfile", "params": [893], "extract": "jerseyHistory" },
+  "match": "containsObject",
+  "status": "regression",
+  "confidence": "verified",
+  "notes": "Jordan wore #45 for his 1994-95 comeback season (#23 was retired). The current data shows one continuous CHI #23 stint (1984-1998) and is missing the #45 middle stint entirely.",
+  "skip_if_no_db": true
+}

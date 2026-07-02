@@ -1,0 +1,23 @@
+{
+  "id": "playoff_series.finals_1980_lal_phi",
+  "datapoint_class": "playoff_series",
+  "entity": "1979-80 NBA Finals: Los Angeles Lakers def. Philadelphia 76ers 4-2 (Magic Johnson's rookie Finals MVP, subbing for the injured Kareem in Game 6)",
+  "expected": {
+    "season_id": "1979-80",
+    "round_number": "3",
+    "wins": "4",
+    "losses": "2",
+    "opponent_abbreviation": "PHI"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/playoffs/1980-nba-finals.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getTeamPlayoffSeries",
+    "params": [1610612747]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Indexed from the LAL side (1610612747). LAL had a first-round bye in 1979-80 (1-seed in the West), so they only played 3 playoff series and round_number=3 is the NBA Finals (vs PHI). LAL also beat PHI in the 1981-82 Finals (4-2) and 2000-01 Finals (4-1) — those are separate fixtures, and the season_id discriminator narrows to the Magic-rookie 1980 series.",
+  "skip_if_no_db": true
+}

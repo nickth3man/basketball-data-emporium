@@ -1,0 +1,18 @@
+{
+  "id": "hall_of_fame.dirk_equals_2023",
+  "datapoint_class": "hall_of_fame",
+  "entity": "Dirk Nowitzki inducted into the Basketball Hall of Fame in 2023",
+  "expected": 2023,
+  "bbr_source_url": "https://www.basketball-reference.com/players/n/nowitdi01.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getPlayerProfile",
+    "params": [1717],
+    "extract": "hallOfFameYear"
+  },
+  "match": "equals",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Dirk Nowitzki was inducted into the Naismith Memorial Basketball Hall of Fame in 2023 (his first year of eligibility after retiring in 2019). The induction year is sourced from stg_team_retired. Retired, year is fixed at 2023.",
+  "skip_if_no_db": true
+}

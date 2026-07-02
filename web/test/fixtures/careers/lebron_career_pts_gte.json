@@ -1,0 +1,17 @@
+{
+  "id": "career_total.lebron_pts_gte",
+  "datapoint_class": "career_total",
+  "entity": "LeBron James career regular-season total points floor = 41,000 (active player, will drift upward as the warehouse catches up to current seasons)",
+  "expected": 41000,
+  "bbr_source_url": "https://www.basketball-reference.com/players/j/jamesle01.html",
+  "assertion_mode": "raw_sql",
+  "query_target": {
+    "sql": "SELECT ROUND(SUM(avg_pts * gp)) AS career_pts FROM agg_player_season WHERE player_id = 2544 AND season_type = 'Regular'",
+    "extract": "[0].career_pts"
+  },
+  "match": "gte",
+  "status": "stable",
+  "confidence": "spot-checked",
+  "notes": "LeBron is still active; his career point total keeps growing. The floor (41,000) sits below the current warehouse value of 41,648, so the gte test passes today. Raise the floor over time as the warehouse ETL is refreshed with new seasons. ROUND() returns DOUBLE so the value comes through as a JSON number (not the BIGINT-as-string form other raw_sql fixtures use).",
+  "skip_if_no_db": true
+}

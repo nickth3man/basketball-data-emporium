@@ -1,0 +1,14 @@
+{
+  "id": "jersey.harden_hou_13",
+  "datapoint_class": "jersey",
+  "entity": "James Harden HOU 2012-13 should be #13 (regression: currently shows #1)",
+  "expected": { "abbreviation": "HOU", "start_year": 2012, "end_year": 2013, "jersey_num": "13" },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/HOU/numbers.html",
+  "assertion_mode": "query_fn",
+  "query_target": { "fn": "getPlayerProfile", "params": [201935], "extract": "jerseyHistory" },
+  "match": "containsObject",
+  "status": "regression",
+  "confidence": "verified",
+  "notes": "Harden's first Rockets season (2012-13) should be #13. Current data shows #1 (Jeremy Lin's number from that season) — a bridge-leakage bug.",
+  "skip_if_no_db": true
+}

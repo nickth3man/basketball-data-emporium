@@ -1,0 +1,14 @@
+{
+  "id": "jersey.george_ind_24",
+  "datapoint_class": "jersey",
+  "entity": "Paul George IND 2011-17 should be #24 (regression: currently shows #8 for 2011-14)",
+  "expected": { "abbreviation": "IND", "start_year": 2011, "end_year": 2017, "jersey_num": "24" },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/IND/numbers.html",
+  "assertion_mode": "query_fn",
+  "query_target": { "fn": "getPlayerProfile", "params": [202331], "extract": "jerseyHistory" },
+  "match": "containsObject",
+  "status": "regression",
+  "confidence": "verified",
+  "notes": "BBR confirms Paul George wore #24 for his entire Pacers career (2010-2017). The current data shows #8 for the 2011-2014 stint — a gap-and-islands grouping bug. George did not wear #13 in Indiana until later (and not in his early Pacers years).",
+  "skip_if_no_db": true
+}

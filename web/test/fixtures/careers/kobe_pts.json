@@ -1,0 +1,17 @@
+{
+  "id": "career_total.kobe_pts",
+  "datapoint_class": "career_total",
+  "entity": "Kobe Bryant career regular-season total points = 33,643 (BBR). Warehouse SUM(avg_pts*gp) undercounts at 32,468 (delta 1,175)",
+  "expected": 33643,
+  "bbr_source_url": "https://www.basketball-reference.com/players/b/bryanko01.html",
+  "assertion_mode": "raw_sql",
+  "query_target": {
+    "sql": "SELECT ROUND(SUM(avg_pts * gp)) AS career_pts FROM agg_player_season WHERE player_id = 977 AND season_type = 'Regular'",
+    "extract": "[0].career_pts"
+  },
+  "match": "equals",
+  "status": "regression",
+  "confidence": "verified",
+  "notes": "REGRESSION: warehouse sums to 32,468 PTS but BBR's official Kobe Bryant career regular-season total is 33,643. The 1,175-point gap over 20 seasons is the largest single-player delta so far, again consistent with agg_player_season missing rows for one or more Kobe seasons (likely his late injury-shortened years). Flip to stable when the warehouse value equals 33,643.",
+  "skip_if_no_db": true
+}

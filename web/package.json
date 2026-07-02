@@ -16,7 +16,8 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "verify:shot-zones": "node scripts/verify-shot-zones.mjs"
   },
   "dependencies": {
     "@duckdb/node-api": "1.5.4-r.1",

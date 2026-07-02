@@ -1,0 +1,23 @@
+{
+  "id": "mip.2006_diaw",
+  "datapoint_class": "mip",
+  "entity": "2005-06 NBA Most Improved Player: Boris Diaw (only MIP)",
+  "expected": {
+    "season": "2006",
+    "award_type": "nba mip",
+    "subtype1": "Selected",
+    "player_id": "2564",
+    "full_name": "Boris Diaw"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/awards/mip.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getAwards",
+    "params": ["2006", "nba mip"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Boris Diaw won the 2005-06 MIP (warehouse season end-year 2006) — his only career MIP, in his breakout season as a starter for the Suns.",
+  "skip_if_no_db": true
+}

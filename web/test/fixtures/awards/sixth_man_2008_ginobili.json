@@ -1,0 +1,23 @@
+{
+  "id": "sixth_man.2008_ginobili",
+  "datapoint_class": "sixth_man",
+  "entity": "2007-08 NBA Sixth Man of the Year: Manu Ginobili (1st of 2)",
+  "expected": {
+    "season": "2008",
+    "award_type": "nba smoy",
+    "subtype1": "Selected",
+    "player_id": "1938",
+    "full_name": "Manu Ginobili"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/awards/smoy.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getAwards",
+    "params": ["2008", "nba smoy"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Manu Ginobili won the 2007-08 Sixth Man (warehouse season end-year 2008) — his first of two Sixth Man awards (joined 2011-12).",
+  "skip_if_no_db": true
+}

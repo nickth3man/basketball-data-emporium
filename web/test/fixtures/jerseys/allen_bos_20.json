@@ -1,0 +1,14 @@
+{
+  "id": "jersey.allen_bos_20",
+  "datapoint_class": "jersey",
+  "entity": "Ray Allen BOS 2007-12 should be #20",
+  "expected": { "abbreviation": "BOS", "start_year": 2007, "end_year": 2012, "jersey_num": "20" },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/BOS/numbers.html",
+  "assertion_mode": "query_fn",
+  "query_target": { "fn": "getPlayerProfile", "params": [951], "extract": "jerseyHistory" },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Fixed by same-team trusted jersey inference: Allen's Celtics stint now remains BOS #20 instead of taking stale SEA #34 bridge rows in the middle.",
+  "skip_if_no_db": true
+}

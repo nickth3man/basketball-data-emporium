@@ -1,0 +1,17 @@
+{
+  "id": "career_total.malone_pts",
+  "datapoint_class": "career_total",
+  "entity": "Karl Malone career regular-season total points = 36,928 (BBR). Warehouse SUM(avg_pts*gp) undercounts at 36,058 (delta 870, ~2.4%)",
+  "expected": 36928,
+  "bbr_source_url": "https://www.basketball-reference.com/players/m/malonka01.html",
+  "assertion_mode": "raw_sql",
+  "query_target": {
+    "sql": "SELECT ROUND(SUM(avg_pts * gp)) AS career_pts FROM agg_player_season WHERE player_id = 252 AND season_type = 'Regular'",
+    "extract": "[0].career_pts"
+  },
+  "match": "equals",
+  "status": "regression",
+  "confidence": "verified",
+  "notes": "REGRESSION: warehouse sums to 36,058 PTS but BBR's official Karl Malone career regular-season total is 36,928. The 870-point gap (over 19 seasons) is consistent with agg_player_season being missing or incomplete for one or more Malone seasons; same general cause as the existing stockton_career_ast and wilt_career_trb regressions but documents a specific new data point. Flip to stable when the warehouse value equals 36,928.",
+  "skip_if_no_db": true
+}

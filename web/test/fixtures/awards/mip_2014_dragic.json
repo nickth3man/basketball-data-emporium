@@ -1,0 +1,23 @@
+{
+  "id": "mip.2014_dragic",
+  "datapoint_class": "mip",
+  "entity": "2013-14 NBA Most Improved Player: Goran Dragic (only MIP)",
+  "expected": {
+    "season": "2014",
+    "award_type": "nba mip",
+    "subtype1": "Selected",
+    "player_id": "201609",
+    "full_name": "Goran Dragic"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/awards/mip.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getAwards",
+    "params": ["2014", "nba mip"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Goran Dragic won the 2013-14 MIP (warehouse season end-year 2014) — his only career MIP, in his lone All-Star season with Phoenix.",
+  "skip_if_no_db": true
+}

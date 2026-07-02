@@ -1,0 +1,23 @@
+{
+  "id": "playoff_series.finals_2021_mil_pho",
+  "datapoint_class": "playoff_series",
+  "entity": "2020-21 NBA Finals: Milwaukee Bucks def. Phoenix Suns 4-2 (Giannis 50-piece closeout)",
+  "expected": {
+    "season_id": "2020-21",
+    "round_number": "4",
+    "wins": "4",
+    "losses": "2",
+    "opponent_abbreviation": "PHX"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/playoffs/2021-nba-finals.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getTeamPlayoffSeries",
+    "params": [1610612749]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Indexed from the MIL side (1610612749). MIL's only Finals appearance in the warehouse, so round_number=4 is unambiguous.",
+  "skip_if_no_db": true
+}

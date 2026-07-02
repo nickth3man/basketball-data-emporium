@@ -1,0 +1,23 @@
+{
+  "id": "mip.2008_turkoglu",
+  "datapoint_class": "mip",
+  "entity": "2007-08 NBA Most Improved Player: Hedo Turkoglu (only MIP)",
+  "expected": {
+    "season": "2008",
+    "award_type": "nba mip",
+    "subtype1": "Selected",
+    "player_id": "2045",
+    "full_name": "Hedo Turkoglu"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/awards/mip.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getAwards",
+    "params": ["2008", "nba mip"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Hedo Turkoglu won the 2007-08 MIP (warehouse season end-year 2008) — his only career MIP, in his first season as a starter after leaving San Antonio.",
+  "skip_if_no_db": true
+}

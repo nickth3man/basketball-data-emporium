@@ -1,0 +1,17 @@
+{
+  "id": "all_nba_count.lebron_gte_20",
+  "datapoint_class": "all_nba_count",
+  "entity": "LeBron James All-NBA selections: BBR-canonical = 20 (record), warehouse currently lists 21",
+  "expected": 20,
+  "bbr_source_url": "https://www.basketball-reference.com/players/j/jamesle01.html",
+  "assertion_mode": "raw_sql",
+  "query_target": {
+    "sql": "SELECT cast(count(*) AS INTEGER) AS n FROM fact_player_awards WHERE player_id = 2544 AND award_type = 'All-NBA'",
+    "extract": "[0].n"
+  },
+  "match": "gte",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "BBR lists 20 All-NBA selections for LeBron; the warehouse has 21 (one extra row vs BBR's canonical list). gte 20 passes against the current warehouse state and catches the regression case if the count drops below 20. CAST(... AS INTEGER) keeps the count as a JSON number (not BIGINT-as-string) so the gte comparison compares numerically.",
+  "skip_if_no_db": true
+}

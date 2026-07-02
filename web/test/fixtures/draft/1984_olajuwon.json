@@ -1,0 +1,23 @@
+{
+  "id": "draft_first_pick.1984_olajuwon",
+  "datapoint_class": "draft_first_pick",
+  "entity": "1984 NBA Draft #1 overall pick: Hakeem Olajuwon (HOU; the draft that also included Michael Jordan at #3 and Charles Barkley at #5)",
+  "expected": {
+    "season": "1984",
+    "overall_pick": "1",
+    "player_name": "Hakeem Olajuwon",
+    "team_abbreviation": "HOU",
+    "organization": "Houston"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/draft/NBA_1984.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getDraftYear",
+    "params": ["1984"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "One of the most famous draft classes ever. The fixture pins the #1 pick (Olajuwon); Jordan (CHI, #3) and Barkley (PHI, #5) are in the same query result for cross-reference.",
+  "skip_if_no_db": true
+}

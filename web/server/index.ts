@@ -53,6 +53,15 @@ app.get(
   }),
 );
 
+// Registered before /api/players/:id so the literal "featured" segment isn't
+// swallowed by the :id param route.
+app.get(
+  "/api/players/featured",
+  asyncRoute(async (_req, res) => {
+    res.json(await q.getFeaturedPlayer());
+  }),
+);
+
 app.get(
   "/api/players/:id",
   asyncRoute(async (req, res) => {
@@ -78,6 +87,30 @@ app.get(
 );
 
 app.get(
+  "/api/players/:id/advanced",
+  asyncRoute(async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      res.status(400).json({ error: "Invalid player id" });
+      return;
+    }
+    res.json(await q.getPlayerAdvancedStats(id));
+  }),
+);
+
+app.get(
+  "/api/players/:id/per100",
+  asyncRoute(async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      res.status(400).json({ error: "Invalid player id" });
+      return;
+    }
+    res.json(await q.getPlayerPer100(id));
+  }),
+);
+
+app.get(
   "/api/players/:id/highs",
   asyncRoute(async (req, res) => {
     const id = Number(req.params.id);
@@ -86,6 +119,18 @@ app.get(
       return;
     }
     res.json(await q.getPlayerHighs(id));
+  }),
+);
+
+app.get(
+  "/api/players/:id/recent-games",
+  asyncRoute(async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      res.status(400).json({ error: "Invalid player id" });
+      return;
+    }
+    res.json(await q.getPlayerRecentGames(id));
   }),
 );
 
@@ -166,6 +211,15 @@ app.get(
   }),
 );
 
+// Registered before /api/teams/:id so the literal "by-conference" segment
+// isn't swallowed by the :id param route.
+app.get(
+  "/api/teams/by-conference",
+  asyncRoute(async (_req, res) => {
+    res.json(await q.getTeamsByConference());
+  }),
+);
+
 app.get(
   "/api/teams/:id",
   asyncRoute(async (req, res) => {
@@ -223,6 +277,30 @@ app.get(
       return;
     }
     res.json(await q.getTeamLineupEfficiency(id));
+  }),
+);
+
+app.get(
+  "/api/teams/:id/ranks",
+  asyncRoute(async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      res.status(400).json({ error: "Invalid team id" });
+      return;
+    }
+    res.json(await q.getTeamRanks(id));
+  }),
+);
+
+app.get(
+  "/api/teams/:id/opponent-stats",
+  asyncRoute(async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      res.status(400).json({ error: "Invalid team id" });
+      return;
+    }
+    res.json(await q.getTeamOpponentStats(id));
   }),
 );
 

@@ -1,0 +1,18 @@
+{
+  "id": "hall_of_fame.jordan_equals_2009",
+  "datapoint_class": "hall_of_fame",
+  "entity": "Michael Jordan inducted into the Basketball Hall of Fame in 2009",
+  "expected": 2009,
+  "bbr_source_url": "https://www.basketball-reference.com/players/j/jordami01.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getPlayerProfile",
+    "params": [893],
+    "extract": "hallOfFameYear"
+  },
+  "match": "equals",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Michael Jordan was inducted into the Naismith Memorial Basketball Hall of Fame in 2009 (his first year of eligibility after retiring in 2003). The induction year is sourced from stg_team_retired. Retired, year is fixed at 2009.",
+  "skip_if_no_db": true
+}

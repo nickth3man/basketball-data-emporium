@@ -1,0 +1,23 @@
+{
+  "id": "draft_first_pick.2009_griffin",
+  "datapoint_class": "draft_first_pick",
+  "entity": "2009 NBA Draft #1 overall pick: Blake Griffin (LAC)",
+  "expected": {
+    "season": "2009",
+    "overall_pick": "1",
+    "player_name": "Blake Griffin",
+    "team_abbreviation": "LAC",
+    "organization": "Oklahoma"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/draft/NBA_2009.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getDraftYear",
+    "params": ["2009"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Warehouse season is the draft's calendar year (2009 for the 2009 NBA Draft), not the BBR '2009-10' label. person_id is stored as VARCHAR in draft_history; player_name matches dim_player.full_name.",
+  "skip_if_no_db": true
+}

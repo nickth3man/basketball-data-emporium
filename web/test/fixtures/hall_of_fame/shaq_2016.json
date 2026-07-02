@@ -1,0 +1,18 @@
+{
+  "id": "hall_of_fame.shaq_equals_2016",
+  "datapoint_class": "hall_of_fame",
+  "entity": "Shaquille O'Neal inducted into the Basketball Hall of Fame in 2016",
+  "expected": 2016,
+  "bbr_source_url": "https://www.basketball-reference.com/players/o/onealsh01.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getPlayerProfile",
+    "params": [406],
+    "extract": "hallOfFameYear"
+  },
+  "match": "equals",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Shaquille O'Neal was inducted into the Naismith Memorial Basketball Hall of Fame in 2016 (his first year of eligibility after retiring in 2011). The induction year is sourced from stg_team_retired (Shaq has 6 rows in stg_team_retired all at 2016, one per team — the query's DISTINCT/LIMIT 1 dedupes). Retired, year is fixed at 2016.",
+  "skip_if_no_db": true
+}

@@ -1,0 +1,14 @@
+{
+  "id": "jersey.butler_chi_21",
+  "datapoint_class": "jersey",
+  "entity": "Jimmy Butler CHI 2011-15 should be #21 (regression: currently shows #10)",
+  "expected": { "abbreviation": "CHI", "start_year": 2011, "end_year": 2015, "jersey_num": "21" },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/CHI/numbers.html",
+  "assertion_mode": "query_fn",
+  "query_target": { "fn": "getPlayerProfile", "params": [202710], "extract": "jerseyHistory" },
+  "match": "containsObject",
+  "status": "regression",
+  "confidence": "verified",
+  "notes": "Butler wore #21 throughout his Bulls career (2011-2015). The current data shows #10 for the 2011-2013 stint — a gap-and-islands grouping bug that incorrectly splits the stint and assigns a wrong number to the first fragment.",
+  "skip_if_no_db": true
+}

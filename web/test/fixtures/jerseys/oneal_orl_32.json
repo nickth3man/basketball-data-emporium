@@ -1,0 +1,14 @@
+{
+  "id": "jersey.oneal_orl_32",
+  "datapoint_class": "jersey",
+  "entity": "Shaquille O'Neal ORL stint 1992-96 must be #32 (stable anchor)",
+  "expected": { "abbreviation": "ORL", "start_year": 1992, "end_year": 1996, "jersey_num": "32" },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/ORL/numbers.html",
+  "assertion_mode": "query_fn",
+  "query_target": { "fn": "getPlayerProfile", "params": [406], "extract": "jerseyHistory" },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "O'Neal's first Magic stint (1992-1996) correctly shows #32.",
+  "skip_if_no_db": true
+}

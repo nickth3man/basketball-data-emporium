@@ -1,0 +1,17 @@
+{
+  "id": "career_total.jordan_pts",
+  "datapoint_class": "career_total",
+  "entity": "Michael Jordan career total points = 32,292",
+  "expected": 32292,
+  "bbr_source_url": "https://www.basketball-reference.com/players/j/jordami01.html",
+  "assertion_mode": "raw_sql",
+  "query_target": {
+    "sql": "SELECT ROUND(SUM(avg_pts * gp)) AS career_pts FROM agg_player_season WHERE player_id = 893 AND season_type = 'Regular'",
+    "extract": "[0].career_pts"
+  },
+  "match": "equals",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Sum of avg_pts*gp from agg_player_season (regular season only). 15 seasons across 13 active years (2 retirements).",
+  "skip_if_no_db": true
+}

@@ -1,0 +1,20 @@
+{
+  "id": "current_roster.bos_2025_26",
+  "datapoint_class": "current_roster",
+  "entity": "Boston Celtics 2025-26 roster (latest season in bridge_player_team_season): contains Jayson Tatum (player_id 1628369, F, #0)",
+  "expected": {
+    "player_id": "1628369",
+    "full_name": "Jayson Tatum"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/BOS/2026.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getTeamRoster",
+    "params": [1610612738]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "spot-checked",
+  "notes": "Active roster; match:containsObject (partial-object match) pins Tatum as a marquee presence (6x All-Star, 2024 NBA champion). player_id is BIGINT in the warehouse and serializes as a JSON string in queryObjects, so the expected value matches the string type. The roster itself is not asserted as stable because trades/injuries can remove players at any time.",
+  "skip_if_no_db": true
+}

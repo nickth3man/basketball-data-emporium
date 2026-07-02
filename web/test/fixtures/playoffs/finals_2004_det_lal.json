@@ -1,0 +1,23 @@
+{
+  "id": "playoff_series.finals_2004_det_lal",
+  "datapoint_class": "playoff_series",
+  "entity": "2003-04 NBA Finals: Detroit Pistons def. Los Angeles Lakers 4-1 (Shaq/Kobe last Finals together; Pistons upsed the heavily-favored Lakers)",
+  "expected": {
+    "season_id": "2003-04",
+    "round_number": "4",
+    "wins": "4",
+    "losses": "1",
+    "opponent_abbreviation": "LAL"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/playoffs/2004-nba-finals.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getTeamPlayoffSeries",
+    "params": [1610612765]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Indexed from the DET side (1610612765). DET's only title this era — round_number=4 isolates the 2003-04 Finals (they also appeared in the 2004-05 Finals, lost to SAS 3-4, but the season_id discriminator narrows to 2003-04).",
+  "skip_if_no_db": true
+}

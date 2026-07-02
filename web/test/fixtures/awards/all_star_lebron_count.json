@@ -1,0 +1,17 @@
+{
+  "id": "all_star_count.lebron_gte_20",
+  "datapoint_class": "all_star_count",
+  "entity": "LeBron James All-Star selections: BBR-canonical = 20 (record), warehouse currently lists 22",
+  "expected": 20,
+  "bbr_source_url": "https://www.basketball-reference.com/players/j/jamesle01.html",
+  "assertion_mode": "raw_sql",
+  "query_target": {
+    "sql": "SELECT cast(count(*) AS INTEGER) AS n FROM fact_player_awards WHERE player_id = 2544 AND award_type = 'All-Star'",
+    "extract": "[0].n"
+  },
+  "match": "gte",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "BBR lists 20 All-Star selections for LeBron (record); the warehouse has 22 (one extra row from 2020-21 partial-season / bubble accounting and one extra from 2023-24). gte 20 passes against the current warehouse state and catches the regression case if the count drops below 20.",
+  "skip_if_no_db": true
+}

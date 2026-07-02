@@ -1,0 +1,17 @@
+{
+  "id": "all_star_count.jordan_equals_14",
+  "datapoint_class": "all_star_count",
+  "entity": "Michael Jordan All-Star selections = 14 (BBR-canonical and warehouse value agree)",
+  "expected": 14,
+  "bbr_source_url": "https://www.basketball-reference.com/players/j/jordami01.html",
+  "assertion_mode": "raw_sql",
+  "query_target": {
+    "sql": "SELECT cast(count(*) AS INTEGER) AS n FROM fact_player_awards WHERE player_id = 893 AND award_type = 'All-Star'",
+    "extract": "[0].n"
+  },
+  "match": "equals",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Michael Jordan's 14 All-Star selections (3 AS-MVP, tied for second-most behind Bob Pettit's 4 and tied with Kobe). BBR and warehouse agree exactly. Retired, so count is fixed at 14. CAST(... AS INTEGER) keeps the count as a JSON number (not BIGINT-as-string) so the equals comparison is numeric.",
+  "skip_if_no_db": true
+}

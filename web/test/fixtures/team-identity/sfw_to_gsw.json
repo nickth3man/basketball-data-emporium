@@ -1,0 +1,20 @@
+{
+  "id": "team_identity.sfw_to_gsw",
+  "datapoint_class": "team_identity",
+  "entity": "BBR source abbreviation SFW (San Francisco Warriors 1962-71) maps to warehouse canonical SF (San Francisco Warriors) and GSW (Golden State Warriors 1971+); same franchise, relocated/renamed 1971 (team_id 1610612744)",
+  "expected": {
+    "sf_row_count": 1,
+    "gsw_row_count": 1
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/SFW/",
+  "assertion_mode": "raw_sql",
+  "query_target": {
+    "sql": "SELECT (SELECT cast(count(*) AS INTEGER) FROM dim_team WHERE team_id = '1610612744' AND city = 'San Francisco' AND abbreviation = 'SF') AS sf_row_count, (SELECT cast(count(*) AS INTEGER) FROM dim_team WHERE team_id = '1610612744' AND city = 'Golden State' AND abbreviation = 'GSW') AS gsw_row_count",
+    "extract": "[0]"
+  },
+  "match": "objectMatching",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Both SF (1962-71) and GSW (1971+) share team_id 1610612744 in dim_team, confirming the same franchise continued across the 1971 move from San Francisco to Oakland (and the rename to Golden State). The franchise started as the Philadelphia Warriors (PHW 1949-62), then San Francisco Warriors (SF/SFW 1962-71), then Golden State Warriors (GSW 1971+). The pre-SFW era is already covered by the team_identity.phw_to_phi fixture. CAST(... AS INTEGER) keeps counts as JSON numbers. NOTE: the task spec asked for `query_fn: getTeamIdentity` but no such function exists — using raw_sql per the existing team_identity fixture pattern.",
+  "skip_if_no_db": true
+}

@@ -1,0 +1,23 @@
+{
+  "id": "playoff_series.finals_2008_bos_lal",
+  "datapoint_class": "playoff_series",
+  "entity": "2007-08 NBA Finals: Boston Celtics def. Los Angeles Lakers 4-2 (the new Big 3's first title; Celtics/Lakers renewed rivalry)",
+  "expected": {
+    "season_id": "2007-08",
+    "round_number": "4",
+    "wins": "4",
+    "losses": "2",
+    "opponent_abbreviation": "LAL"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/playoffs/2008-nba-finals.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getTeamPlayoffSeries",
+    "params": [1610612738]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Indexed from the BOS side (1610612738). BOS's 17th title; the Garnett/Pierce/Allen big 3 era. The 4-2 margin matches BBR's official Finals result.",
+  "skip_if_no_db": true
+}

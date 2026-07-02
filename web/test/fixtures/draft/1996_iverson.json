@@ -1,0 +1,23 @@
+{
+  "id": "draft_first_pick.1996_iverson",
+  "datapoint_class": "draft_first_pick",
+  "entity": "1996 NBA Draft #1 overall pick: Allen Iverson (PHI; 'The Answer', 2000-01 MVP, one of the most decorated scorers ever)",
+  "expected": {
+    "season": "1996",
+    "overall_pick": "1",
+    "player_name": "Allen Iverson",
+    "team_abbreviation": "PHI",
+    "organization": "Georgetown"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/draft/NBA_1996.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getDraftYear",
+    "params": ["1996"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Allen Iverson was the #1 pick out of Georgetown. The 1996 draft is widely considered the greatest draft class of all time, also including Kobe Bryant (#13), Steve Nash (#15), Ray Allen (#5), and Stephon Marbury (#4).",
+  "skip_if_no_db": true
+}

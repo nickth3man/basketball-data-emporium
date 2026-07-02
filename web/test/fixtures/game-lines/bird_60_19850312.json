@@ -1,0 +1,24 @@
+{
+  "id": "famous_game_line.bird_60_19850312",
+  "datapoint_class": "famous_game_line",
+  "entity": "Larry Bird 60 PTS vs Atlanta Hawks on 1985-03-12 (BOS 126-115; the only 60-point game in Celtics history at the time, achieved on a 22-of-36 shooting night)",
+  "expected": {
+    "player_name": "Larry Bird",
+    "team_abbreviation": "BOS",
+    "game_date": "1985-03-12",
+    "pts": 60,
+    "reb": 7,
+    "ast": 3,
+    "season_year": "1984-85"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/boxscores/198503120BOS.html",
+  "assertion_mode": "raw_sql",
+  "query_target": {
+    "sql": "SELECT player_name, team_abbreviation, game_date, pts, reb, ast, season_year FROM analytics_player_game_complete WHERE player_name = 'Larry Bird' AND game_date = '1985-03-12' AND pts = 60 LIMIT 1"
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Retired player; match:containsObject with exact values. The 60-point game is pre-1996-97, so fact_player_game_log doesn't have it; analytics_player_game_complete covers the full historical back to 1946. Bird was famously one of the last players off the bench for this game (he had been ill the night before).",
+  "skip_if_no_db": true
+}
