@@ -3,6 +3,7 @@ import { renderHome } from "./views/home.ts";
 import { renderPlayers } from "./views/players.ts";
 import { renderTeams } from "./views/teams.ts";
 import { renderStandings } from "./views/standings.ts";
+import { renderLeaders } from "./views/leaders.ts";
 import { renderDraftAwards } from "./views/draftAwards.ts";
 import { renderSearchResults } from "./views/searchResults.ts";
 import { mountHeaderSearch } from "./headerSearch.ts";
@@ -23,6 +24,7 @@ const TABS: Tab[] = [
   { id: "players", label: "Players", render: renderPlayers },
   { id: "teams", label: "Teams", render: renderTeams },
   { id: "standings", label: "Standings", render: renderStandings },
+  { id: "leaders", label: "League Leaders", render: renderLeaders },
   { id: "draft-awards", label: "Draft & Awards", render: renderDraftAwards },
   { id: "search", label: "Search Results", render: renderSearchResults, hidden: true },
 ];
