@@ -234,4 +234,40 @@ export const api = {
         limit: opts?.limit !== undefined ? String(opts.limit) : null,
       })}`,
     ),
+
+  getPlayerLocationSplits: (playerId: string | number) =>
+    getJSON<Row[]>(`/api/players/${playerId}/location-splits`),
+  getPlayerEstimatedMetrics: (playerId: string | number) =>
+    getJSON<Row[]>(`/api/players/${playerId}/estimated-metrics`),
+  listPlayerShotSeasons: (playerId: string | number) =>
+    getJSON<string[]>(`/api/players/${playerId}/shot-chart/seasons`),
+  getPlayerShotChart: (playerId: string | number, season?: string) =>
+    getJSON<ShotBin[]>(`/api/players/${playerId}/shot-chart${qs({ season: season ?? null })}`),
+
+  getTeamHeadToHead: (teamId: string | number) =>
+    getJSON<Row[]>(`/api/teams/${teamId}/head-to-head`),
+  getTeamSeasonContext: (teamId: string | number) =>
+    getJSON<Row[]>(`/api/teams/${teamId}/season-context`),
+
+  getGameDetail: (gameId: string) => getJSON<GameDetail>(`/api/games/${gameId}`),
+
+  getAwardVoting: (season: string, award: string) =>
+    getJSON<Row[]>(`/api/awards/voting${qs({ season, award })}`),
 };
+
+export interface ShotBin {
+  bin_x: number;
+  bin_y: number;
+  attempts: number | string;
+  makes: number | string;
+  league_fg_pct: number | null;
+}
+
+export interface GameDetail {
+  header: Row | null;
+  lineScore: Row | null;
+  leaders: Row[];
+  officials: Row[];
+  starters: Row[];
+  lastPlays: Row[];
+}

@@ -87,6 +87,14 @@ async function renderDraftSection(container: HTMLElement): Promise<void> {
   }
 }
 
+const VOTED_AWARD_TYPES: ReadonlySet<string> = new Set([
+  "nba mvp",
+  "nba roy",
+  "nba dpoy",
+  "nba mip",
+  "nba smoy",
+]);
+
 async function renderAwardsSection(container: HTMLElement): Promise<void> {
   container.append(el("h2", { text: "Awards" }), el("p", { className: "muted", text: "Loading…" }));
   announceStatus("Loading award seasons…");
@@ -115,7 +123,7 @@ async function renderAwardsSection(container: HTMLElement): Promise<void> {
       announceStatus("Loading awards…");
       try {
         const rows = await api.awards(seasonSelect.value, typeSelect.value || null);
-        resultDiv.replaceChildren(
+        const pieces: HTMLElement[] = [
           renderTable(
             [
               { key: "full_name", label: "Player", render: awardPlayerCell },
@@ -124,7 +132,30 @@ async function renderAwardsSection(container: HTMLElement): Promise<void> {
             ],
             rows,
           ),
-        );
+        ];
+        // Major awards carry full BBR voting records — show the ballot
+        // finish below the winner when one specific award is selected.
+        if (VOTED_AWARD_TYPES.has(typeSelect.value)) {
+          const voting = await api.getAwardVoting(seasonSelect.value, typeSelect.value);
+          if (voting.length > 0) {
+            pieces.push(
+              el("h3", { text: `${labelAwardType(typeSelect.value)} voting` }),
+              renderTable(
+                [
+                  { key: "full_name", label: "Player", render: awardPlayerCell },
+                  { key: "age", label: "Age" },
+                  { key: "first_place_votes", label: "1st-place votes" },
+                  { key: "pts_won", label: "Points" },
+                  { key: "pts_max", label: "Max points" },
+                  { key: "share", label: "Share" },
+                  { key: "winner", label: "Won", format: (v) => (v === true ? "✓" : "") },
+                ],
+                voting,
+              ),
+            );
+          }
+        }
+        resultDiv.replaceChildren(...pieces);
         announceStatus(`Loaded ${seasonSelect.value} awards.`);
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to load awards.";

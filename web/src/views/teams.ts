@@ -1,6 +1,7 @@
 import { api, type Row } from "../api.ts";
 import {
   announceStatus,
+  boxScoreCell,
   el,
   formatPct,
   formatValue,
@@ -68,7 +69,7 @@ export function renderTeams(container: HTMLElement, initialTeamId?: string): voi
       if (profile.recentGames.length > 0) renderRecentGames(detail, profile.recentGames);
       announceStatus(`Loaded profile for ${String(profile.bio.nickname)}.`);
 
-      const [roster, playoffSeries, lineups, coaches, ranks, opponentStats] =
+      const [roster, playoffSeries, lineups, coaches, ranks, opponentStats, headToHead, context] =
         await Promise.allSettled([
           api.getTeamRoster(id),
           api.getTeamPlayoffSeries(id),
@@ -76,6 +77,8 @@ export function renderTeams(container: HTMLElement, initialTeamId?: string): voi
           api.getTeamCoaches(id),
           api.getTeamRanks(id),
           api.getTeamOpponentStats(id),
+          api.getTeamHeadToHead(id),
+          api.getTeamSeasonContext(id),
         ]);
       if (roster.status === "fulfilled" && roster.value.length > 0)
         renderRoster(detail, roster.value);
@@ -88,6 +91,10 @@ export function renderTeams(container: HTMLElement, initialTeamId?: string): voi
       if (ranks.status === "fulfilled" && ranks.value.length > 0) renderRanks(detail, ranks.value);
       if (opponentStats.status === "fulfilled" && opponentStats.value.length > 0)
         renderOpponentStats(detail, opponentStats.value);
+      if (context.status === "fulfilled" && context.value.length > 0)
+        renderSeasonContext(detail, context.value);
+      if (headToHead.status === "fulfilled" && headToHead.value.length > 0)
+        renderHeadToHead(detail, headToHead.value);
       renderJumpNav(jumpNav, [
         profile.franchiseHistory.length > 1 ? ["Franchise", "team-franchise"] : null,
         profile.seasons.length > 0 ? ["Seasons", "team-seasons"] : null,
@@ -105,6 +112,12 @@ export function renderTeams(container: HTMLElement, initialTeamId?: string): voi
         ranks.status === "fulfilled" && ranks.value.length > 0 ? ["Ranks", "team-ranks"] : null,
         opponentStats.status === "fulfilled" && opponentStats.value.length > 0
           ? ["Opponent", "team-opponent"]
+          : null,
+        context.status === "fulfilled" && context.value.length > 0
+          ? ["Context", "team-season-context"]
+          : null,
+        headToHead.status === "fulfilled" && headToHead.value.length > 0
+          ? ["H2H", "team-head-to-head"]
           : null,
       ]);
     } catch (err) {
@@ -391,6 +404,7 @@ function renderRecentGames(container: HTMLElement, games: Row[]): void {
       sectionHeading("team-games", "Recent games"),
       renderTable(
         [
+          { key: "game_id", label: "", headerLabel: "Box score", render: boxScoreCell },
           { key: "game_date", label: "Date", format: (v) => String(v).slice(0, 10) },
           { key: "location", label: "", headerLabel: "Home or away" },
           { key: "opponent", label: "Opp" },
@@ -399,6 +413,76 @@ function renderRecentGames(container: HTMLElement, games: Row[]): void {
           { key: "result", label: "Result" },
         ],
         games,
+      ),
+    ]),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// BBR season context (SRS / pace / ratings / four factors both ways) and
+// all-time head-to-head records vs every opponent franchise.
+// ---------------------------------------------------------------------------
+
+function renderSeasonContext(container: HTMLElement, rows: Row[]): void {
+  container.append(
+    el("section", {}, [
+      sectionHeading("team-season-context", "Season context (SRS, pace, four factors)"),
+      tableNote(
+        "Basketball-Reference team summaries: Simple Rating System, pythagorean expected record, pace, and four factors for both offense and defense.",
+      ),
+      renderTable(
+        [
+          { key: "season", label: "Season" },
+          { key: "w", label: "W" },
+          { key: "l", label: "L" },
+          { key: "pw", label: "pyth W" },
+          { key: "pl", label: "pyth L" },
+          { key: "srs", label: "SRS" },
+          { key: "sos", label: "SOS" },
+          { key: "pace", label: "Pace" },
+          { key: "o_rtg", label: "ORtg" },
+          { key: "d_rtg", label: "DRtg" },
+          { key: "n_rtg", label: "NetRtg" },
+          { key: "e_fg_percent", label: "eFG%" },
+          { key: "tov_percent", label: "TOV%" },
+          { key: "orb_percent", label: "ORB%" },
+          { key: "ft_fga", label: "FT/FGA" },
+          { key: "opp_e_fg_percent", label: "Opp eFG%" },
+          { key: "opp_tov_percent", label: "Opp TOV%" },
+          { key: "drb_percent", label: "DRB%" },
+          { key: "opp_ft_fga", label: "Opp FT/FGA" },
+          { key: "attend_g", label: "Att./G" },
+        ],
+        rows,
+        [
+          { label: "Record", span: 5 },
+          { label: "Rating", span: 6 },
+          { label: "Offense", span: 4 },
+          { label: "Defense", span: 4 },
+          { label: "", span: 1 },
+        ],
+      ),
+    ]),
+  );
+}
+
+function renderHeadToHead(container: HTMLElement, rows: Row[]): void {
+  container.append(
+    el("section", {}, [
+      sectionHeading("team-head-to-head", "All-time head-to-head"),
+      tableNote("Regular-season records vs every opponent franchise, all eras combined."),
+      renderTable(
+        [
+          { key: "opponent_abbreviation", label: "Opp" },
+          { key: "opponent_name", label: "Opponent" },
+          { key: "gp", label: "G" },
+          { key: "wins", label: "W" },
+          { key: "losses", label: "L" },
+          { key: "avg_pts_scored", label: "PTS for" },
+          { key: "avg_pts_allowed", label: "PTS against" },
+          { key: "avg_margin", label: "Margin" },
+        ],
+        rows,
       ),
     ]),
   );

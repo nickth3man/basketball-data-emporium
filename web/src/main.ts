@@ -6,6 +6,7 @@ import { renderStandings } from "./views/standings.ts";
 import { renderLeaders } from "./views/leaders.ts";
 import { renderDraftAwards } from "./views/draftAwards.ts";
 import { renderSearchResults } from "./views/searchResults.ts";
+import { renderGame } from "./views/game.ts";
 import { mountHeaderSearch } from "./headerSearch.ts";
 
 interface Tab {
@@ -27,6 +28,7 @@ const TABS: Tab[] = [
   { id: "leaders", label: "League Leaders", render: renderLeaders },
   { id: "draft-awards", label: "Draft & Awards", render: renderDraftAwards },
   { id: "search", label: "Search Results", render: renderSearchResults, hidden: true },
+  { id: "game", label: "Game", render: renderGame, hidden: true },
 ];
 
 const VISIBLE_TABS = TABS.filter((t) => !t.hidden);

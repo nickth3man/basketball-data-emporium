@@ -1,6 +1,14 @@
-import { api, type Badge, type JerseyStint, type PlayerSeasonRank, type Row } from "../api.ts";
+import {
+  api,
+  type Badge,
+  type JerseyStint,
+  type PlayerSeasonRank,
+  type Row,
+  type ShotBin,
+} from "../api.ts";
 import {
   announceStatus,
+  boxScoreCell,
   el,
   formatPct,
   formatValue,
@@ -90,6 +98,9 @@ export function renderPlayers(container: HTMLElement, initialPlayerId?: string):
         combine,
         similar,
         seasonRanks,
+        locationSplits,
+        estimatedMetrics,
+        shotChart,
       ] = await Promise.allSettled([
         api.getPlayerHighs(id),
         api.getPlayerRecentGames(id),
@@ -101,6 +112,9 @@ export function renderPlayers(container: HTMLElement, initialPlayerId?: string):
         api.getPlayerCombine(id),
         api.getSimilarPlayers(id),
         api.getPlayerSeasonRanks(id, 10),
+        api.getPlayerLocationSplits(id),
+        api.getPlayerEstimatedMetrics(id),
+        api.getPlayerShotChart(id),
       ]);
       if (recentGames.status === "fulfilled" && recentGames.value.length > 0)
         renderRecentGames(detail, recentGames.value);
@@ -110,7 +124,13 @@ export function renderPlayers(container: HTMLElement, initialPlayerId?: string):
       if (profile.awards.length > 0) renderAwards(detail, profile.awards);
       if (shotSplits.status === "fulfilled" && shotSplits.value.length > 0)
         renderShotSplits(detail, shotSplits.value);
+      if (shotChart.status === "fulfilled" && shotChart.value.length > 0)
+        renderShotHeatMap(detail, shotChart.value);
+      if (locationSplits.status === "fulfilled" && locationSplits.value.length > 0)
+        renderLocationSplits(detail, locationSplits.value);
       if (onOff.status === "fulfilled" && onOff.value.length > 0) renderOnOff(detail, onOff.value);
+      if (estimatedMetrics.status === "fulfilled" && estimatedMetrics.value.length > 0)
+        renderEstimatedMetrics(detail, estimatedMetrics.value);
       if (combine.status === "fulfilled" && combine.value) renderCombine(detail, combine.value);
       if (seasonRanks.status === "fulfilled" && seasonRanks.value.length > 0)
         renderLeagueRanks(detail, seasonRanks.value);
@@ -127,7 +147,16 @@ export function renderPlayers(container: HTMLElement, initialPlayerId?: string):
         shotSplits.status === "fulfilled" && shotSplits.value.length > 0
           ? ["Shooting", "player-shooting"]
           : null,
+        shotChart.status === "fulfilled" && shotChart.value.length > 0
+          ? ["Heat map", "player-heat-map"]
+          : null,
+        locationSplits.status === "fulfilled" && locationSplits.value.length > 0
+          ? ["Home/Away", "player-location-splits"]
+          : null,
         onOff.status === "fulfilled" && onOff.value.length > 0 ? ["On/Off", "player-on-off"] : null,
+        estimatedMetrics.status === "fulfilled" && estimatedMetrics.value.length > 0
+          ? ["Est. metrics", "player-estimated-metrics"]
+          : null,
         combine.status === "fulfilled" && combine.value ? ["Combine", "player-combine"] : null,
         seasonRanks.status === "fulfilled" && seasonRanks.value.length > 0
           ? ["Ranks", "player-league-ranks"]
@@ -410,6 +439,7 @@ function renderRecentGames(container: HTMLElement, games: Row[]): void {
       sectionHeading("player-recent", "Recent games"),
       renderTable(
         [
+          { key: "game_id", label: "", headerLabel: "Box score", render: boxScoreCell },
           { key: "game_date", label: "Date", format: (v) => String(v).slice(0, 10) },
           {
             key: "opponent",
@@ -1668,4 +1698,126 @@ function renderSimilarPlayers(
   }
   section.append(list);
   container.append(section);
+}
+
+// ---------------------------------------------------------------------------
+// Shot heat map — server-binned analytics_shooting_efficiency cells (2.5 ft
+// squares in NBA court units: x is offset from the hoop centerline, y is
+// distance toward halfcourt). Color encodes FG% vs the league average for
+// the shots in the cell; opacity encodes volume (log scale).
+// ---------------------------------------------------------------------------
+
+function renderShotHeatMap(container: HTMLElement, bins: ShotBin[]): void {
+  const CELL = 25; // SVG px per bin, and court units per bin (1:1)
+  const X_MIN = -10; // bins: loc_x -250..250 -> -10..9
+  const Y_MAX = 16; //  bins: loc_y -52..418 -> -3..16
+  const width = 20 * CELL;
+  const height = 20 * CELL;
+  const svg = svgEl("svg", {
+    viewBox: `0 0 ${width} ${height}`,
+    class: "shot-heat-map",
+    role: "img",
+    "aria-label": "Career shot heat map",
+  });
+  const maxAttempts = Math.max(...bins.map((b) => Number(b.attempts)));
+  for (const b of bins) {
+    const attempts = Number(b.attempts);
+    const makes = Number(b.makes);
+    if (!Number.isFinite(attempts) || attempts <= 0) continue;
+    const fgPct = makes / attempts;
+    const league = b.league_fg_pct === null ? null : Number(b.league_fg_pct);
+    const delta = league === null ? 0 : fgPct - league;
+    // Green above league average, red below; neutral gray when unknown.
+    const hue = league === null ? 0 : delta >= 0 ? 145 : 5;
+    const sat = league === null ? 0 : Math.min(90, Math.abs(delta) * 400);
+    const alpha = 0.15 + 0.85 * (Math.log1p(attempts) / Math.log1p(maxAttempts));
+    const px = (Number(b.bin_x) - X_MIN) * CELL;
+    const py = (Y_MAX - Number(b.bin_y)) * CELL;
+    const rect = svgEl("rect", {
+      x: px,
+      y: py,
+      width: CELL - 1,
+      height: CELL - 1,
+      rx: 3,
+      fill: `hsl(${hue} ${sat}% 45% / ${alpha.toFixed(3)})`,
+    });
+    rect.append(svgEl("title", {}));
+    const title = rect.querySelector("title");
+    if (title)
+      title.textContent = `${makes}/${attempts} (${(fgPct * 100).toFixed(1)}%)${
+        league === null ? "" : ` vs league ${(league * 100).toFixed(1)}%`
+      }`;
+    svg.append(rect);
+  }
+  // Hoop marker at loc (0, 0) => bin boundary between -1/0; draw at court origin.
+  svg.append(
+    svgEl("circle", {
+      cx: (0 - X_MIN) * CELL,
+      cy: (Y_MAX - 0) * CELL,
+      r: 5,
+      fill: "none",
+      stroke: "currentColor",
+      "stroke-width": 2,
+    }),
+  );
+  container.append(
+    el("section", {}, [
+      sectionHeading("player-heat-map", "Shot heat map"),
+      tableNote(
+        "Career shots binned into 2.5 ft cells (1996-97 onward). Green cells beat the league average for that spot, red fall short; opacity tracks volume.",
+      ),
+      el("div", { className: "shot-heat-map-wrap" }, [svg]),
+    ]),
+  );
+}
+
+function renderLocationSplits(container: HTMLElement, rows: Row[]): void {
+  container.append(
+    el("section", {}, [
+      sectionHeading("player-location-splits", "Home / away splits"),
+      tableNote("Regular-season per-game splits by game location."),
+      renderTable(
+        [
+          { key: "season_year", label: "Season" },
+          { key: "group_value", label: "Loc" },
+          { key: "gp", label: "G" },
+          { key: "w", label: "W" },
+          { key: "l", label: "L" },
+          { key: "pts", label: "PTS" },
+          { key: "reb", label: "REB" },
+          { key: "ast", label: "AST" },
+          { key: "fg_pct", label: "FG%", format: formatPct },
+          { key: "fg3_pct", label: "3P%", format: formatPct },
+          { key: "ft_pct", label: "FT%", format: formatPct },
+          { key: "plus_minus", label: "+/-" },
+        ],
+        rows,
+      ),
+    ]),
+  );
+}
+
+function renderEstimatedMetrics(container: HTMLElement, rows: Row[]): void {
+  container.append(
+    el("section", {}, [
+      sectionHeading("player-estimated-metrics", "Estimated advanced metrics"),
+      tableNote("NBA estimated-metrics feed (1996-97 onward), regular season."),
+      renderTable(
+        [
+          { key: "season_year", label: "Season" },
+          { key: "gp", label: "G" },
+          { key: "w", label: "W" },
+          { key: "l", label: "L" },
+          { key: "e_off_rating", label: "eORtg" },
+          { key: "e_def_rating", label: "eDRtg" },
+          { key: "e_net_rating", label: "eNet" },
+          { key: "e_pace", label: "ePace" },
+          { key: "e_usg_pct", label: "eUSG%", format: formatPct },
+          { key: "e_reb_pct", label: "eREB%", format: formatPct },
+          { key: "e_tov_pct", label: "eTOV%", format: formatPct },
+        ],
+        rows,
+      ),
+    ]),
+  );
 }

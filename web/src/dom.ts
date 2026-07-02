@@ -121,6 +121,23 @@ export function playerCell(value: unknown, row: Record<string, unknown>): Node |
   return button;
 }
 
+/** Renders a game-id cell as a "Box" button that opens the hidden per-game
+ *  box-score tab. Shared by the recent-games tables on player and team
+ *  profiles. Renders nothing when the row has no game id (e.g. seasons the
+ *  game dimension doesn't cover). */
+export function boxScoreCell(value: unknown): Node | string {
+  const gameId = typeof value === "string" || typeof value === "number" ? String(value) : "";
+  if (!/^\d{8,10}$/.test(gameId)) return "";
+  const button = el("button", {
+    type: "button",
+    className: "cell-link",
+    text: "Box",
+    "aria-label": "Open box score",
+  });
+  button.addEventListener("click", () => navigateToDetail("game", gameId.padStart(10, "0")));
+  return button;
+}
+
 function isNumericText(value: string): boolean {
   const trimmed = value.trim();
   return trimmed === "—" || /^-?\d+(\.\d+)?%?$/.test(trimmed);
