@@ -627,6 +627,43 @@ app.get(
   }),
 );
 
+// --- Four factors ------------------------------------------------------------
+
+app.get(
+  "/api/four-factors/seasons",
+  asyncRoute(async (_req, res) => {
+    res.json(await q.listFourFactorsSeasons());
+  }),
+);
+
+app.get(
+  "/api/four-factors/teams",
+  asyncRoute(async (req, res) => {
+    const season = requireQueryString(req, res, "season");
+    if (!season) return;
+    res.json(await q.getFourFactorsTeams(season));
+  }),
+);
+
+app.get(
+  "/api/four-factors/league",
+  asyncRoute(async (_req, res) => {
+    res.json(await q.getFourFactorsLeague());
+  }),
+);
+
+app.get(
+  "/api/games/:id/four-factors",
+  asyncRoute(async (req, res) => {
+    const id = String(req.params.id);
+    if (!/^\d{8,10}$/.test(id)) {
+      res.status(400).json({ error: "Invalid game id" });
+      return;
+    }
+    res.json(await q.getGameFourFactors(id.padStart(10, "0")));
+  }),
+);
+
 // --- Generic table browser (developer escape hatch, not used by the UI) --
 
 app.get("/api/admin/tables", async (_req, res) => {

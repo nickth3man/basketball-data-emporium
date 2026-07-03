@@ -17,6 +17,12 @@ export const ANALYTICS_TOOLS: AnalyticsTool[] = [
     description:
       "Which teams beat the betting market? Moneyline upsets, market-beaters, and bookmaker calibration since 2003.",
   },
+  {
+    id: "four-factors",
+    label: "Four Factors",
+    description:
+      "Dean Oliver's why-teams-win decomposition: shooting, turnovers, rebounding, and free throws for every team-season since 2000, plus how the league itself has drifted.",
+  },
 ];
 
 export function renderAnalytics(container: HTMLElement): void {

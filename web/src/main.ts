@@ -9,6 +9,7 @@ import { renderSearchResults } from "./views/searchResults.ts";
 import { renderGame } from "./views/game.ts";
 import { renderAnalytics } from "./views/analytics.ts";
 import { renderBetting } from "./views/betting.ts";
+import { renderFourFactors } from "./views/fourFactors.ts";
 import { mountHeaderSearch } from "./headerSearch.ts";
 
 interface Tab {
@@ -33,6 +34,7 @@ const TABS: Tab[] = [
   { id: "search", label: "Search Results", render: renderSearchResults, hidden: true },
   { id: "game", label: "Game", render: renderGame, hidden: true },
   { id: "betting", label: "Vegas vs Reality", render: renderBetting, hidden: true },
+  { id: "four-factors", label: "Four Factors", render: renderFourFactors, hidden: true },
 ];
 
 const VISIBLE_TABS = TABS.filter((t) => !t.hidden);

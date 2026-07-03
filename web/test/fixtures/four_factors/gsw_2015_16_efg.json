@@ -1,0 +1,22 @@
+{
+  "id": "four_factors.gsw_2015_16_efg",
+  "datapoint_class": "four_factors",
+  "entity": "Golden State Warriors 2015-16 (73-9, league-best .563 eFG% per BBR): 82 games, 73 wins, eFG% rank 1 in the four-factors dashboard",
+  "expected": {
+    "team_abbreviation": "GSW",
+    "gp": 82,
+    "wins": 73,
+    "efg_rank": 1
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/GSW/2016.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getFourFactorsTeams",
+    "params": ["2015-16"]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Integer facts only — the eFG% value itself is a per-game average (.564) that differs from BBR's possession-weighted .563, so the rank (1st, exact) carries the shooting assertion. Wins come from the game fact table join.",
+  "skip_if_no_db": true
+}

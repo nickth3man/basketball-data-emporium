@@ -47,6 +47,7 @@ export function renderGame(container: HTMLElement, gameId?: string): void {
       if (game.leaders.length > 0) renderLeaders(detail, game.leaders);
       if (game.starters.length > 0) renderStarters(detail, game.starters, game.header);
       if (game.context.length > 0) renderContext(detail, game.context);
+      void loadFourFactors(detail, id);
       if (game.lastPlays.length > 0) renderLastPlays(detail, game.lastPlays, game.header);
       if (game.officials.length > 0) renderOfficials(detail, game.officials);
       announceStatus("Game loaded.");
@@ -353,6 +354,33 @@ function renderStarters(container: HTMLElement, starters: Row[], header: Row): v
 
 function starterPlayerCell(value: unknown, row: Record<string, unknown>): Node | string {
   return playerCell(value, { ...row, player_id: row.person_id });
+}
+
+// Four factors are a separate endpoint/table (2000-01 onward) so they load
+// after the main box score and are simply skipped for games without rows.
+async function loadFourFactors(container: HTMLElement, gameId: string): Promise<void> {
+  try {
+    const rows = await api.getGameFourFactors(gameId);
+    if (rows.length === 0) return;
+    container.append(
+      el("section", {}, [
+        el("h3", { id: "game-four-factors", text: "Four factors" }),
+        renderTable(
+          [
+            { key: "team_name", label: "Team" },
+            { key: "side", label: "Site" },
+            { key: "efg_pct", label: "eFG%", format: formatPct },
+            { key: "tov_pct", label: "TOV%", format: formatPct },
+            { key: "oreb_pct", label: "ORB%", format: formatPct },
+            { key: "ft_rate", label: "FT rate", format: formatPct },
+          ],
+          rows,
+        ),
+      ]),
+    );
+  } catch {
+    // Non-critical enrichment; the box score stands on its own.
+  }
 }
 
 function renderContext(container: HTMLElement, rows: Row[]): void {

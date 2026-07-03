@@ -269,6 +269,12 @@ export const api = {
       })}`,
     ),
   getBettingCalibration: () => getJSON<Row[]>("/api/betting/calibration"),
+
+  listFourFactorsSeasons: () => getJSON<string[]>("/api/four-factors/seasons"),
+  getFourFactorsTeams: (season: string) =>
+    getJSON<Row[]>(`/api/four-factors/teams${qs({ season })}`),
+  getFourFactorsLeague: () => getJSON<Row[]>("/api/four-factors/league"),
+  getGameFourFactors: (gameId: string) => getJSON<Row[]>(`/api/games/${gameId}/four-factors`),
 };
 
 export interface ShotBin {
