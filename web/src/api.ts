@@ -257,6 +257,18 @@ export const api = {
 
   getAwardVoting: (season: string, award: string) =>
     getJSON<Row[]>(`/api/awards/voting${qs({ season, award })}`),
+
+  listBettingSeasons: () => getJSON<string[]>("/api/betting/seasons"),
+  getBettingMarketBeaters: (season?: string) =>
+    getJSON<Row[]>(`/api/betting/market-beaters${qs({ season: season ?? null })}`),
+  getBettingUpsets: (season?: string, limit?: number) =>
+    getJSON<Row[]>(
+      `/api/betting/upsets${qs({
+        season: season ?? null,
+        limit: limit !== undefined ? String(limit) : null,
+      })}`,
+    ),
+  getBettingCalibration: () => getJSON<Row[]>("/api/betting/calibration"),
 };
 
 export interface ShotBin {

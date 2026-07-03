@@ -1,0 +1,26 @@
+{
+  "id": "betting_line.biggest_upset_gsw_uta_20090411",
+  "datapoint_class": "betting_line",
+  "entity": "Biggest moneyline upset in the covered era: Golden State (playing out the string, +31.00 decimal ≈ 3.2% implied) wins 118-108 at Utah on 2009-04-11",
+  "expected": {
+    "game_date": "2009-04-11",
+    "winner": "GSW",
+    "loser": "UTA",
+    "winner_pts": 118,
+    "loser_pts": 108,
+    "winner_side": "Away",
+    "winner_odds": 31.0,
+    "implied_win_pct": 3.2
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/boxscores/200904110UTA.html",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getBettingUpsets",
+    "params": [null, 1]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Game result verified against BBR; the odds themselves come from fact_game_betting_lines (no external odds source to cross-check, but 31.00 decimal on a late-season Warriors road team against a playoff-bound Jazz side is plausible). Guards the Vegas vs Reality upset ranking end-to-end through the exported query function.",
+  "skip_if_no_db": true
+}

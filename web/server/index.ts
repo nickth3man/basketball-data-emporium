@@ -590,6 +590,43 @@ app.get(
   }),
 );
 
+// --- Betting (Vegas vs Reality) --------------------------------------------
+//
+// All literal-segment routes; no :id params under /api/betting.
+
+app.get(
+  "/api/betting/seasons",
+  asyncRoute(async (_req, res) => {
+    res.json(await q.listBettingSeasons());
+  }),
+);
+
+app.get(
+  "/api/betting/market-beaters",
+  asyncRoute(async (req, res) => {
+    const season =
+      typeof req.query.season === "string" && req.query.season !== "" ? req.query.season : null;
+    res.json(await q.getBettingMarketBeaters(season));
+  }),
+);
+
+app.get(
+  "/api/betting/upsets",
+  asyncRoute(async (req, res) => {
+    const season =
+      typeof req.query.season === "string" && req.query.season !== "" ? req.query.season : null;
+    const limit = clampLimit(req.query.limit);
+    res.json(await q.getBettingUpsets(season, limit));
+  }),
+);
+
+app.get(
+  "/api/betting/calibration",
+  asyncRoute(async (_req, res) => {
+    res.json(await q.getBettingCalibration());
+  }),
+);
+
 // --- Generic table browser (developer escape hatch, not used by the UI) --
 
 app.get("/api/admin/tables", async (_req, res) => {
