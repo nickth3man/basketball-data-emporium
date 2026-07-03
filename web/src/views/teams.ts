@@ -3,8 +3,11 @@ import {
   announceStatus,
   boxScoreCell,
   el,
+  errorEl,
   formatPct,
   formatValue,
+  loadingEl,
+  pageHeader,
   playerCell,
   renderDefList,
   renderJumpNav,
@@ -16,14 +19,23 @@ import {
 
 export function renderTeams(container: HTMLElement, initialTeamId?: string): void {
   const resultsList = el("ul", { className: "result-list" });
+  const searchPanel = el("div", { className: "search-panel" }, [resultsList]);
   const detail = el("div", { className: "detail" });
 
-  container.append(el("div", { className: "search-panel" }, [resultsList]), detail);
+  container.append(
+    pageHeader(
+      "Teams",
+      "Browse current franchises, then open team histories, rosters, coaches, and season context.",
+    ),
+    searchPanel,
+    detail,
+  );
 
   // Search now lives in the persistent global header (see headerSearch.ts);
   // this tab just shows a small curated default subset until you navigate
   // to a specific team's profile.
   async function loadCurated(): Promise<void> {
+    searchPanel.hidden = false;
     resultsList.replaceChildren();
     announceStatus("Loading teams…");
     try {
@@ -36,21 +48,25 @@ export function renderTeams(container: HTMLElement, initialTeamId?: string): voi
       announceStatus(`Showing ${teams.length} teams.`);
       for (const t of teams) {
         const button = el("button", { type: "button", className: "result-row" }, [
-          el("span", { text: String(t.team_name) }),
-          el("span", { className: "muted", text: String(t.abbreviation) }),
+          teamLogo(t.team_id, String(t.abbreviation), "team-logo-md", String(t.team_name)),
+          el("div", { className: "result-row-text" }, [
+            el("span", { text: String(t.team_name) }),
+            el("span", { className: "muted", text: String(t.abbreviation) }),
+          ]),
         ]);
         button.addEventListener("click", () => void showTeam(String(t.team_id)));
         resultsList.append(el("li", {}, [button]));
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to load teams.";
-      resultsList.append(el("li", { className: "muted", text: `Error: ${message}` }));
+      resultsList.append(el("li", {}, [errorEl(message)]));
       announceStatus(`Failed to load teams: ${message}`);
     }
   }
 
   async function showTeam(id: string): Promise<void> {
-    detail.replaceChildren(el("p", { className: "muted", text: "Loading…" }));
+    searchPanel.hidden = true;
+    detail.replaceChildren(loadingEl());
     announceStatus("Loading team profile…");
     try {
       const profile = await api.getTeam(id);
@@ -125,7 +141,7 @@ export function renderTeams(container: HTMLElement, initialTeamId?: string): voi
       ]);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to load team.";
-      detail.replaceChildren(el("p", { className: "muted", text: `Error: ${message}` }));
+      detail.replaceChildren(errorEl(message));
       announceStatus(`Failed to load team: ${message}`);
     }
   }
@@ -135,31 +151,10 @@ export function renderTeams(container: HTMLElement, initialTeamId?: string): voi
 }
 
 function renderBio(container: HTMLElement, bio: Row, standing: Row | null): void {
-  const header = el("div", { className: "team-header" }, [
-    teamLogo(bio.team_id, String(bio.abbreviation), "team-logo-lg", String(bio.nickname)),
-    el("h2", { text: String(bio.nickname) }),
-  ]);
-  container.append(
-    header,
-    renderDefList([
-      ["Abbreviation", bio.abbreviation],
-      ["Conference", standing?.conference],
-      ["Division", standing?.division],
-      ["Arena", bio.arena],
-      ["Arena capacity", bio.arenacapacity],
-      ["Founded", bio.year_founded],
-      ["Owner", bio.owner],
-      ["General Manager", bio.generalmanager],
-      ["Head Coach", bio.headcoach],
-      ["D-League affiliate", bio.dleagueaffiliation],
-      [
-        "Latest record",
-        standing
-          ? `${formatValue(standing.wins)}-${formatValue(standing.losses)} (${formatValue(standing.season_year)} ${formatValue(standing.season_type)})`
-          : "—",
-      ],
-    ]),
-  );
+  const latestRecord = standing
+    ? `${formatValue(standing.wins)}-${formatValue(standing.losses)} (${formatValue(standing.season_year)} ${formatValue(standing.season_type)})`
+    : "—";
+  const conferenceLine = [standing?.conference, standing?.division].filter(Boolean).join(" · ");
   const socialLinks = [
     typeof bio.facebook === "string" && bio.facebook
       ? el("a", { href: bio.facebook, target: "_blank", rel: "noreferrer", text: "Facebook" })
@@ -171,14 +166,38 @@ function renderBio(container: HTMLElement, bio: Row, standing: Row | null): void
       ? el("a", { href: bio.twitter, target: "_blank", rel: "noreferrer", text: "Twitter" })
       : null,
   ].filter((n): n is HTMLElement => n !== null);
-  if (socialLinks.length > 0) {
-    const linkRow = el("p", { className: "bio-line" });
-    socialLinks.forEach((link, i) => {
-      if (i > 0) linkRow.append(" · ");
-      linkRow.append(link);
-    });
-    container.append(linkRow);
-  }
+
+  container.append(
+    el(
+      "div",
+      { className: "bbr-header team-profile-header" },
+      [
+        teamLogo(bio.team_id, String(bio.abbreviation), "team-logo-lg", String(bio.nickname)),
+        el("div", { className: "bbr-info" }, [
+          el("h2", { text: String(bio.nickname) }),
+          el("p", {
+            className: "bio-line",
+            text: [formatValue(bio.abbreviation), conferenceLine].filter(Boolean).join(" · "),
+          }),
+          renderDefList([
+            ["Latest record", latestRecord],
+            ["Arena", bio.arena],
+            ["Arena capacity", bio.arenacapacity],
+            ["Founded", bio.year_founded],
+            ["Owner", bio.owner],
+            ["General Manager", bio.generalmanager],
+            ["Head Coach", bio.headcoach],
+            ["D-League affiliate", bio.dleagueaffiliation],
+          ]),
+        ]),
+        socialLinks.length > 0
+          ? el("div", { className: "bbr-side team-profile-links", "aria-label": "Team links" }, [
+              ...socialLinks,
+            ])
+          : null,
+      ].filter((n): n is HTMLElement => n !== null),
+    ),
+  );
 }
 
 function renderRoster(container: HTMLElement, roster: Row[]): void {

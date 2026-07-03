@@ -1,5 +1,5 @@
 import { api, type Row } from "./api.ts";
-import { announceStatus, el, navigateToDetail, playerPhoto } from "./dom.ts";
+import { announceStatus, el, errorEl, navigateToDetail, playerPhoto, teamLogo } from "./dom.ts";
 
 const INPUT_ID = "header-search-input";
 const DROPDOWN_LIMIT = 6;
@@ -51,8 +51,11 @@ export function mountHeaderSearch(container: HTMLElement): void {
 
   function teamRow(t: Row): HTMLElement {
     const button = el("button", { type: "button", className: "result-row" }, [
-      el("span", { text: String(t.team_name) }),
-      el("span", { className: "muted", text: String(t.abbreviation) }),
+      teamLogo(t.team_id, String(t.abbreviation), "team-logo-md", String(t.team_name)),
+      el("div", { className: "result-row-text" }, [
+        el("span", { text: String(t.team_name) }),
+        el("span", { className: "muted", text: String(t.abbreviation) }),
+      ]),
     ]);
     button.addEventListener("click", () => {
       navigateToDetail("teams", String(t.team_id));
@@ -98,7 +101,7 @@ export function mountHeaderSearch(container: HTMLElement): void {
     } catch (err) {
       if (abort.signal.aborted) return;
       const message = err instanceof Error ? err.message : "Search failed.";
-      dropdown.replaceChildren(el("p", { className: "muted", text: `Error: ${message}` }));
+      dropdown.replaceChildren(errorEl(message));
       dropdown.hidden = false;
     }
   }

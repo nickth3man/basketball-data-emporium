@@ -1,5 +1,14 @@
 import { api } from "../api.ts";
-import { announceStatus, el, formatPct, labeledSelect, renderTable } from "../dom.ts";
+import {
+  announceStatus,
+  el,
+  errorEl,
+  formatPct,
+  labeledSelect,
+  loadingEl,
+  pageHeader,
+  renderTable,
+} from "../dom.ts";
 
 const STANDINGS_COLUMNS = [
   { key: "conf_rank", label: "#" },
@@ -13,11 +22,17 @@ const STANDINGS_COLUMNS = [
 ];
 
 export async function renderStandings(container: HTMLElement): Promise<void> {
-  container.append(el("p", { className: "muted", text: "Loading…" }));
+  const header = () =>
+    pageHeader(
+      "Standings",
+      "Compare conference records, winning percentages, and home-road splits by season.",
+    );
+
+  container.append(header(), loadingEl());
   announceStatus("Loading standings…");
   try {
     const seasons = await api.standingsSeasons();
-    container.replaceChildren();
+    container.replaceChildren(header());
 
     const { wrapper: seasonWrapper, select: seasonSelect } = labeledSelect(
       "Season",
@@ -37,13 +52,15 @@ export async function renderStandings(container: HTMLElement): Promise<void> {
     container.append(el("div", { className: "controls" }, [seasonWrapper, typeWrapper]), resultDiv);
 
     async function load(): Promise<void> {
-      resultDiv.replaceChildren(el("p", { className: "muted", text: "Loading…" }));
+      resultDiv.replaceChildren(loadingEl());
       announceStatus("Loading standings…");
       try {
         const rows = await api.standings(seasonSelect.value, typeSelect.value);
         resultDiv.replaceChildren();
         if (rows.length === 0) {
-          resultDiv.append(el("p", { className: "muted", text: "No standings for this season." }));
+          resultDiv.append(
+            el("p", { className: "empty-state", text: "No standings for this season." }),
+          );
           announceStatus("No standings for this season.");
           return;
         }
@@ -58,7 +75,7 @@ export async function renderStandings(container: HTMLElement): Promise<void> {
         announceStatus(`Loaded ${seasonSelect.value} ${typeSelect.value.toLowerCase()} standings.`);
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to load standings.";
-        resultDiv.replaceChildren(el("p", { className: "muted", text: `Error: ${message}` }));
+        resultDiv.replaceChildren(errorEl(message));
         announceStatus(`Failed to load standings: ${message}`);
       }
     }
@@ -68,7 +85,7 @@ export async function renderStandings(container: HTMLElement): Promise<void> {
     await load();
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to load seasons.";
-    container.replaceChildren(el("p", { className: "muted", text: `Error: ${message}` }));
+    container.replaceChildren(header(), errorEl(message));
     announceStatus(`Failed to load standings seasons: ${message}`);
   }
 }

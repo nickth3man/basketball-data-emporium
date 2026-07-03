@@ -2,8 +2,10 @@ import { api, type GameDetail, type Row } from "../api.ts";
 import {
   announceStatus,
   el,
+  errorEl,
   formatPct,
   formatValue,
+  loadingEl,
   playerCell,
   renderDefList,
   renderTable,
@@ -29,7 +31,7 @@ export function renderGame(container: HTMLElement, gameId?: string): void {
   void load(gameId);
 
   async function load(id: string): Promise<void> {
-    detail.replaceChildren(el("p", { className: "muted", text: "Loading..." }));
+    detail.replaceChildren(loadingEl());
     announceStatus("Loading game...");
     try {
       const game = await api.getGameDetail(id);
@@ -54,7 +56,7 @@ export function renderGame(container: HTMLElement, gameId?: string): void {
       announceStatus("Game loaded.");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to load game.";
-      detail.replaceChildren(el("p", { className: "muted", text: `Error: ${message}` }));
+      detail.replaceChildren(errorEl(message));
       announceStatus(`Failed to load game: ${message}`);
     }
   }
@@ -62,31 +64,62 @@ export function renderGame(container: HTMLElement, gameId?: string): void {
 
 function renderHeader(container: HTMLElement, h: Row): void {
   const date = formatValue(h.game_date).slice(0, 10);
-  const title = `${formatValue(h.away_name)} ${formatValue(h.away_score)} @ ${formatValue(h.home_name)} ${formatValue(h.home_score)}`;
-  container.append(el("h2", { text: title }));
+  const awayName = formatValue(h.away_name);
+  const homeName = formatValue(h.home_name);
+  const awayScore = Number(h.away_score);
+  const homeScore = Number(h.home_score);
+  const title = `${awayName} ${formatValue(h.away_score)} @ ${homeName} ${formatValue(h.home_score)}`;
+  const awayWon = Number.isFinite(awayScore) && Number.isFinite(homeScore) && awayScore > homeScore;
+  const homeWon = Number.isFinite(awayScore) && Number.isFinite(homeScore) && homeScore > awayScore;
   const label = [h.game_label, h.game_sub_label].filter(Boolean).map(String).join(" - ");
+  const scoreTeam = (side: "away" | "home"): HTMLElement => {
+    const isAway = side === "away";
+    const won = isAway ? awayWon : homeWon;
+    return el("div", { className: won ? "game-score-team winner" : "game-score-team" }, [
+      el("span", {
+        className: "game-score-label",
+        text: isAway ? awayName : homeName,
+      }),
+      el("strong", {
+        className: "game-score-value",
+        text: isAway ? formatValue(h.away_score) : formatValue(h.home_score),
+      }),
+    ]);
+  };
   container.append(
-    renderDefList([
-      ["Date", date],
-      ["Season", `${formatValue(h.season_year)} ${formatValue(h.season_type)}`],
-      ["Round", label || null],
-      ["Series game", h.series_game_number],
-      ["Status", h.game_status_text],
-      ["Duration", h.game_duration],
-      [
-        "Arena",
-        h.arena_name
-          ? `${formatValue(h.arena_name)}${h.arena_city ? ` (${formatValue(h.arena_city)}${h.arena_state ? `, ${formatValue(h.arena_state)}` : ""})` : ""}`
-          : null,
-      ],
-      ["Attendance", h.attendance],
-      ["Overtime", h.is_overtime === true ? "Yes" : null],
-      [
-        "Closing odds (home/away)",
-        h.odds_home != null && h.odds_away != null
-          ? `${formatValue(h.odds_home)} / ${formatValue(h.odds_away)}`
-          : null,
-      ],
+    el("div", { className: "bbr-header game-summary-header" }, [
+      el("div", { className: "bbr-info" }, [
+        el("h2", { text: title }),
+        el("p", {
+          className: "bio-line",
+          text: `${date} · ${formatValue(h.season_year)} ${formatValue(h.season_type)}`,
+        }),
+        el("div", { className: "game-scoreboard", "aria-label": "Final score" }, [
+          scoreTeam("away"),
+          el("span", { className: "game-score-at", text: "at" }),
+          scoreTeam("home"),
+        ]),
+        renderDefList([
+          ["Round", label || null],
+          ["Series game", h.series_game_number],
+          ["Status", h.game_status_text],
+          ["Duration", h.game_duration],
+          [
+            "Arena",
+            h.arena_name
+              ? `${formatValue(h.arena_name)}${h.arena_city ? ` (${formatValue(h.arena_city)}${h.arena_state ? `, ${formatValue(h.arena_state)}` : ""})` : ""}`
+              : null,
+          ],
+          ["Attendance", h.attendance],
+          ["Overtime", h.is_overtime === true ? "Yes" : null],
+          [
+            "Closing odds (home/away)",
+            h.odds_home != null && h.odds_away != null
+              ? `${formatValue(h.odds_home)} / ${formatValue(h.odds_away)}`
+              : null,
+          ],
+        ]),
+      ]),
     ]),
   );
 }

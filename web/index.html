@@ -3,18 +3,43 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Explore NBA players, teams, standings, leaders, and analytics from 1946 to today."
+    />
+    <meta name="theme-color" content="#14171d" />
     <title>NBA Data Explorer</title>
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
-    <div id="app">
-      <header>
-        <h1>NBA Data Explorer</h1>
+    <a class="skip-link" href="#view-panel">Skip to content</a>
+    <header class="site-header">
+      <div class="site-header-inner">
+        <h1 class="brand">
+          <button
+            type="button"
+            id="brand-home"
+            class="brand-btn"
+            aria-label="NBA Data Explorer — go to home"
+          >
+            <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <circle cx="12" cy="12" r="10.5" fill="#e0703a" />
+              <path
+                d="M1.5 12h21 M12 1.5v21 M4.6 4.6c3 2.6 4.6 4.9 4.6 7.4s-1.6 4.8-4.6 7.4 M19.4 4.6c-3 2.6-4.6 4.9-4.6 7.4s1.6 4.8 4.6 7.4"
+                fill="none"
+                stroke="#7c3413"
+                stroke-width="1.1"
+              />
+              <circle cx="12" cy="12" r="10.5" fill="none" stroke="#7c3413" stroke-width="1.2" />
+            </svg>
+            <span>NBA Data Explorer</span>
+          </button>
+        </h1>
         <nav id="tabs"></nav>
         <div id="header-search"></div>
-      </header>
-      <main id="view"></main>
-    </div>
+      </div>
+    </header>
+    <main id="view" class="app-main" tabindex="-1"></main>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

@@ -50,6 +50,32 @@ export function navigateToDetail(tab: string, id?: string): void {
   window.dispatchEvent(new CustomEvent("nba:navigate", { detail: { tab, id } }));
 }
 
+/** Standard inline loading indicator (spinner is pure CSS on `.loading`). */
+export function loadingEl(label = "Loading…"): HTMLElement {
+  return el("p", { className: "loading", text: label });
+}
+
+/** Standard error alert for failed fetches. */
+export function errorEl(message: string): HTMLElement {
+  return el("p", {
+    className: "alert-error",
+    role: "alert",
+    text: `Couldn't load data: ${message}`,
+  });
+}
+
+export function pageHeader(title: string, description?: string, eyebrow?: string): HTMLElement {
+  return el(
+    "div",
+    { className: "page-header" },
+    [
+      eyebrow ? el("p", { className: "page-kicker", text: eyebrow }) : null,
+      el("h2", { className: "page-title", text: title }),
+      description ? el("p", { className: "page-description", text: description }) : null,
+    ].filter((node): node is HTMLElement => node !== null),
+  );
+}
+
 let controlIdCounter = 0;
 
 function nextControlId(prefix: string): string {
@@ -62,7 +88,7 @@ export function labeledControl(label: string, control: HTMLElement, id?: string)
   const controlId = id ?? nextControlId("control");
   control.id = controlId;
   return el("div", { className: "labeled-control" }, [
-    el("label", { className: "visually-hidden", for: controlId, text: label }),
+    el("label", { className: "control-label", for: controlId, text: label }),
     control,
   ]);
 }
@@ -168,7 +194,7 @@ export function renderTable(
   columnGroups: ColumnGroup[] = [],
 ): HTMLElement {
   if (rows.length === 0) {
-    return el("p", { className: "muted", text: "No rows." });
+    return el("p", { className: "empty-state", text: "No data for this selection." });
   }
   const renderedRows = rows.map((row) => columns.map((column) => cellValue(column, row)));
   const numericColumns = columns.map((column, index) => {

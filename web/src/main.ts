@@ -125,4 +125,8 @@ for (const tab of VISIBLE_TABS) {
 
 mountHeaderSearch(document.querySelector<HTMLElement>("#header-search")!);
 
+document
+  .querySelector<HTMLButtonElement>("#brand-home")
+  ?.addEventListener("click", () => activate(VISIBLE_TABS[0].id));
+
 activate(VISIBLE_TABS[0].id);

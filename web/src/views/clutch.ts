@@ -1,5 +1,13 @@
 import { api } from "../api.ts";
-import { announceStatus, el, labeledSelect, playerCell, renderTable } from "../dom.ts";
+import {
+  announceStatus,
+  el,
+  errorEl,
+  labeledSelect,
+  loadingEl,
+  playerCell,
+  renderTable,
+} from "../dom.ts";
 import { analyticsToolHeader } from "./analytics.ts";
 
 // Clutch Performers — computed live from 18.7M play-by-play events because
@@ -25,7 +33,7 @@ export function renderClutch(container: HTMLElement): void {
       className: "table-note",
       text: "Points are credited from the score change on each play-by-play scoring event, so free throws, and-ones, and garbage-time-free crunch minutes all count exactly once. G = games with at least one clutch point.",
     }),
-    el("p", { className: "muted", text: "Loading…" }),
+    loadingEl(),
   ]);
   container.append(section);
 
@@ -52,7 +60,7 @@ export function renderClutch(container: HTMLElement): void {
       announceStatus(`Clutch leaders loaded for ${season}.`);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to load.";
-      replaceBody(el("p", { className: "muted", text: `Error: ${message}` }));
+      replaceBody(errorEl(message));
     }
   }
 
@@ -70,7 +78,7 @@ export function renderClutch(container: HTMLElement): void {
       if (initial) await loadSeason(initial);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to load seasons.";
-      replaceBody(el("p", { className: "muted", text: `Error: ${message}` }));
+      replaceBody(errorEl(message));
     }
   }
 

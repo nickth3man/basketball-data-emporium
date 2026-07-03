@@ -1,5 +1,14 @@
 import { api, type Row } from "../api.ts";
-import { announceStatus, el, formatValue, labeledSelect, renderTable, teamCell } from "../dom.ts";
+import {
+  announceStatus,
+  el,
+  errorEl,
+  formatValue,
+  labeledSelect,
+  loadingEl,
+  renderTable,
+  teamCell,
+} from "../dom.ts";
 import { analyticsToolHeader } from "./analytics.ts";
 
 // Four Factors dashboard — Dean Oliver's "why teams win" decomposition
@@ -30,7 +39,7 @@ export function renderFourFactors(container: HTMLElement): void {
       className: "table-note",
       text: "Per-game averages; (n) is the league rank for that factor — offense ranks reward high eFG%/ORB%/FT rate and low TOV%, defense ranks reward the reverse. Wins are shown where the game table has results.",
     }),
-    el("p", { className: "muted", text: "Loading…" }),
+    loadingEl(),
   ]);
   const leagueSection = el("section", {}, [
     el("h3", { text: "How the league has changed" }),
@@ -38,7 +47,7 @@ export function renderFourFactors(container: HTMLElement): void {
       className: "table-note",
       text: "League-wide averages by season — watch eFG% climb and offensive rebounding fade as the three-point era reshapes the game.",
     }),
-    el("p", { className: "muted", text: "Loading…" }),
+    loadingEl(),
   ]);
   container.append(teamsSection, leagueSection);
 
@@ -48,7 +57,7 @@ export function renderFourFactors(container: HTMLElement): void {
   };
   const errorInto = (section: HTMLElement, err: unknown): void => {
     const message = err instanceof Error ? err.message : "Failed to load.";
-    replaceBody(section, el("p", { className: "muted", text: `Error: ${message}` }));
+    replaceBody(section, errorEl(message));
   };
 
   async function loadTeams(season: string): Promise<void> {

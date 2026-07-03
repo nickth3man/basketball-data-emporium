@@ -4,10 +4,13 @@ import {
   announceStatus,
   cellButton,
   el,
+  errorEl,
   formatPct,
   formatValue,
   labeledSelect,
+  loadingEl,
   navigateToDetail,
+  pageHeader,
   playerCell,
   renderTable,
   teamCell,
@@ -29,7 +32,15 @@ export async function renderDraftAwards(container: HTMLElement): Promise<void> {
   const draftSection = el("section", { className: "subsection" });
   const awardsSection = el("section", { className: "subsection" });
   const careerValueSection = el("section", { className: "subsection" });
-  container.append(draftSection, awardsSection, careerValueSection);
+  container.append(
+    pageHeader(
+      "Draft & Awards",
+      "Browse draft classes, award histories, voting results, and career value by pick range.",
+    ),
+    draftSection,
+    awardsSection,
+    careerValueSection,
+  );
   await Promise.all([
     renderDraftSection(draftSection),
     renderAwardsSection(awardsSection),
@@ -38,7 +49,7 @@ export async function renderDraftAwards(container: HTMLElement): Promise<void> {
 }
 
 async function renderDraftSection(container: HTMLElement): Promise<void> {
-  container.append(el("h2", { text: "Draft" }), el("p", { className: "muted", text: "Loading…" }));
+  container.append(el("h2", { text: "Draft" }), loadingEl());
   announceStatus("Loading draft years…");
   try {
     const years = await api.draftYears();
@@ -50,10 +61,10 @@ async function renderDraftSection(container: HTMLElement): Promise<void> {
       "draft-year",
     );
     const resultDiv = el("div");
-    container.append(yearWrapper, resultDiv);
+    container.append(el("div", { className: "controls" }, [yearWrapper]), resultDiv);
 
     async function load(): Promise<void> {
-      resultDiv.replaceChildren(el("p", { className: "muted", text: "Loading…" }));
+      resultDiv.replaceChildren(loadingEl());
       announceStatus("Loading draft picks…");
       try {
         const rows = await api.draft(yearSelect.value);
@@ -72,7 +83,7 @@ async function renderDraftSection(container: HTMLElement): Promise<void> {
         announceStatus(`Loaded ${yearSelect.value} draft picks.`);
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to load draft.";
-        resultDiv.replaceChildren(el("p", { className: "muted", text: `Error: ${message}` }));
+        resultDiv.replaceChildren(errorEl(message));
         announceStatus(`Failed to load draft: ${message}`);
       }
     }
@@ -81,10 +92,7 @@ async function renderDraftSection(container: HTMLElement): Promise<void> {
     await load();
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to load draft years.";
-    container.replaceChildren(
-      el("h2", { text: "Draft" }),
-      el("p", { className: "muted", text: `Error: ${message}` }),
-    );
+    container.replaceChildren(el("h2", { text: "Draft" }), errorEl(message));
     announceStatus(`Failed to load draft years: ${message}`);
   }
 }
@@ -98,7 +106,7 @@ const VOTED_AWARD_TYPES: ReadonlySet<string> = new Set([
 ]);
 
 async function renderAwardsSection(container: HTMLElement): Promise<void> {
-  container.append(el("h2", { text: "Awards" }), el("p", { className: "muted", text: "Loading…" }));
+  container.append(el("h2", { text: "Awards" }), loadingEl());
   announceStatus("Loading award seasons…");
   try {
     const [seasons, types] = await Promise.all([api.awardSeasons(), api.awardTypes()]);
@@ -121,7 +129,7 @@ async function renderAwardsSection(container: HTMLElement): Promise<void> {
     container.append(el("div", { className: "controls" }, [seasonWrapper, typeWrapper]), resultDiv);
 
     async function load(): Promise<void> {
-      resultDiv.replaceChildren(el("p", { className: "muted", text: "Loading…" }));
+      resultDiv.replaceChildren(loadingEl());
       announceStatus("Loading awards…");
       try {
         const rows = await api.awards(seasonSelect.value, typeSelect.value || null);
@@ -161,7 +169,7 @@ async function renderAwardsSection(container: HTMLElement): Promise<void> {
         announceStatus(`Loaded ${seasonSelect.value} awards.`);
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to load awards.";
-        resultDiv.replaceChildren(el("p", { className: "muted", text: `Error: ${message}` }));
+        resultDiv.replaceChildren(errorEl(message));
         announceStatus(`Failed to load awards: ${message}`);
       }
     }
@@ -171,19 +179,13 @@ async function renderAwardsSection(container: HTMLElement): Promise<void> {
     await load();
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to load award seasons.";
-    container.replaceChildren(
-      el("h2", { text: "Awards" }),
-      el("p", { className: "muted", text: `Error: ${message}` }),
-    );
+    container.replaceChildren(el("h2", { text: "Awards" }), errorEl(message));
     announceStatus(`Failed to load award seasons: ${message}`);
   }
 }
 
 async function renderCareerValueSection(container: HTMLElement): Promise<void> {
-  container.append(
-    el("h2", { text: "Best career value" }),
-    el("p", { className: "muted", text: "Loading…" }),
-  );
+  container.append(el("h2", { text: "Best career value" }), loadingEl());
   announceStatus("Loading career value…");
   try {
     const rounds = await api.listDraftValueRounds();
@@ -213,7 +215,7 @@ async function renderCareerValueSection(container: HTMLElement): Promise<void> {
     container.append(el("div", { className: "controls" }, [roundWrapper, sortWrapper]), resultDiv);
 
     async function load(): Promise<void> {
-      resultDiv.replaceChildren(el("p", { className: "muted", text: "Loading…" }));
+      resultDiv.replaceChildren(loadingEl());
       announceStatus("Loading career value…");
       try {
         const roundRaw = roundSelect.value;
@@ -258,7 +260,7 @@ async function renderCareerValueSection(container: HTMLElement): Promise<void> {
         announceStatus(`Loaded top ${rows.length} by career ${sortLabel}.`);
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to load career value.";
-        resultDiv.replaceChildren(el("p", { className: "muted", text: `Error: ${message}` }));
+        resultDiv.replaceChildren(errorEl(message));
         announceStatus(`Failed to load career value: ${message}`);
       }
     }
@@ -268,10 +270,7 @@ async function renderCareerValueSection(container: HTMLElement): Promise<void> {
     await load();
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to load career value rounds.";
-    container.replaceChildren(
-      el("h2", { text: "Best career value" }),
-      el("p", { className: "muted", text: `Error: ${message}` }),
-    );
+    container.replaceChildren(el("h2", { text: "Best career value" }), errorEl(message));
     announceStatus(`Failed to load career value: ${message}`);
   }
 }

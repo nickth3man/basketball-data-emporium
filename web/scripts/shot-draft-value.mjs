@@ -7,8 +7,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const CHROME =
-  "C:/Users/nicolas/AppData/Local/ms-playwright/chromium-1228/chrome-win64/chrome.exe";
+const CHROME = "C:/Users/nicolas/AppData/Local/ms-playwright/chromium-1228/chrome-win64/chrome.exe";
 const URL = process.env.SHOT_URL ?? "http://localhost:5173/";
 const OUT = path.resolve(__dirname, "../screenshot-draft-value.png");
 
@@ -26,7 +25,9 @@ async function main() {
     if (msg.type() === "error") consoleErrors.push(msg.text());
   });
   page.on("pageerror", (err) => consoleErrors.push(`pageerror: ${err.message}`));
-  page.on("requestfailed", (req) => consoleErrors.push(`requestfailed: ${req.url()} (${req.failure()?.errorText})`));
+  page.on("requestfailed", (req) =>
+    consoleErrors.push(`requestfailed: ${req.url()} (${req.failure()?.errorText})`),
+  );
   page.on("response", (res) => {
     if (res.status() >= 400) consoleErrors.push(`HTTP ${res.status()}: ${res.url()}`);
   });
@@ -107,15 +108,15 @@ async function main() {
     () => {
       const secs = Array.from(document.querySelectorAll("section.subsection"));
       const career = secs.find((s) => /Best career value/.test(s.textContent ?? ""));
-      const headers = career ? Array.from(career.querySelectorAll("thead th")).map((t) => t.textContent) : [];
+      const headers = career
+        ? Array.from(career.querySelectorAll("thead th")).map((t) => t.textContent)
+        : [];
       return headers.includes("FG%");
     },
     null,
     { timeout: 10000 },
   );
-  const fgValues = await section
-    .locator("table tbody tr td:nth-child(11)")
-    .allTextContents();
+  const fgValues = await section.locator("table tbody tr td:nth-child(11)").allTextContents();
   console.log(`Top 5 FG% values: ${fgValues.slice(0, 5).join(", ")}`);
 
   if (consoleErrors.length) {

@@ -2,9 +2,11 @@ import { api, type Row } from "../api.ts";
 import {
   announceStatus,
   el,
+  errorEl,
   formatPct,
   formatValue,
   labeledSearch,
+  loadingEl,
   playerCell,
   renderTable,
 } from "../dom.ts";
@@ -57,7 +59,7 @@ export function renderMatchups(container: HTMLElement, detailId?: string): void 
       className: "table-note",
       text: "Aggregated over every matchup a defender was charged with this season (minimum 750 partial possessions). “Toughest” = fewest points allowed per 100 partial possessions — matchup difficulty varies, so treat it as a conversation starter, not a DPOY ballot.",
     }),
-    el("p", { className: "muted", text: "Loading…" }),
+    loadingEl(),
   ]);
   container.append(
     el("div", { className: "controls" }, [searchWrapper]),
@@ -106,7 +108,7 @@ export function renderMatchups(container: HTMLElement, detailId?: string): void 
   }
 
   async function showPlayer(playerId: string, playerName: string): Promise<void> {
-    playerSection.replaceChildren(el("p", { className: "muted", text: "Loading matchups…" }));
+    playerSection.replaceChildren(loadingEl("Loading matchups…"));
     const [offense, defense] = await Promise.allSettled([
       api.getPlayerMatchups(playerId, "offense", 25),
       api.getPlayerMatchups(playerId, "defense", 25),
@@ -138,15 +140,13 @@ export function renderMatchups(container: HTMLElement, detailId?: string): void 
             result.value,
           ),
         );
+      } else if (result.status === "fulfilled") {
+        section.append(
+          el("p", { className: "empty-state", text: "No tracked matchups this season." }),
+        );
       } else {
         section.append(
-          el("p", {
-            className: "muted",
-            text:
-              result.status === "fulfilled"
-                ? "No tracked matchups this season."
-                : `Error: ${result.reason instanceof Error ? result.reason.message : "failed to load"}`,
-          }),
+          errorEl(result.reason instanceof Error ? result.reason.message : "failed to load"),
         );
       }
       playerSection.append(section);
@@ -186,7 +186,8 @@ export function renderMatchups(container: HTMLElement, detailId?: string): void 
       );
     }
     if (toughest.status === "rejected" && workload.status === "rejected") {
-      leadersSection.append(el("p", { className: "muted", text: "Failed to load leaderboards." }));
+      const reason = toughest.reason instanceof Error ? toughest.reason.message : "request failed";
+      leadersSection.append(errorEl(reason));
     }
   }
 

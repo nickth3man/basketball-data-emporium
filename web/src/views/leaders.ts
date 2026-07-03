@@ -1,13 +1,16 @@
 import { api, type Row } from "../api.ts";
 import {
   announceStatus,
+  type Column,
   el,
+  errorEl,
   formatValue,
   labeledControl,
   labeledSelect,
+  loadingEl,
+  pageHeader,
   playerCell,
   renderTable,
-  type Column,
 } from "../dom.ts";
 
 const SEASON_TYPE_OPTIONS = [
@@ -217,15 +220,19 @@ function setBusy(container: HTMLElement, busy: boolean): void {
 export async function renderLeaders(container: HTMLElement): Promise<void> {
   const seasonSection = el("section", { className: "subsection" });
   const allTimeSection = el("section", { className: "subsection" });
-  container.append(seasonSection, allTimeSection);
+  container.append(
+    pageHeader(
+      "League Leaders",
+      "Switch seasons and stat categories without leaving the leaderboard context.",
+    ),
+    seasonSection,
+    allTimeSection,
+  );
   await Promise.all([renderSeasonSection(seasonSection), renderAllTimeSection(allTimeSection)]);
 }
 
 async function renderSeasonSection(container: HTMLElement): Promise<void> {
-  container.append(
-    el("h2", { text: "Season Leaders" }),
-    el("p", { className: "muted", text: "Loading…" }),
-  );
+  container.append(el("h2", { text: "Season Leaders" }), loadingEl());
   announceStatus("Loading season leaders…");
 
   try {
@@ -266,7 +273,7 @@ async function renderSeasonSection(container: HTMLElement): Promise<void> {
 
     async function load(): Promise<void> {
       setBusy(resultDiv, true);
-      resultDiv.replaceChildren(el("p", { className: "muted", text: "Loading…" }));
+      resultDiv.replaceChildren(loadingEl());
       announceStatus("Loading season leaders…");
 
       try {
@@ -287,7 +294,9 @@ async function renderSeasonSection(container: HTMLElement): Promise<void> {
         resultDiv.replaceChildren();
 
         if (rows.length === 0) {
-          resultDiv.append(el("p", { className: "muted", text: "No leaders for this selection." }));
+          resultDiv.append(
+            el("p", { className: "empty-state", text: "No leaders for this selection." }),
+          );
           announceStatus("No leaders for this selection.");
           setBusy(resultDiv, false);
           return;
@@ -310,7 +319,7 @@ async function renderSeasonSection(container: HTMLElement): Promise<void> {
         announceStatus(`Loaded ${seasonSelect.value} ${valueLabel.toLowerCase()} season leaders.`);
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to load season leaders.";
-        resultDiv.replaceChildren(el("p", { className: "muted", text: `Error: ${message}` }));
+        resultDiv.replaceChildren(errorEl(message));
         announceStatus(`Failed to load season leaders: ${message}`);
       } finally {
         setBusy(resultDiv, false);
@@ -324,19 +333,13 @@ async function renderSeasonSection(container: HTMLElement): Promise<void> {
     await load();
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to load season leader metadata.";
-    container.replaceChildren(
-      el("h2", { text: "Season Leaders" }),
-      el("p", { className: "muted", text: `Error: ${message}` }),
-    );
+    container.replaceChildren(el("h2", { text: "Season Leaders" }), errorEl(message));
     announceStatus(`Failed to load season leader metadata: ${message}`);
   }
 }
 
 async function renderAllTimeSection(container: HTMLElement): Promise<void> {
-  container.append(
-    el("h2", { text: "All-Time Leaders" }),
-    el("p", { className: "muted", text: "Loading…" }),
-  );
+  container.append(el("h2", { text: "All-Time Leaders" }), loadingEl());
   announceStatus("Loading all-time leaders…");
 
   try {
@@ -359,7 +362,7 @@ async function renderAllTimeSection(container: HTMLElement): Promise<void> {
 
     async function load(): Promise<void> {
       setBusy(resultDiv, true);
-      resultDiv.replaceChildren(el("p", { className: "muted", text: "Loading…" }));
+      resultDiv.replaceChildren(loadingEl());
       announceStatus("Loading all-time leaders…");
 
       try {
@@ -368,7 +371,9 @@ async function renderAllTimeSection(container: HTMLElement): Promise<void> {
         resultDiv.replaceChildren();
 
         if (rows.length === 0) {
-          resultDiv.append(el("p", { className: "muted", text: "No leaders for this selection." }));
+          resultDiv.append(
+            el("p", { className: "empty-state", text: "No leaders for this selection." }),
+          );
           announceStatus("No leaders for this selection.");
           setBusy(resultDiv, false);
           return;
@@ -390,7 +395,7 @@ async function renderAllTimeSection(container: HTMLElement): Promise<void> {
         announceStatus(`Loaded ${valueLabel} all-time leaders.`);
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to load all-time leaders.";
-        resultDiv.replaceChildren(el("p", { className: "muted", text: `Error: ${message}` }));
+        resultDiv.replaceChildren(errorEl(message));
         announceStatus(`Failed to load all-time leaders: ${message}`);
       } finally {
         setBusy(resultDiv, false);
@@ -402,10 +407,7 @@ async function renderAllTimeSection(container: HTMLElement): Promise<void> {
     await load();
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to load all-time leaders.";
-    container.replaceChildren(
-      el("h2", { text: "All-Time Leaders" }),
-      el("p", { className: "muted", text: `Error: ${message}` }),
-    );
+    container.replaceChildren(el("h2", { text: "All-Time Leaders" }), errorEl(message));
     announceStatus(`Failed to load all-time leaders: ${message}`);
   }
 }

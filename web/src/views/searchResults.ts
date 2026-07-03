@@ -1,5 +1,13 @@
 import { api, type Row } from "../api.ts";
-import { announceStatus, el, navigateToDetail, playerPhoto } from "../dom.ts";
+import {
+  announceStatus,
+  el,
+  errorEl,
+  loadingEl,
+  navigateToDetail,
+  pageHeader,
+  playerPhoto,
+} from "../dom.ts";
 
 function playerRow(p: Row): HTMLElement {
   const sub = [p.position, p.team_abbreviation].filter(Boolean).join(" · ");
@@ -28,21 +36,25 @@ export async function renderSearchResults(container: HTMLElement, query?: string
   container.replaceChildren();
   if (trimmed.length === 0) {
     container.append(
-      el("p", { className: "muted", text: "Type a search above to find players or teams." }),
+      pageHeader("Search", "Type in the header search to find players or teams."),
+      el("p", { className: "empty-state", text: "No search query entered." }),
     );
     return;
   }
-  container.append(el("p", { className: "muted", text: "Loading…" }));
+  container.append(pageHeader(`Search results for "${trimmed}"`), loadingEl());
   announceStatus(`Searching for ${trimmed}…`);
   try {
     const [players, teams] = await Promise.all([
       api.searchPlayers(trimmed),
       api.searchTeams(trimmed),
     ]);
-    container.replaceChildren(el("h2", { text: `Search results for "${trimmed}"` }));
+    container.replaceChildren(pageHeader(`Search results for "${trimmed}"`));
     if (players.length === 0 && teams.length === 0) {
       container.append(
-        el("p", { className: "muted", text: `No players or teams found for "${trimmed}".` }),
+        el("p", {
+          className: "empty-state",
+          text: `No players or teams found for "${trimmed}".`,
+        }),
       );
       announceStatus(`No results for ${trimmed}.`);
       return;
@@ -66,7 +78,7 @@ export async function renderSearchResults(container: HTMLElement, query?: string
     announceStatus(`${players.length + teams.length} results for ${trimmed}.`);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Search failed.";
-    container.replaceChildren(el("p", { className: "muted", text: `Error: ${message}` }));
+    container.replaceChildren(pageHeader(`Search results for "${trimmed}"`), errorEl(message));
     announceStatus(`Search failed: ${message}`);
   }
 }

@@ -1,5 +1,14 @@
 import { api, type Row } from "../api.ts";
-import { announceStatus, el, formatValue, navigateToDetail, playerPhoto } from "../dom.ts";
+import {
+  announceStatus,
+  el,
+  errorEl,
+  formatValue,
+  loadingEl,
+  navigateToDetail,
+  pageHeader,
+  playerPhoto,
+} from "../dom.ts";
 import { focusHeaderSearch } from "../headerSearch.ts";
 
 const NAV_TILES: { id: string; label: string; description: string }[] = [
@@ -33,14 +42,14 @@ export function renderHome(container: HTMLElement): void {
     ),
   );
 
-  const featuredCard = el("div", { className: "home-tile home-tile-featured" }, [
-    el("p", { className: "muted", text: "Loading…" }),
-  ]);
-  const spotlightCard = el("div", { className: "home-tile home-tile-spotlight" }, [
-    el("p", { className: "muted", text: "Loading…" }),
-  ]);
+  const featuredCard = el("div", { className: "home-tile home-tile-featured" }, [loadingEl()]);
+  const spotlightCard = el("div", { className: "home-tile home-tile-spotlight" }, [loadingEl()]);
 
   container.append(
+    pageHeader(
+      "Explore the NBA warehouse",
+      "Search players and teams, compare standings, inspect leaders, and open deeper analytics from one place.",
+    ),
     el("div", { className: "home-tiles" }, [searchTile, ...navTiles, featuredCard, spotlightCard]),
   );
 
@@ -78,7 +87,7 @@ async function loadFeaturedPlayer(container: HTMLElement): Promise<void> {
     container.append(card);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to load featured player.";
-    container.replaceChildren(el("p", { className: "muted", text: `Error: ${message}` }));
+    container.replaceChildren(errorEl(message));
   }
 }
 
@@ -121,6 +130,6 @@ async function loadTeamSpotlight(container: HTMLElement): Promise<void> {
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to load teams.";
-    container.replaceChildren(el("p", { className: "muted", text: `Error: ${message}` }));
+    container.replaceChildren(errorEl(message));
   }
 }

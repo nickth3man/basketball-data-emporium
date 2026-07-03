@@ -3,8 +3,10 @@ import {
   announceStatus,
   boxScoreCell,
   el,
+  errorEl,
   formatValue,
   labeledSelect,
+  loadingEl,
   renderTable,
   teamCell,
 } from "../dom.ts";
@@ -40,7 +42,7 @@ export function renderBetting(container: HTMLElement): void {
       className: "table-note",
       text: "Expected wins = sum of each game's implied win probability (overround removed). Positive “vs market” means the team won more than the odds predicted. Regular season only.",
     }),
-    el("p", { className: "muted", text: "Loading…" }),
+    loadingEl(),
   ]);
   const upsetsSection = el("section", {}, [
     el("h3", { text: "Biggest upsets" }),
@@ -48,7 +50,7 @@ export function renderBetting(container: HTMLElement): void {
       className: "table-note",
       text: "Winners ranked by their pre-game moneyline (decimal odds). Implied % is the market's win probability for the eventual winner.",
     }),
-    el("p", { className: "muted", text: "Loading…" }),
+    loadingEl(),
   ]);
   const calibrationSection = el("section", {}, [
     el("h3", { text: "Was the market right?" }),
@@ -56,13 +58,13 @@ export function renderBetting(container: HTMLElement): void {
       className: "table-note",
       text: "Season-by-season: how often home teams and favorites actually won vs the market's implied probability. Close columns = well-calibrated bookmakers.",
     }),
-    el("p", { className: "muted", text: "Loading…" }),
+    loadingEl(),
   ]);
   container.append(beatersSection, upsetsSection, calibrationSection);
 
   const errorInto = (section: HTMLElement, err: unknown): void => {
     const message = err instanceof Error ? err.message : "Failed to load.";
-    section.append(el("p", { className: "muted", text: `Error: ${message}` }));
+    section.append(errorEl(message));
   };
   const replaceBody = (section: HTMLElement, ...nodes: HTMLElement[]): void => {
     // Keep the heading + note (first two children), replace the rest.

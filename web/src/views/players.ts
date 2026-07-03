@@ -10,10 +10,13 @@ import {
   announceStatus,
   boxScoreCell,
   el,
+  errorEl,
   formatPct,
   formatValue,
   jerseyIcon,
   labeledSelect,
+  loadingEl,
+  pageHeader,
   playerPhoto,
   renderDefList,
   renderJumpNav,
@@ -26,9 +29,17 @@ import { labelAwardType } from "../awards.ts";
 
 export function renderPlayers(container: HTMLElement, initialPlayerId?: string): void {
   const resultsList = el("ul", { className: "result-list" });
+  const searchPanel = el("div", { className: "search-panel" }, [resultsList]);
   const detail = el("div", { className: "detail" });
 
-  container.append(el("div", { className: "search-panel" }, [resultsList]), detail);
+  container.append(
+    pageHeader(
+      "Players",
+      "Open a curated player, or use the global search to jump directly to any profile in the warehouse.",
+    ),
+    searchPanel,
+    detail,
+  );
 
   // Search now lives in the persistent global header (see headerSearch.ts);
   // this tab just shows a small curated default subset until you navigate
@@ -37,6 +48,7 @@ export function renderPlayers(container: HTMLElement, initialPlayerId?: string):
   else void loadCurated();
 
   async function loadCurated(): Promise<void> {
+    searchPanel.hidden = false;
     resultsList.replaceChildren();
     announceStatus("Loading players…");
     try {
@@ -62,13 +74,14 @@ export function renderPlayers(container: HTMLElement, initialPlayerId?: string):
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to load players.";
-      resultsList.append(el("li", { className: "muted", text: `Error: ${message}` }));
+      resultsList.append(el("li", {}, [errorEl(message)]));
       announceStatus(`Failed to load players: ${message}`);
     }
   }
 
   async function showPlayer(id: string): Promise<void> {
-    detail.replaceChildren(el("p", { className: "muted", text: "Loading…" }));
+    searchPanel.hidden = true;
+    detail.replaceChildren(loadingEl());
     announceStatus("Loading player profile…");
     try {
       const profile = await api.getPlayer(id);
@@ -176,7 +189,7 @@ export function renderPlayers(container: HTMLElement, initialPlayerId?: string):
       ]);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to load player.";
-      detail.replaceChildren(el("p", { className: "muted", text: `Error: ${message}` }));
+      detail.replaceChildren(errorEl(message));
       announceStatus(`Failed to load player: ${message}`);
     }
   }
@@ -387,21 +400,26 @@ function renderBbrHeader(
     return jerseyIcon(j.jersey_num, j.primary, j.trim, `${j.team_name}, ${years}`);
   });
 
-  const sideColumn = el(
-    "div",
-    { className: "bbr-side" },
-    [
-      el("div", { className: "bbr-badges" }, [...headlineBadges, ...badgeChips]),
-      jerseyChips.length > 0 ? el("div", { className: "jersey-grid" }, jerseyChips) : null,
-    ].filter((n): n is HTMLElement => n !== null),
-  );
+  const sideChildren = [
+    headlineBadges.length > 0 || badgeChips.length > 0
+      ? el("div", { className: "bbr-badges" }, [...headlineBadges, ...badgeChips])
+      : null,
+    jerseyChips.length > 0 ? el("div", { className: "jersey-grid" }, jerseyChips) : null,
+  ].filter((n): n is HTMLElement => n !== null);
+
+  const sideColumn =
+    sideChildren.length > 0 ? el("div", { className: "bbr-side" }, sideChildren) : null;
 
   container.append(
-    el("div", { className: "bbr-header" }, [
-      photo,
-      el("div", { className: "bbr-info" }, [el("h2", { text: fullName }), ...infoLines]),
-      sideColumn,
-    ]),
+    el(
+      "div",
+      { className: "bbr-header" },
+      [
+        photo,
+        el("div", { className: "bbr-info" }, [el("h2", { text: fullName }), ...infoLines]),
+        sideColumn,
+      ].filter((n): n is HTMLElement => n !== null),
+    ),
   );
 }
 
