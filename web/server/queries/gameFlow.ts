@@ -1,4 +1,5 @@
 import { queryObjects } from "../db.ts";
+import { SEASON_FROM_GAME_ID_SQL } from "./shared.ts";
 import type { Row } from "./shared.ts";
 
 // ---------------------------------------------------------------------------
@@ -41,13 +42,6 @@ export async function getGameFlow(gameId: string): Promise<Row[]> {
     [gameId],
   );
 }
-
-// PBP coverage starts 1996-97, so unlike the betting/four-factors variants
-// this season derivation must handle the 19xx century ('96'-'99' prefixes).
-const SEASON_FROM_GAME_ID_SQL = `
-  (CASE WHEN CAST(substr(game_id, 4, 2) AS INTEGER) >= 90 THEN '19' ELSE '20' END)
-  || substr(game_id, 4, 2) || '-' ||
-  lpad(CAST((CAST(substr(game_id, 4, 2) AS INTEGER) + 1) % 100 AS VARCHAR), 2, '0')`;
 
 export async function listClutchSeasons(): Promise<string[]> {
   const rows = await queryObjects<{ season_year: string }>(

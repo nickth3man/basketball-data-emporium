@@ -26,7 +26,7 @@ export function renderBetting(container: HTMLElement): void {
   analyticsToolHeader(
     container,
     "Vegas vs Reality",
-    "Moneyline odds vs what actually happened: teams that beat the market, the biggest upsets, and how well the bookmakers were calibrated. Regular-season and playoff games from 2003-04 onward.",
+    "Moneyline odds vs what actually happened: teams that beat the market, the biggest upsets, and how well the bookmakers were calibrated. Covers 2003-04 through 2022-23 (the seasons with joinable results; 2012-13 has playoff games only, so its regular-season tables are empty).",
   );
 
   const { wrapper: seasonPicker, select: seasonSelect } = labeledSelect("Season", [

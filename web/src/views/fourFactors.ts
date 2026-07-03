@@ -4,7 +4,7 @@ import { analyticsToolHeader } from "./analytics.ts";
 
 // Four Factors dashboard — Dean Oliver's "why teams win" decomposition
 // (shooting, turnovers, rebounding, free throws) per team-season with league
-// ranks, plus how the league itself has drifted since 2000-01.
+// ranks, plus how the league itself has drifted since 1996-97.
 
 function pctCell(value: unknown, rank: unknown): string {
   if (value == null) return "—";
@@ -18,7 +18,7 @@ export function renderFourFactors(container: HTMLElement): void {
   analyticsToolHeader(
     container,
     "Four Factors",
-    "Dean Oliver's four factors of winning — effective shooting, turnovers, offensive rebounding, and getting to the line — for every team-season since 2000-01, with league ranks on both ends of the floor.",
+    "Dean Oliver's four factors of winning — effective shooting, turnovers, offensive rebounding, and getting to the line — for every team-season since 1996-97, with league ranks on both ends of the floor.",
   );
 
   const { wrapper: seasonPicker, select: seasonSelect } = labeledSelect("Season", []);

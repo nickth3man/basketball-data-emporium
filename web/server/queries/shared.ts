@@ -291,3 +291,15 @@ export const DRAFT_SOURCE_CTE = `draft_source AS (
            AND (th.valid_to IS NULL OR CAST(d.season AS VARCHAR) < th.valid_to)
          WHERE d.lg IN ('NBA', 'BAA')
        )`;
+
+// Season label ("1996-97", "2015-16") derived from the two-digit year embedded
+// in every NBA game id (chars 4-5, e.g. 002**96**00001). NBA game ids start in
+// 1946, so a two-digit year of 46+ is the 20th century and anything below is
+// the 21st — a rule that stays correct until the 2045-46 season. Every query
+// that groups or filters game-id-keyed tables by season should use this
+// instead of hand-rolling the '20' || yy version (which silently mislabeled
+// 1996-1999 seasons as 2096-2099).
+export const SEASON_FROM_GAME_ID_SQL = `
+  (CASE WHEN CAST(substr(game_id, 4, 2) AS INTEGER) >= 46 THEN '19' ELSE '20' END)
+  || substr(game_id, 4, 2) || '-' ||
+  lpad(CAST((CAST(substr(game_id, 4, 2) AS INTEGER) + 1) % 100 AS VARCHAR), 2, '0')`;

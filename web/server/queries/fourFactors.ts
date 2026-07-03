@@ -1,11 +1,12 @@
 import { queryObjects } from "../db.ts";
+import { SEASON_FROM_GAME_ID_SQL } from "./shared.ts";
 import type { Row } from "./shared.ts";
 
 // ---------------------------------------------------------------------------
 // Four Factors dashboard
 //
 // fact_box_score_four_factors has two team-level rows per game (player_id
-// is always 0) from 2000-01 onward, each carrying the team's own AND its
+// is always 0) from 1996-97 onward, each carrying the team's own AND its
 // opponent's four factors for that game. Season aggregates are plain
 // per-game averages — close to but not identical to possession-weighted
 // season figures (GSW 2015-16 eFG%: .564 here vs .563 on BBR). The season
@@ -15,9 +16,6 @@ import type { Row } from "./shared.ts";
 // seasons it doesn't carry.
 // ---------------------------------------------------------------------------
 
-const GAME_ID_SEASON_SQL = `'20' || substr(game_id, 4, 2) || '-' ||
-  lpad(CAST((CAST(substr(game_id, 4, 2) AS INTEGER) + 1) % 100 AS VARCHAR), 2, '0')`;
-
 const TEAM_NAMES_CTE = `team_names AS (
     SELECT team_id, any_value(abbreviation) AS abbreviation, any_value(full_name) AS full_name
     FROM dim_team
@@ -26,7 +24,7 @@ const TEAM_NAMES_CTE = `team_names AS (
 
 export async function listFourFactorsSeasons(): Promise<string[]> {
   const rows = await queryObjects<{ season_year: string }>(
-    `SELECT DISTINCT ${GAME_ID_SEASON_SQL} AS season_year
+    `SELECT DISTINCT ${SEASON_FROM_GAME_ID_SQL} AS season_year
      FROM fact_box_score_four_factors
      WHERE substr(game_id, 1, 3) = '002'
      ORDER BY season_year DESC`,
@@ -50,7 +48,7 @@ export async function getFourFactorsTeams(season: string): Promise<Row[]> {
          AVG(opp_offensive_rebound_percentage) AS opp_oreb_pct,
          AVG(opp_free_throw_attempt_rate) AS opp_ft_rate
        FROM fact_box_score_four_factors
-       WHERE substr(game_id, 1, 3) = '002' AND ${GAME_ID_SEASON_SQL} = ?
+       WHERE substr(game_id, 1, 3) = '002' AND ${SEASON_FROM_GAME_ID_SQL} = ?
        GROUP BY team_id
      ),
      wins AS (
@@ -59,13 +57,13 @@ export async function getFourFactorsTeams(season: string): Promise<Row[]> {
          SELECT team_id_home AS team_id,
                 CASE WHEN any_value(wl_home) = 'W' THEN 1 ELSE 0 END AS win
          FROM game
-         WHERE substr(game_id, 1, 3) = '002' AND ${GAME_ID_SEASON_SQL} = ?
+         WHERE substr(game_id, 1, 3) = '002' AND ${SEASON_FROM_GAME_ID_SQL} = ?
          GROUP BY game_id, team_id_home
          UNION ALL
          SELECT team_id_away,
                 CASE WHEN any_value(wl_home) = 'L' THEN 1 ELSE 0 END
          FROM game
-         WHERE substr(game_id, 1, 3) = '002' AND ${GAME_ID_SEASON_SQL} = ?
+         WHERE substr(game_id, 1, 3) = '002' AND ${SEASON_FROM_GAME_ID_SQL} = ?
          GROUP BY game_id, team_id_away
        )
        GROUP BY team_id
@@ -103,7 +101,7 @@ export async function getFourFactorsTeams(season: string): Promise<Row[]> {
 export async function getFourFactorsLeague(): Promise<Row[]> {
   return queryObjects(
     `SELECT
-       ${GAME_ID_SEASON_SQL} AS season_year,
+       ${SEASON_FROM_GAME_ID_SQL} AS season_year,
        (COUNT(*) / 2)::INTEGER AS games,
        AVG(effective_field_goal_percentage) AS efg_pct,
        AVG(team_turnover_percentage) AS tov_pct,

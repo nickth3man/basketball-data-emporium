@@ -33,7 +33,7 @@ export const ANALYTICS_TOOLS: AnalyticsTool[] = [
     id: "four-factors",
     label: "Four Factors",
     description:
-      "Dean Oliver's why-teams-win decomposition: shooting, turnovers, rebounding, and free throws for every team-season since 2000, plus how the league itself has drifted.",
+      "Dean Oliver's why-teams-win decomposition: shooting, turnovers, rebounding, and free throws for every team-season since 1996-97, plus how the league itself has drifted.",
   },
 ];
 

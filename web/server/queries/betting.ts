@@ -35,7 +35,8 @@ const BETTING_JOIN_CTE = `game_dedup AS (
       b.game_id,
       CAST(g.game_date AS DATE)::VARCHAR AS game_date,
       substr(b.game_id, 4, 2) AS yy,
-      '20' || substr(b.game_id, 4, 2) || '-' ||
+      (CASE WHEN CAST(substr(b.game_id, 4, 2) AS INTEGER) >= 46 THEN '19' ELSE '20' END)
+        || substr(b.game_id, 4, 2) || '-' ||
         lpad(CAST((CAST(substr(b.game_id, 4, 2) AS INTEGER) + 1) % 100 AS VARCHAR), 2, '0')
         AS season_year,
       g.season_type,
