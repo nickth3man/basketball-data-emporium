@@ -7,7 +7,10 @@ import {
   formatValue,
   playerCell,
   renderDefList,
+  renderJumpNav,
   renderTable,
+  sectionHeading,
+  tableNote,
   teamLogo,
 } from "../dom.ts";
 
@@ -129,21 +132,6 @@ export function renderTeams(container: HTMLElement, initialTeamId?: string): voi
 
   if (initialTeamId) void showTeam(initialTeamId);
   else void loadCurated();
-}
-
-function renderJumpNav(container: HTMLElement, items: ([string, string] | null)[]): void {
-  const links = items
-    .filter((item): item is [string, string] => item !== null)
-    .map(([label, id]) => el("a", { href: `#${id}`, text: label }));
-  container.replaceChildren(...links);
-}
-
-function sectionHeading(id: string, text: string): HTMLElement {
-  return el("h3", { id, text });
-}
-
-function tableNote(text: string): HTMLElement {
-  return el("p", { className: "table-note", text });
 }
 
 function renderBio(container: HTMLElement, bio: Row, standing: Row | null): void {

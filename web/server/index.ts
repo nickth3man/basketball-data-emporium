@@ -43,12 +43,75 @@ function requireQueryString(req: Request, res: Response, name: string): string |
   return value;
 }
 
+function optionalQueryString(req: Request, name: string): string | null {
+  const value = req.query[name];
+  return typeof value === "string" && value !== "" ? value : null;
+}
+
+function requireIntegerParam(
+  req: Request,
+  res: Response,
+  name: string,
+  errorMessage: string,
+): number | null {
+  const id = Number(req.params[name]);
+  if (!Number.isInteger(id)) {
+    res.status(400).json({ error: errorMessage });
+    return null;
+  }
+  return id;
+}
+
+function idRoute(
+  path: string,
+  errorMessage: string,
+  handler: (id: number, req: Request) => Promise<unknown>,
+): void {
+  app.get(
+    path,
+    asyncRoute(async (req, res) => {
+      const id = requireIntegerParam(req, res, "id", errorMessage);
+      if (id === null) return;
+      res.json(await handler(id, req));
+    }),
+  );
+}
+
+function playerRoute(path: string, handler: (id: number, req: Request) => Promise<unknown>): void {
+  idRoute(path, "Invalid player id", handler);
+}
+
+function teamRoute(path: string, handler: (id: number, req: Request) => Promise<unknown>): void {
+  idRoute(path, "Invalid team id", handler);
+}
+
+function requireGameId(req: Request, res: Response): string | null {
+  const id = String(req.params.id);
+  // 10-char zero-padded numeric id shared by every game-keyed table.
+  if (!/^\d{8,10}$/.test(id)) {
+    res.status(400).json({ error: "Invalid game id" });
+    return null;
+  }
+  return id.padStart(10, "0");
+}
+
+function gameRoute(path: string, handler: (gameId: string) => Promise<unknown>): void {
+  app.get(
+    path,
+    asyncRoute(async (req, res) => {
+      const gameId = requireGameId(req, res);
+      if (gameId === null) return;
+      res.json(await handler(gameId));
+    }),
+  );
+}
+
 // --- Players ---------------------------------------------------------------
 
 app.get(
   "/api/players",
   asyncRoute(async (req, res) => {
-    const q_ = typeof req.query.q === "string" ? req.query.q : "";
+    const q_ = optionalQueryString(req, "q") ?? "";
     res.json(await q.searchPlayers(q_));
   }),
 );
@@ -62,150 +125,21 @@ app.get(
   }),
 );
 
-app.get(
-  "/api/players/:id",
-  asyncRoute(async (req, res) => {
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id)) {
-      res.status(400).json({ error: "Invalid player id" });
-      return;
-    }
-    res.json(await q.getPlayerProfile(id));
-  }),
+playerRoute("/api/players/:id", (id) => q.getPlayerProfile(id));
+playerRoute("/api/players/:id/rates", (id) => q.getPlayerPerRates(id));
+playerRoute("/api/players/:id/advanced", (id) => q.getPlayerAdvancedStats(id));
+playerRoute("/api/players/:id/per100", (id) => q.getPlayerPer100(id));
+playerRoute("/api/players/:id/highs", (id) => q.getPlayerHighs(id));
+playerRoute("/api/players/:id/recent-games", (id) => q.getPlayerRecentGames(id));
+playerRoute("/api/players/:id/form", (id, req) =>
+  q.getPlayerFormTracker(id, clampLimit(req.query.limit)),
 );
-
-app.get(
-  "/api/players/:id/rates",
-  asyncRoute(async (req, res) => {
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id)) {
-      res.status(400).json({ error: "Invalid player id" });
-      return;
-    }
-    res.json(await q.getPlayerPerRates(id));
-  }),
-);
-
-app.get(
-  "/api/players/:id/advanced",
-  asyncRoute(async (req, res) => {
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id)) {
-      res.status(400).json({ error: "Invalid player id" });
-      return;
-    }
-    res.json(await q.getPlayerAdvancedStats(id));
-  }),
-);
-
-app.get(
-  "/api/players/:id/per100",
-  asyncRoute(async (req, res) => {
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id)) {
-      res.status(400).json({ error: "Invalid player id" });
-      return;
-    }
-    res.json(await q.getPlayerPer100(id));
-  }),
-);
-
-app.get(
-  "/api/players/:id/highs",
-  asyncRoute(async (req, res) => {
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id)) {
-      res.status(400).json({ error: "Invalid player id" });
-      return;
-    }
-    res.json(await q.getPlayerHighs(id));
-  }),
-);
-
-app.get(
-  "/api/players/:id/recent-games",
-  asyncRoute(async (req, res) => {
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id)) {
-      res.status(400).json({ error: "Invalid player id" });
-      return;
-    }
-    res.json(await q.getPlayerRecentGames(id));
-  }),
-);
-
-app.get(
-  "/api/players/:id/form",
-  asyncRoute(async (req, res) => {
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id)) {
-      res.status(400).json({ error: "Invalid player id" });
-      return;
-    }
-    const limit = clampLimit(req.query.limit);
-    res.json(await q.getPlayerFormTracker(id, limit));
-  }),
-);
-
-app.get(
-  "/api/players/:id/shot-splits",
-  asyncRoute(async (req, res) => {
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id)) {
-      res.status(400).json({ error: "Invalid player id" });
-      return;
-    }
-    res.json(await q.getPlayerShotSplits(id));
-  }),
-);
-
-app.get(
-  "/api/players/:id/on-off",
-  asyncRoute(async (req, res) => {
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id)) {
-      res.status(400).json({ error: "Invalid player id" });
-      return;
-    }
-    res.json(await q.getPlayerOnOffSplits(id));
-  }),
-);
-
-app.get(
-  "/api/players/:id/combine",
-  asyncRoute(async (req, res) => {
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id)) {
-      res.status(400).json({ error: "Invalid player id" });
-      return;
-    }
-    res.json(await q.getPlayerDraftCombine(id));
-  }),
-);
-
-app.get(
-  "/api/players/:id/similar",
-  asyncRoute(async (req, res) => {
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id)) {
-      res.status(400).json({ error: "Invalid player id" });
-      return;
-    }
-    res.json(await q.getSimilarPlayers(id));
-  }),
-);
-
-app.get(
-  "/api/players/:id/season-ranks",
-  asyncRoute(async (req, res) => {
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id)) {
-      res.status(400).json({ error: "Invalid player id" });
-      return;
-    }
-    const limit = clampLimit(req.query.limit);
-    res.json(await q.getPlayerSeasonRanks(id, limit));
-  }),
+playerRoute("/api/players/:id/shot-splits", (id) => q.getPlayerShotSplits(id));
+playerRoute("/api/players/:id/on-off", (id) => q.getPlayerOnOffSplits(id));
+playerRoute("/api/players/:id/combine", (id) => q.getPlayerDraftCombine(id));
+playerRoute("/api/players/:id/similar", (id) => q.getSimilarPlayers(id));
+playerRoute("/api/players/:id/season-ranks", (id, req) =>
+  q.getPlayerSeasonRanks(id, clampLimit(req.query.limit)),
 );
 
 app.get(
@@ -232,7 +166,7 @@ app.get(
 app.get(
   "/api/teams",
   asyncRoute(async (req, res) => {
-    const q_ = typeof req.query.q === "string" ? req.query.q : "";
+    const q_ = optionalQueryString(req, "q") ?? "";
     res.json(await q.searchTeams(q_));
   }),
 );
@@ -246,115 +180,20 @@ app.get(
   }),
 );
 
-app.get(
-  "/api/teams/:id",
-  asyncRoute(async (req, res) => {
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id)) {
-      res.status(400).json({ error: "Invalid team id" });
-      return;
-    }
-    res.json(await q.getTeamProfile(id));
-  }),
-);
-
-app.get(
-  "/api/teams/:id/roster",
-  asyncRoute(async (req, res) => {
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id)) {
-      res.status(400).json({ error: "Invalid team id" });
-      return;
-    }
-    res.json(await q.getTeamRoster(id));
-  }),
-);
-
-app.get(
-  "/api/teams/:id/playoff-series",
-  asyncRoute(async (req, res) => {
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id)) {
-      res.status(400).json({ error: "Invalid team id" });
-      return;
-    }
-    res.json(await q.getTeamPlayoffSeries(id));
-  }),
-);
-
-app.get(
-  "/api/teams/:id/coaches",
-  asyncRoute(async (req, res) => {
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id)) {
-      res.status(400).json({ error: "Invalid team id" });
-      return;
-    }
-    res.json(await q.getTeamCoachHistory(id));
-  }),
-);
-
-app.get(
-  "/api/teams/:id/lineups",
-  asyncRoute(async (req, res) => {
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id)) {
-      res.status(400).json({ error: "Invalid team id" });
-      return;
-    }
-    res.json(await q.getTeamLineupEfficiency(id));
-  }),
-);
-
-app.get(
-  "/api/teams/:id/ranks",
-  asyncRoute(async (req, res) => {
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id)) {
-      res.status(400).json({ error: "Invalid team id" });
-      return;
-    }
-    res.json(await q.getTeamRanks(id));
-  }),
-);
-
-app.get(
-  "/api/teams/:id/opponent-stats",
-  asyncRoute(async (req, res) => {
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id)) {
-      res.status(400).json({ error: "Invalid team id" });
-      return;
-    }
-    res.json(await q.getTeamOpponentStats(id));
-  }),
-);
-
-app.get(
-  "/api/teams/:id/franchise-leaders",
-  asyncRoute(async (req, res) => {
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id)) {
-      res.status(400).json({ error: "Invalid team id" });
-      return;
-    }
-    res.json(await q.getFranchiseLeaders(id));
-  }),
-);
-
-app.get(
-  "/api/teams/:id/franchise-top",
-  asyncRoute(async (req, res) => {
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id)) {
-      res.status(400).json({ error: "Invalid team id" });
-      return;
-    }
-    const stat =
-      typeof req.query.stat === "string" && req.query.stat !== "" ? req.query.stat : "gp";
-    const limit = clampLimit(req.query.limit);
-    res.json(await q.getFranchiseTopPlayers(id, stat, limit));
-  }),
+teamRoute("/api/teams/:id", (id) => q.getTeamProfile(id));
+teamRoute("/api/teams/:id/roster", (id) => q.getTeamRoster(id));
+teamRoute("/api/teams/:id/playoff-series", (id) => q.getTeamPlayoffSeries(id));
+teamRoute("/api/teams/:id/coaches", (id) => q.getTeamCoachHistory(id));
+teamRoute("/api/teams/:id/lineups", (id) => q.getTeamLineupEfficiency(id));
+teamRoute("/api/teams/:id/ranks", (id) => q.getTeamRanks(id));
+teamRoute("/api/teams/:id/opponent-stats", (id) => q.getTeamOpponentStats(id));
+teamRoute("/api/teams/:id/franchise-leaders", (id) => q.getFranchiseLeaders(id));
+teamRoute("/api/teams/:id/franchise-top", (id, req) =>
+  q.getFranchiseTopPlayers(
+    id,
+    optionalQueryString(req, "stat") ?? "gp",
+    clampLimit(req.query.limit),
+  ),
 );
 
 // --- Standings ---------------------------------------------------------
@@ -406,10 +245,9 @@ app.get(
 app.get(
   "/api/draft/value",
   asyncRoute(async (req, res) => {
-    const roundRaw = typeof req.query.round === "string" ? req.query.round : "";
-    const round = roundRaw !== "" ? Number(roundRaw) : undefined;
-    const sort =
-      typeof req.query.sort === "string" && req.query.sort !== "" ? req.query.sort : "career_ppg";
+    const roundRaw = optionalQueryString(req, "round");
+    const round = roundRaw !== null ? Number(roundRaw) : undefined;
+    const sort = optionalQueryString(req, "sort") ?? "career_ppg";
     const limit = clampLimit(req.query.limit);
     res.json(await q.getDraftValueBoard({ round, sortBy: sort, limit }));
   }),
@@ -436,8 +274,7 @@ app.get(
   asyncRoute(async (req, res) => {
     const season = requireQueryString(req, res, "season");
     if (!season) return;
-    const type =
-      typeof req.query.type === "string" && req.query.type !== "" ? req.query.type : null;
+    const type = optionalQueryString(req, "type");
     res.json(await q.getAwards(season, type));
   }),
 );
@@ -477,7 +314,7 @@ app.get(
 app.get(
   "/api/leaders/all-time",
   asyncRoute(async (req, res) => {
-    const rawStat = typeof req.query.stat === "string" ? req.query.stat : "pts";
+    const rawStat = optionalQueryString(req, "stat") ?? "pts";
     const stat = rawStat === "ast" || rawStat === "reb" ? rawStat : "pts";
     const limit = clampLimit(req.query.limit);
     res.json(await q.getAllTimeLeaders(stat, limit));
@@ -486,96 +323,21 @@ app.get(
 
 // --- Player splits / estimated metrics / shot chart ----------------------
 
-app.get(
-  "/api/players/:id/location-splits",
-  asyncRoute(async (req, res) => {
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id)) {
-      res.status(400).json({ error: "Invalid player id" });
-      return;
-    }
-    res.json(await q.getPlayerLocationSplits(id));
-  }),
-);
-
-app.get(
-  "/api/players/:id/estimated-metrics",
-  asyncRoute(async (req, res) => {
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id)) {
-      res.status(400).json({ error: "Invalid player id" });
-      return;
-    }
-    res.json(await q.getPlayerEstimatedMetrics(id));
-  }),
-);
-
-app.get(
-  "/api/players/:id/shot-chart/seasons",
-  asyncRoute(async (req, res) => {
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id)) {
-      res.status(400).json({ error: "Invalid player id" });
-      return;
-    }
-    res.json(await q.listPlayerShotSeasons(id));
-  }),
-);
-
-app.get(
-  "/api/players/:id/shot-chart",
-  asyncRoute(async (req, res) => {
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id)) {
-      res.status(400).json({ error: "Invalid player id" });
-      return;
-    }
-    const season =
-      typeof req.query.season === "string" && req.query.season !== "" ? req.query.season : null;
-    res.json(await q.getPlayerShotChart(id, season));
-  }),
+playerRoute("/api/players/:id/location-splits", (id) => q.getPlayerLocationSplits(id));
+playerRoute("/api/players/:id/estimated-metrics", (id) => q.getPlayerEstimatedMetrics(id));
+playerRoute("/api/players/:id/shot-chart/seasons", (id) => q.listPlayerShotSeasons(id));
+playerRoute("/api/players/:id/shot-chart", (id, req) =>
+  q.getPlayerShotChart(id, optionalQueryString(req, "season")),
 );
 
 // --- Team head-to-head + season context -----------------------------------
 
-app.get(
-  "/api/teams/:id/head-to-head",
-  asyncRoute(async (req, res) => {
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id)) {
-      res.status(400).json({ error: "Invalid team id" });
-      return;
-    }
-    res.json(await q.getTeamHeadToHead(id));
-  }),
-);
-
-app.get(
-  "/api/teams/:id/season-context",
-  asyncRoute(async (req, res) => {
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id)) {
-      res.status(400).json({ error: "Invalid team id" });
-      return;
-    }
-    res.json(await q.getTeamSeasonContext(id));
-  }),
-);
+teamRoute("/api/teams/:id/head-to-head", (id) => q.getTeamHeadToHead(id));
+teamRoute("/api/teams/:id/season-context", (id) => q.getTeamSeasonContext(id));
 
 // --- Game detail -----------------------------------------------------------
 
-app.get(
-  "/api/games/:id",
-  asyncRoute(async (req, res) => {
-    const id = String(req.params.id);
-    // 10-char zero-padded numeric id shared by every game-keyed table.
-    if (!/^\d{8,10}$/.test(id)) {
-      res.status(400).json({ error: "Invalid game id" });
-      return;
-    }
-    res.json(await q.getGameDetail(id.padStart(10, "0")));
-  }),
-);
+gameRoute("/api/games/:id", (gameId) => q.getGameDetail(gameId));
 
 // --- Award voting detail ----------------------------------------------------
 
@@ -604,8 +366,7 @@ app.get(
 app.get(
   "/api/betting/market-beaters",
   asyncRoute(async (req, res) => {
-    const season =
-      typeof req.query.season === "string" && req.query.season !== "" ? req.query.season : null;
+    const season = optionalQueryString(req, "season");
     res.json(await q.getBettingMarketBeaters(season));
   }),
 );
@@ -613,8 +374,7 @@ app.get(
 app.get(
   "/api/betting/upsets",
   asyncRoute(async (req, res) => {
-    const season =
-      typeof req.query.season === "string" && req.query.season !== "" ? req.query.season : null;
+    const season = optionalQueryString(req, "season");
     const limit = clampLimit(req.query.limit);
     res.json(await q.getBettingUpsets(season, limit));
   }),
@@ -652,17 +412,7 @@ app.get(
   }),
 );
 
-app.get(
-  "/api/games/:id/four-factors",
-  asyncRoute(async (req, res) => {
-    const id = String(req.params.id);
-    if (!/^\d{8,10}$/.test(id)) {
-      res.status(400).json({ error: "Invalid game id" });
-      return;
-    }
-    res.json(await q.getGameFourFactors(id.padStart(10, "0")));
-  }),
-);
+gameRoute("/api/games/:id/four-factors", (gameId) => q.getGameFourFactors(gameId));
 
 // --- Generic table browser (developer escape hatch, not used by the UI) --
 

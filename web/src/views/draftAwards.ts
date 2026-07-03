@@ -2,6 +2,7 @@ import { labelAwardType } from "../awards.ts";
 import { api, type Row } from "../api.ts";
 import {
   announceStatus,
+  cellButton,
   el,
   formatPct,
   formatValue,
@@ -9,6 +10,7 @@ import {
   navigateToDetail,
   playerCell,
   renderTable,
+  teamCell,
 } from "../dom.ts";
 
 const CAREER_VALUE_LIMIT = 50;
@@ -177,17 +179,6 @@ async function renderAwardsSection(container: HTMLElement): Promise<void> {
   }
 }
 
-function cellButton(label: string, onClick: () => void, ariaLabel: string): HTMLElement {
-  const button = el("button", {
-    type: "button",
-    className: "cell-link",
-    text: label,
-    "aria-label": ariaLabel,
-  });
-  button.addEventListener("click", onClick);
-  return button;
-}
-
 async function renderCareerValueSection(container: HTMLElement): Promise<void> {
   container.append(
     el("h2", { text: "Best career value" }),
@@ -304,16 +295,5 @@ function awardPlayerCell(value: unknown, row: Row): Node | string {
     label,
     () => navigateToDetail("players", String(playerId)),
     `${label} player profile`,
-  );
-}
-
-function teamCell(value: unknown, row: Row): Node | string {
-  const label = formatValue(value);
-  const teamId = Number(row.team_id);
-  if (!Number.isFinite(teamId) || label === "—") return label;
-  return cellButton(
-    label,
-    () => navigateToDetail("teams", String(teamId)),
-    `${label} team profile`,
   );
 }

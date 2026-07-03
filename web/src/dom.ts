@@ -103,6 +103,17 @@ function cellValue(column: Column, row: Record<string, unknown>): Node | string 
   return column.format ? column.format(row[column.key], row) : formatValue(row[column.key]);
 }
 
+export function cellButton(label: string, onClick: () => void, ariaLabel = label): HTMLElement {
+  const button = el("button", {
+    type: "button",
+    className: "cell-link",
+    text: label,
+    "aria-label": ariaLabel,
+  });
+  button.addEventListener("click", onClick);
+  return button;
+}
+
 /** Renders a player-name cell as a button that navigates to that player's
  *  profile. Shared by views that need a clickable player column (team
  *  rosters, franchise leaders, league-leader tables). Falls back to a plain
@@ -111,14 +122,25 @@ export function playerCell(value: unknown, row: Record<string, unknown>): Node |
   const label = formatValue(value);
   const playerId = Number(row.player_id);
   if (!Number.isFinite(playerId) || label === "—") return label;
-  const button = el("button", {
-    type: "button",
-    className: "cell-link",
-    text: label,
-    "aria-label": `${label} player profile`,
-  });
-  button.addEventListener("click", () => navigateToDetail("players", String(playerId)));
-  return button;
+  return cellButton(
+    label,
+    () => navigateToDetail("players", String(playerId)),
+    `${label} player profile`,
+  );
+}
+
+/** Renders a team cell as a button that navigates to that team's profile. */
+export function teamCell(value: unknown, row: Record<string, unknown>): Node | string {
+  const label = formatValue(value);
+  const teamId = Number(row.team_id);
+  if (!Number.isFinite(teamId) || label === "—") return label;
+  const teamName = formatValue(row.team_name);
+  const ariaName = teamName === "—" ? label : teamName;
+  return cellButton(
+    label,
+    () => navigateToDetail("teams", String(teamId)),
+    `${ariaName} team profile`,
+  );
 }
 
 /** Renders a game-id cell as a "Box" button that opens the hidden per-game
@@ -128,14 +150,11 @@ export function playerCell(value: unknown, row: Record<string, unknown>): Node |
 export function boxScoreCell(value: unknown): Node | string {
   const gameId = typeof value === "string" || typeof value === "number" ? String(value) : "";
   if (!/^\d{8,10}$/.test(gameId)) return "";
-  const button = el("button", {
-    type: "button",
-    className: "cell-link",
-    text: "Box",
-    "aria-label": "Open box score",
-  });
-  button.addEventListener("click", () => navigateToDetail("game", gameId.padStart(10, "0")));
-  return button;
+  return cellButton(
+    "Box",
+    () => navigateToDetail("game", gameId.padStart(10, "0")),
+    "Open box score",
+  );
 }
 
 function isNumericText(value: string): boolean {
@@ -208,6 +227,23 @@ export function renderDefList(pairs: [string, unknown][]): HTMLElement {
     dl.append(el("dt", { text: label }), el("dd", { text: formatValue(value) }));
   }
   return dl;
+}
+
+export function sectionHeading(id: string, text: string): HTMLElement {
+  return el("h3", { id, text });
+}
+
+export function tableNote(text: string): HTMLElement {
+  return el("p", { className: "table-note", text });
+}
+
+type JumpNavItem = [label: string, id: string] | null;
+
+export function renderJumpNav(container: HTMLElement, items: JumpNavItem[]): void {
+  const links = items
+    .filter((item): item is [label: string, id: string] => item !== null)
+    .map(([label, id]) => el("a", { href: `#${id}`, text: label }));
+  container.replaceChildren(...links);
 }
 
 /** Player headshot with graceful fallback. The server-side photo proxy

@@ -14,10 +14,13 @@ import {
   formatValue,
   jerseyIcon,
   labeledSelect,
-  navigateToDetail,
   playerPhoto,
   renderDefList,
+  renderJumpNav,
   renderTable,
+  sectionHeading,
+  tableNote,
+  teamCell,
 } from "../dom.ts";
 import { labelAwardType } from "../awards.ts";
 
@@ -659,43 +662,6 @@ const SEASON_TYPE_TABS = [
   { id: "cup", label: "NBA Cup", seasonType: "Cup" },
   { id: "playoffs", label: "Playoffs", seasonType: "Playoffs" },
 ] as const;
-
-function renderJumpNav(container: HTMLElement, items: ([string, string] | null)[]): void {
-  const links = items
-    .filter((item): item is [string, string] => item !== null)
-    .map(([label, id]) => el("a", { href: `#${id}`, text: label }));
-  container.replaceChildren(...links);
-}
-
-function sectionHeading(id: string, text: string): HTMLElement {
-  return el("h3", { id, text });
-}
-
-function tableNote(text: string): HTMLElement {
-  return el("p", { className: "table-note", text });
-}
-
-function cellButton(label: string, onClick: () => void, ariaLabel?: string): HTMLElement {
-  const button = el("button", {
-    type: "button",
-    className: "cell-link",
-    text: label,
-    "aria-label": ariaLabel ?? label,
-  });
-  button.addEventListener("click", onClick);
-  return button;
-}
-
-function teamCell(value: unknown, row: Row): Node | string {
-  const label = formatValue(value);
-  const teamId = Number(row.team_id);
-  if (!Number.isFinite(teamId) || label === "—") return label;
-  return cellButton(
-    label,
-    () => navigateToDetail("teams", String(teamId)),
-    `${label} team profile`,
-  );
-}
 
 interface StatTab {
   id: string;

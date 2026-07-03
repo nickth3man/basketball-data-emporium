@@ -5,8 +5,8 @@ import {
   el,
   formatValue,
   labeledSelect,
-  navigateToDetail,
   renderTable,
+  teamCell,
 } from "../dom.ts";
 import { analyticsToolHeader } from "./analytics.ts";
 
@@ -15,20 +15,6 @@ import { analyticsToolHeader } from "./analytics.ts";
 // duplicated moneyline values / NULL), and results join against the `game`
 // fact table, so coverage runs 2003-04 through the last season `game`
 // carries. See getBettingMarketBeaters in web/server/queries.ts.
-
-function teamCell(value: unknown, row: Record<string, unknown>): Node | string {
-  const label = formatValue(value);
-  const teamId = Number(row.team_id);
-  if (!Number.isFinite(teamId) || label === "—") return label;
-  const button = el("button", {
-    type: "button",
-    className: "cell-link",
-    text: label,
-    "aria-label": `${label} team profile`,
-  });
-  button.addEventListener("click", () => navigateToDetail("teams", String(teamId)));
-  return button;
-}
 
 function record(w: unknown, l: unknown): string {
   return `${formatValue(w)}–${formatValue(l)}`;

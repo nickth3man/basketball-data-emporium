@@ -147,14 +147,19 @@ async function getJSON<T>(url: string, signal?: AbortSignal): Promise<T> {
   return body as T;
 }
 
-const qs = (params: Record<string, string | null | undefined>): string => {
+type QueryParam = string | number | null | undefined;
+
+const qs = (params: Record<string, QueryParam>): string => {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
-    if (value) search.set(key, value);
+    if (value !== null && value !== undefined && value !== "") search.set(key, String(value));
   }
   const str = search.toString();
   return str ? `?${str}` : "";
 };
+
+const playerPath = (id: string | number, suffix = ""): string => `/api/players/${id}${suffix}`;
+const teamPath = (id: string | number, suffix = ""): string => `/api/teams/${id}${suffix}`;
 
 export interface PerRates {
   per36: Row[];
@@ -165,31 +170,29 @@ export const api = {
   searchPlayers: (query: string, signal?: AbortSignal) =>
     getJSON<Row[]>(`/api/players${qs({ q: query })}`, signal),
   getFeaturedPlayer: () => getJSON<Row | null>("/api/players/featured"),
-  getPlayer: (id: string | number) => getJSON<PlayerProfile>(`/api/players/${id}`),
-  getPlayerRates: (id: string | number) => getJSON<PerRates>(`/api/players/${id}/rates`),
-  getPlayerAdvanced: (id: string | number) => getJSON<Row[]>(`/api/players/${id}/advanced`),
-  getPlayerPer100: (id: string | number) => getJSON<Row[]>(`/api/players/${id}/per100`),
-  getPlayerHighs: (id: string | number) => getJSON<Row[]>(`/api/players/${id}/highs`),
-  getPlayerRecentGames: (id: string | number) => getJSON<Row[]>(`/api/players/${id}/recent-games`),
+  getPlayer: (id: string | number) => getJSON<PlayerProfile>(playerPath(id)),
+  getPlayerRates: (id: string | number) => getJSON<PerRates>(playerPath(id, "/rates")),
+  getPlayerAdvanced: (id: string | number) => getJSON<Row[]>(playerPath(id, "/advanced")),
+  getPlayerPer100: (id: string | number) => getJSON<Row[]>(playerPath(id, "/per100")),
+  getPlayerHighs: (id: string | number) => getJSON<Row[]>(playerPath(id, "/highs")),
+  getPlayerRecentGames: (id: string | number) => getJSON<Row[]>(playerPath(id, "/recent-games")),
   getPlayerForm: (id: string | number, limit?: number) =>
-    getJSON<Row[]>(
-      `/api/players/${id}/form${qs({ limit: limit !== undefined ? String(limit) : null })}`,
-    ),
-  getPlayerShotSplits: (id: string | number) => getJSON<Row[]>(`/api/players/${id}/shot-splits`),
-  getPlayerOnOff: (id: string | number) => getJSON<Row[]>(`/api/players/${id}/on-off`),
-  getPlayerCombine: (id: string | number) => getJSON<Row | null>(`/api/players/${id}/combine`),
-  getSimilarPlayers: (id: string | number) => getJSON<Row[]>(`/api/players/${id}/similar`),
+    getJSON<Row[]>(`${playerPath(id, "/form")}${qs({ limit })}`),
+  getPlayerShotSplits: (id: string | number) => getJSON<Row[]>(playerPath(id, "/shot-splits")),
+  getPlayerOnOff: (id: string | number) => getJSON<Row[]>(playerPath(id, "/on-off")),
+  getPlayerCombine: (id: string | number) => getJSON<Row | null>(playerPath(id, "/combine")),
+  getSimilarPlayers: (id: string | number) => getJSON<Row[]>(playerPath(id, "/similar")),
 
   searchTeams: (query: string, signal?: AbortSignal) =>
     getJSON<Row[]>(`/api/teams${qs({ q: query })}`, signal),
   getTeamsByConference: () => getJSON<Row[]>("/api/teams/by-conference"),
-  getTeam: (id: string | number) => getJSON<TeamProfile>(`/api/teams/${id}`),
-  getTeamRoster: (id: string | number) => getJSON<Row[]>(`/api/teams/${id}/roster`),
-  getTeamPlayoffSeries: (id: string | number) => getJSON<Row[]>(`/api/teams/${id}/playoff-series`),
-  getTeamLineups: (id: string | number) => getJSON<Row[]>(`/api/teams/${id}/lineups`),
-  getTeamCoaches: (id: string | number) => getJSON<Row[]>(`/api/teams/${id}/coaches`),
-  getTeamRanks: (id: string | number) => getJSON<Row[]>(`/api/teams/${id}/ranks`),
-  getTeamOpponentStats: (id: string | number) => getJSON<Row[]>(`/api/teams/${id}/opponent-stats`),
+  getTeam: (id: string | number) => getJSON<TeamProfile>(teamPath(id)),
+  getTeamRoster: (id: string | number) => getJSON<Row[]>(teamPath(id, "/roster")),
+  getTeamPlayoffSeries: (id: string | number) => getJSON<Row[]>(teamPath(id, "/playoff-series")),
+  getTeamLineups: (id: string | number) => getJSON<Row[]>(teamPath(id, "/lineups")),
+  getTeamCoaches: (id: string | number) => getJSON<Row[]>(teamPath(id, "/coaches")),
+  getTeamRanks: (id: string | number) => getJSON<Row[]>(teamPath(id, "/ranks")),
+  getTeamOpponentStats: (id: string | number) => getJSON<Row[]>(teamPath(id, "/opponent-stats")),
 
   standingsSeasons: () => getJSON<string[]>("/api/standings/seasons"),
   standings: (season: string, type: string) =>
@@ -206,52 +209,40 @@ export const api = {
   listLeaderSeasons: () => getJSON<string[]>("/api/leaders/seasons"),
   listLeaderStatKeys: () => getJSON<string[]>("/api/leaders/stat-keys"),
   getSeasonLeaders: (season: string, statKey: string, limit?: number) =>
-    getJSON<SeasonLeader[]>(
-      `/api/leaders/season${qs({ season, stat_key: statKey, limit: limit !== undefined ? String(limit) : null })}`,
-    ),
+    getJSON<SeasonLeader[]>(`/api/leaders/season${qs({ season, stat_key: statKey, limit })}`),
   getAllTimeLeaders: (stat: "pts" | "ast" | "reb" = "pts", limit?: number) =>
-    getJSON<AllTimeLeader[]>(
-      `/api/leaders/all-time${qs({ stat, limit: limit !== undefined ? String(limit) : null })}`,
-    ),
+    getJSON<AllTimeLeader[]>(`/api/leaders/all-time${qs({ stat, limit })}`),
 
   getFranchiseLeaders: (teamId: string | number) =>
-    getJSON<FranchiseLeaderRow | null>(`/api/teams/${teamId}/franchise-leaders`),
+    getJSON<FranchiseLeaderRow | null>(teamPath(teamId, "/franchise-leaders")),
   getFranchiseTopPlayers: (teamId: string | number, stat?: string, limit?: number) =>
-    getJSON<FranchiseTopPlayer[]>(
-      `/api/teams/${teamId}/franchise-top${qs({
-        stat: stat ?? null,
-        limit: limit !== undefined ? String(limit) : null,
-      })}`,
-    ),
+    getJSON<FranchiseTopPlayer[]>(`${teamPath(teamId, "/franchise-top")}${qs({ stat, limit })}`),
 
   getPlayerSeasonRanks: (playerId: string | number, limit?: number) =>
-    getJSON<PlayerSeasonRank[]>(
-      `/api/players/${playerId}/season-ranks${qs({ limit: limit !== undefined ? String(limit) : null })}`,
-    ),
+    getJSON<PlayerSeasonRank[]>(`${playerPath(playerId, "/season-ranks")}${qs({ limit })}`),
 
   listDraftValueRounds: () => getJSON<number[]>("/api/draft/value/rounds"),
   getDraftValueBoard: (opts?: { round?: number; sort?: string; limit?: number }) =>
     getJSON<DraftValueRow[]>(
       `/api/draft/value${qs({
-        round: opts?.round !== undefined ? String(opts.round) : null,
-        sort: opts?.sort ?? null,
-        limit: opts?.limit !== undefined ? String(opts.limit) : null,
+        round: opts?.round,
+        sort: opts?.sort,
+        limit: opts?.limit,
       })}`,
     ),
 
   getPlayerLocationSplits: (playerId: string | number) =>
-    getJSON<Row[]>(`/api/players/${playerId}/location-splits`),
+    getJSON<Row[]>(playerPath(playerId, "/location-splits")),
   getPlayerEstimatedMetrics: (playerId: string | number) =>
-    getJSON<Row[]>(`/api/players/${playerId}/estimated-metrics`),
+    getJSON<Row[]>(playerPath(playerId, "/estimated-metrics")),
   listPlayerShotSeasons: (playerId: string | number) =>
-    getJSON<string[]>(`/api/players/${playerId}/shot-chart/seasons`),
+    getJSON<string[]>(playerPath(playerId, "/shot-chart/seasons")),
   getPlayerShotChart: (playerId: string | number, season?: string) =>
-    getJSON<ShotBin[]>(`/api/players/${playerId}/shot-chart${qs({ season: season ?? null })}`),
+    getJSON<ShotBin[]>(`${playerPath(playerId, "/shot-chart")}${qs({ season })}`),
 
-  getTeamHeadToHead: (teamId: string | number) =>
-    getJSON<Row[]>(`/api/teams/${teamId}/head-to-head`),
+  getTeamHeadToHead: (teamId: string | number) => getJSON<Row[]>(teamPath(teamId, "/head-to-head")),
   getTeamSeasonContext: (teamId: string | number) =>
-    getJSON<Row[]>(`/api/teams/${teamId}/season-context`),
+    getJSON<Row[]>(teamPath(teamId, "/season-context")),
 
   getGameDetail: (gameId: string) => getJSON<GameDetail>(`/api/games/${gameId}`),
 
@@ -260,14 +251,9 @@ export const api = {
 
   listBettingSeasons: () => getJSON<string[]>("/api/betting/seasons"),
   getBettingMarketBeaters: (season?: string) =>
-    getJSON<Row[]>(`/api/betting/market-beaters${qs({ season: season ?? null })}`),
+    getJSON<Row[]>(`/api/betting/market-beaters${qs({ season })}`),
   getBettingUpsets: (season?: string, limit?: number) =>
-    getJSON<Row[]>(
-      `/api/betting/upsets${qs({
-        season: season ?? null,
-        limit: limit !== undefined ? String(limit) : null,
-      })}`,
-    ),
+    getJSON<Row[]>(`/api/betting/upsets${qs({ season, limit })}`),
   getBettingCalibration: () => getJSON<Row[]>("/api/betting/calibration"),
 
   listFourFactorsSeasons: () => getJSON<string[]>("/api/four-factors/seasons"),

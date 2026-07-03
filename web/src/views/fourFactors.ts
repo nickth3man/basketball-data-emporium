@@ -1,12 +1,5 @@
 import { api, type Row } from "../api.ts";
-import {
-  announceStatus,
-  el,
-  formatValue,
-  labeledSelect,
-  navigateToDetail,
-  renderTable,
-} from "../dom.ts";
+import { announceStatus, el, formatValue, labeledSelect, renderTable, teamCell } from "../dom.ts";
 import { analyticsToolHeader } from "./analytics.ts";
 
 // Four Factors dashboard — Dean Oliver's "why teams win" decomposition
@@ -17,20 +10,6 @@ function pctCell(value: unknown, rank: unknown): string {
   if (value == null) return "—";
   const pct = (Number(value) * 100).toFixed(1);
   return rank == null ? `${pct}%` : `${pct}% (${formatValue(rank)})`;
-}
-
-function teamCell(value: unknown, row: Record<string, unknown>): Node | string {
-  const label = formatValue(value);
-  const teamId = Number(row.team_id);
-  if (!Number.isFinite(teamId) || label === "—") return label;
-  const button = el("button", {
-    type: "button",
-    className: "cell-link",
-    text: label,
-    "aria-label": `${formatValue(row.team_name)} team profile`,
-  });
-  button.addEventListener("click", () => navigateToDetail("teams", String(teamId)));
-  return button;
 }
 
 export function renderFourFactors(container: HTMLElement): void {
