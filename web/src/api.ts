@@ -261,6 +261,18 @@ export const api = {
     getJSON<Row[]>(`/api/four-factors/teams${qs({ season })}`),
   getFourFactorsLeague: () => getJSON<Row[]>("/api/four-factors/league"),
   getGameFourFactors: (gameId: string) => getJSON<Row[]>(`/api/games/${gameId}/four-factors`),
+
+  getPlayerMatchups: (id: string | number, side: "offense" | "defense", limit?: number) =>
+    getJSON<Row[]>(
+      `/api/matchups/player/${id}${qs({
+        side,
+        limit: limit !== undefined ? String(limit) : null,
+      })}`,
+    ),
+  getMatchupLeaders: (sort: "toughest" | "workload", limit?: number) =>
+    getJSON<Row[]>(
+      `/api/matchups/leaders${qs({ sort, limit: limit !== undefined ? String(limit) : null })}`,
+    ),
 };
 
 export interface ShotBin {

@@ -1,0 +1,23 @@
+{
+  "id": "player_matchup.davis_vs_sabonis_snapshot",
+  "datapoint_class": "player_matchup",
+  "entity": "Anthony Davis guarded by Domantas Sabonis (current-season snapshot): 4 games, 53 points on 17-38 shooting in the matchup",
+  "expected": {
+    "opponent_name": "Domantas Sabonis",
+    "gp": 4,
+    "pts": 53,
+    "fgm": 17,
+    "fga": 38
+  },
+  "bbr_source_url": "https://www.nba.com/stats/players/season-matchups",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getPlayerMatchups",
+    "params": [203076, "offense", 100]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "spot-checked",
+  "notes": "Tracking-only datapoint — NBA.com is the source of truth (BBR has no matchup data), so confidence is spot-checked against the warehouse staging row rather than independently verified. The fixture pins the offense-perspective join (off_player_id filter, defender exposed as opponent). WILL CHURN when the season-matchups scrape is refreshed mid-season (gp/pts grow); update expected values after re-scraping.",
+  "skip_if_no_db": true
+}

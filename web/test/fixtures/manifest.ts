@@ -51,7 +51,8 @@ export type DatapointClass =
   | "draft_value"
   | "player_form"
   | "betting_line"
-  | "four_factors";
+  | "four_factors"
+  | "player_matchup";
 
 export type AssertionMode = "query_fn" | "raw_sql" | "composite";
 export type MatchMode =
@@ -147,6 +148,7 @@ const DATAPOINT_CLASSES: ReadonlySet<string> = new Set<DatapointClass>([
   "player_form",
   "betting_line",
   "four_factors",
+  "player_matchup",
 ]);
 
 const ASSERTION_MODES: ReadonlySet<string> = new Set<AssertionMode>([

@@ -414,6 +414,25 @@ app.get(
 
 gameRoute("/api/games/:id/four-factors", (gameId) => q.getGameFourFactors(gameId));
 
+// --- Matchups (who guarded whom) --------------------------------------------
+//
+// /api/matchups/leaders is literal-only; the player route nests the :id one
+// segment deeper so there's no literal/param collision.
+
+app.get(
+  "/api/matchups/leaders",
+  asyncRoute(async (req, res) => {
+    const sort = req.query.sort === "workload" ? "workload" : "toughest";
+    const limit = clampLimit(req.query.limit);
+    res.json(await q.getMatchupDefenderLeaders(sort, limit));
+  }),
+);
+
+playerRoute("/api/matchups/player/:id", (id, req) => {
+  const side = req.query.side === "defense" ? "defense" : "offense";
+  return q.getPlayerMatchups(id, side, clampLimit(req.query.limit));
+});
+
 // --- Generic table browser (developer escape hatch, not used by the UI) --
 
 app.get("/api/admin/tables", async (_req, res) => {

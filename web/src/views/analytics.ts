@@ -18,6 +18,12 @@ export const ANALYTICS_TOOLS: AnalyticsTool[] = [
       "Which teams beat the betting market? Moneyline upsets, market-beaters, and bookmaker calibration since 2003.",
   },
   {
+    id: "matchups",
+    label: "Matchup Explorer",
+    description:
+      "Who guarded whom this season: tracking-based matchup minutes, points allowed per 100 possessions, and defender leaderboards.",
+  },
+  {
     id: "four-factors",
     label: "Four Factors",
     description:

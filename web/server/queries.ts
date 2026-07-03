@@ -7,3 +7,4 @@ export * from "./queries/leaders.ts";
 export * from "./queries/game.ts";
 export * from "./queries/betting.ts";
 export * from "./queries/fourFactors.ts";
+export * from "./queries/matchups.ts";
