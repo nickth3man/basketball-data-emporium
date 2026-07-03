@@ -273,6 +273,13 @@ export const api = {
     getJSON<Row[]>(
       `/api/matchups/leaders${qs({ sort, limit: limit !== undefined ? String(limit) : null })}`,
     ),
+
+  getGameFlow: (gameId: string) => getJSON<Row[]>(`/api/games/${gameId}/flow`),
+  listClutchSeasons: () => getJSON<string[]>("/api/clutch/seasons"),
+  getClutchLeaders: (season: string, limit?: number) =>
+    getJSON<Row[]>(
+      `/api/clutch/leaders${qs({ season, limit: limit !== undefined ? String(limit) : null })}`,
+    ),
 };
 
 export interface ShotBin {

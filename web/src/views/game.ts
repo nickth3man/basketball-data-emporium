@@ -47,6 +47,7 @@ export function renderGame(container: HTMLElement, gameId?: string): void {
       if (game.leaders.length > 0) renderLeaders(detail, game.leaders);
       if (game.starters.length > 0) renderStarters(detail, game.starters, game.header);
       if (game.context.length > 0) renderContext(detail, game.context);
+      void loadGameFlow(detail, id, game.header);
       void loadFourFactors(detail, id);
       if (game.lastPlays.length > 0) renderLastPlays(detail, game.lastPlays, game.header);
       if (game.officials.length > 0) renderOfficials(detail, game.officials);
@@ -354,6 +355,218 @@ function renderStarters(container: HTMLElement, starters: Row[], header: Row): v
 
 function starterPlayerCell(value: unknown, row: Record<string, unknown>): Node | string {
   return playerCell(value, { ...row, player_id: row.person_id });
+}
+
+// ---------------------------------------------------------------------------
+// Game flow — a score-margin timeline computed from the play-by-play's
+// scoring events (available 1996-97 onward). Margin is home minus away, so
+// the top half of the chart is the home team leading. Lead changes, ties,
+// and the biggest unanswered run are derived client-side from the same
+// event series.
+// ---------------------------------------------------------------------------
+
+const FLOW_SVG_NS = "http://www.w3.org/2000/svg";
+
+function flowSvgEl(tag: string, attrs: Record<string, string | number> = {}): SVGElement {
+  const node = document.createElementNS(FLOW_SVG_NS, tag);
+  for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, String(value));
+  return node;
+}
+
+interface FlowPoint {
+  seconds: number;
+  home: number;
+  away: number;
+}
+
+interface FlowStats {
+  leadChanges: number;
+  ties: number;
+  biggestRun: number;
+  biggestRunSide: "home" | "away" | null;
+  maxHomeLead: number;
+  maxAwayLead: number;
+}
+
+function computeFlowStats(points: FlowPoint[]): FlowStats {
+  let leadChanges = 0;
+  let ties = 0;
+  let lastLeader: 1 | -1 | 0 = 0;
+  let runSide: "home" | "away" | null = null;
+  let runPts = 0;
+  let biggestRun = 0;
+  let biggestRunSide: FlowStats["biggestRunSide"] = null;
+  let maxHomeLead = 0;
+  let maxAwayLead = 0;
+  let prev: FlowPoint = { seconds: 0, home: 0, away: 0 };
+  for (const point of points) {
+    const margin = point.home - point.away;
+    if (margin === 0) ties += 1;
+    const leader = margin > 0 ? 1 : margin < 0 ? -1 : 0;
+    if (leader !== 0) {
+      if (lastLeader !== 0 && leader !== lastLeader) leadChanges += 1;
+      lastLeader = leader;
+    }
+    maxHomeLead = Math.max(maxHomeLead, margin);
+    maxAwayLead = Math.max(maxAwayLead, -margin);
+    const scoredBy: "home" | "away" | null =
+      point.home > prev.home ? "home" : point.away > prev.away ? "away" : null;
+    const delta = scoredBy === "home" ? point.home - prev.home : point.away - prev.away;
+    if (scoredBy) {
+      if (scoredBy === runSide) runPts += delta;
+      else {
+        runSide = scoredBy;
+        runPts = delta;
+      }
+      if (runPts > biggestRun) {
+        biggestRun = runPts;
+        biggestRunSide = runSide;
+      }
+    }
+    prev = point;
+  }
+  return { leadChanges, ties, biggestRun, biggestRunSide, maxHomeLead, maxAwayLead };
+}
+
+function buildFlowChart(points: FlowPoint[], homeLabel: string, awayLabel: string): HTMLElement {
+  const width = 720;
+  const height = 260;
+  const left = 34;
+  const right = 12;
+  const top = 16;
+  const bottom = 22;
+  const plotW = width - left - right;
+  const plotH = height - top - bottom;
+
+  const lastSeconds = points[points.length - 1]?.seconds ?? 2880;
+  const regulation = 2880;
+  const endSeconds = Math.max(regulation, lastSeconds);
+  const maxAbs = Math.max(5, ...points.map((p) => Math.abs(p.home - p.away)));
+  const x = (s: number): number => left + (s / endSeconds) * plotW;
+  const y = (margin: number): number => top + plotH / 2 - (margin / maxAbs) * (plotH / 2);
+
+  const svg = flowSvgEl("svg", {
+    viewBox: `0 0 ${width} ${height}`,
+    class: "flow-chart",
+    role: "img",
+    "aria-label": `Score margin timeline, ${homeLabel} minus ${awayLabel}`,
+  });
+
+  // Period boundaries: quarters, then 5-minute overtimes.
+  const boundaries: number[] = [720, 1440, 2160, 2880];
+  for (let ot = regulation + 300; ot <= endSeconds; ot += 300) boundaries.push(ot);
+  for (const boundary of boundaries) {
+    if (boundary > endSeconds) break;
+    svg.append(
+      flowSvgEl("line", {
+        x1: x(boundary),
+        y1: top,
+        x2: x(boundary),
+        y2: top + plotH,
+        class: "form-grid",
+      }),
+    );
+  }
+  const labels: [number, string][] = [
+    [360, "Q1"],
+    [1080, "Q2"],
+    [1800, "Q3"],
+    [2520, "Q4"],
+  ];
+  for (let ot = 1; regulation + ot * 300 <= endSeconds; ot++) {
+    labels.push([regulation + ot * 300 - 150, `OT${ot}`]);
+  }
+  for (const [mid, text] of labels) {
+    const label = flowSvgEl("text", {
+      x: x(mid),
+      y: height - 6,
+      "text-anchor": "middle",
+      class: "form-axis-label",
+    });
+    label.textContent = text;
+    svg.append(label);
+  }
+
+  // Zero line + margin extents.
+  svg.append(
+    flowSvgEl("line", {
+      x1: left,
+      y1: y(0),
+      x2: width - right,
+      y2: y(0),
+      class: "flow-zero-line",
+    }),
+  );
+  for (const extent of [maxAbs, -maxAbs]) {
+    const tick = flowSvgEl("text", {
+      x: left - 4,
+      y: y(extent) + 4,
+      "text-anchor": "end",
+      class: "form-axis-label",
+    });
+    tick.textContent = `${extent > 0 ? "+" : ""}${extent}`;
+    svg.append(tick);
+  }
+  const homeTag = flowSvgEl("text", { x: left + 4, y: top + 10, class: "flow-side-label" });
+  homeTag.textContent = `${homeLabel} leads`;
+  const awayTag = flowSvgEl("text", {
+    x: left + 4,
+    y: top + plotH - 4,
+    class: "flow-side-label",
+  });
+  awayTag.textContent = `${awayLabel} leads`;
+  svg.append(homeTag, awayTag);
+
+  // Step path through every scoring event.
+  let d = `M ${x(0).toFixed(1)} ${y(0).toFixed(1)}`;
+  let prevY = y(0);
+  for (const point of points) {
+    const px = x(point.seconds).toFixed(1);
+    const py = y(point.home - point.away);
+    d += ` L ${px} ${prevY.toFixed(1)} L ${px} ${py.toFixed(1)}`;
+    prevY = py;
+  }
+  svg.append(flowSvgEl("path", { d, class: "flow-line" }));
+
+  return el("div", { className: "form-chart-wrap flow-chart-wrap" }, [svg]);
+}
+
+async function loadGameFlow(container: HTMLElement, gameId: string, header: Row): Promise<void> {
+  try {
+    const rows = await api.getGameFlow(gameId);
+    if (rows.length < 5) return;
+    const points: FlowPoint[] = rows.map((row) => ({
+      seconds: Number(row.seconds_elapsed),
+      home: Number(row.score_home),
+      away: Number(row.score_away),
+    }));
+    const homeLabel = formatValue(header.home_abbreviation);
+    const awayLabel = formatValue(header.away_abbreviation);
+    const stats = computeFlowStats(points);
+    const runLabel =
+      stats.biggestRun > 0
+        ? `${stats.biggestRun}-0 ${stats.biggestRunSide === "home" ? homeLabel : awayLabel}`
+        : "—";
+    const summary = el("p", {
+      className: "table-note",
+      text:
+        `Lead changes: ${stats.leadChanges} · Ties: ${stats.ties} · ` +
+        `Biggest run: ${runLabel} · Largest lead: ${homeLabel} +${stats.maxHomeLead} / ${awayLabel} +${stats.maxAwayLead}`,
+    });
+    const section = el("section", {}, [
+      el("h3", { id: "game-flow", text: "Game flow" }),
+      summary,
+      buildFlowChart(points, homeLabel, awayLabel),
+    ]);
+    // Keep the reading order sensible: place game flow right after the line
+    // score when it exists, otherwise append at the end.
+    const lineScoreHeading = container.querySelector("#game-line-score");
+    const anchor = lineScoreHeading?.closest("section") ?? null;
+    if (anchor?.nextSibling) container.insertBefore(section, anchor.nextSibling);
+    else container.append(section);
+  } catch {
+    // Flow is an enrichment; the box score page works without it.
+  }
 }
 
 // Four factors are a separate endpoint/table (2000-01 onward) so they load

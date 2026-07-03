@@ -881,3 +881,39 @@ table.result tr:hover td {
   background: #f3f4f6;
   color: #374151;
 }
+
+/* --- Game flow chart ------------------------------------------------------ */
+
+.flow-chart-wrap {
+  max-width: 780px;
+}
+
+.flow-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: #fbfbfb;
+  border: 1px solid #e3e3e3;
+  border-radius: 6px;
+}
+
+.flow-zero-line {
+  stroke: #9ca3af;
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+}
+
+.flow-line {
+  fill: none;
+  stroke: #1d4ed8;
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+}
+
+.flow-side-label {
+  fill: #6b7280;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}

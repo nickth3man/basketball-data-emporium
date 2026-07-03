@@ -428,6 +428,27 @@ app.get(
   }),
 );
 
+// --- Game flow + clutch -------------------------------------------------------
+
+gameRoute("/api/games/:id/flow", (gameId) => q.getGameFlow(gameId));
+
+app.get(
+  "/api/clutch/seasons",
+  asyncRoute(async (_req, res) => {
+    res.json(await q.listClutchSeasons());
+  }),
+);
+
+app.get(
+  "/api/clutch/leaders",
+  asyncRoute(async (req, res) => {
+    const season = requireQueryString(req, res, "season");
+    if (!season) return;
+    const limit = clampLimit(req.query.limit);
+    res.json(await q.getClutchLeaders(season, limit));
+  }),
+);
+
 playerRoute("/api/matchups/player/:id", (id, req) => {
   const side = req.query.side === "defense" ? "defense" : "offense";
   return q.getPlayerMatchups(id, side, clampLimit(req.query.limit));

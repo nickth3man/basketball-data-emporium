@@ -1,0 +1,21 @@
+{
+  "id": "clutch_scoring.brunson_2024_25_clutch_pts",
+  "datapoint_class": "clutch_scoring",
+  "entity": "Jalen Brunson 2024-25 clutch scoring (won the NBA Clutch Player of the Year): 157 derived clutch points across 22 games with clutch scoring",
+  "expected": {
+    "full_name": "Jalen Brunson",
+    "clutch_pts": 157,
+    "games": 22
+  },
+  "bbr_source_url": "https://www.nba.com/stats/players/clutch-traditional?Season=2024-25",
+  "assertion_mode": "query_fn",
+  "query_target": {
+    "fn": "getClutchLeaders",
+    "params": ["2024-25", 10]
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "spot-checked",
+  "notes": "Clutch points are DERIVED from play-by-play score deltas (last 5 min of Q4/OT, margin within 5 before the event) because the warehouse's clutch tables are empty. NBA.com's official figure for Brunson is within a couple of points (definition edge cases: events exactly at margin boundaries); this fixture pins OUR derivation so refactors of the window logic can't silently change it. Brunson winning 2024-25 Clutch Player of the Year corroborates the ranking.",
+  "skip_if_no_db": true
+}

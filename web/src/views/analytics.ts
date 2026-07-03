@@ -24,6 +24,12 @@ export const ANALYTICS_TOOLS: AnalyticsTool[] = [
       "Who guarded whom this season: tracking-based matchup minutes, points allowed per 100 possessions, and defender leaderboards.",
   },
   {
+    id: "clutch",
+    label: "Clutch Performers",
+    description:
+      "Scoring in the last five minutes with the game within five points, computed straight from 18.7M play-by-play events back to 1996-97. Game pages also gain a score-margin Game Flow chart.",
+  },
+  {
     id: "four-factors",
     label: "Four Factors",
     description:
