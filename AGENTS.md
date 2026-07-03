@@ -1,7 +1,3 @@
-# CLAUDE.md
-
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## What this repo is
 
 An NBA data explorer: a DuckDB warehouse queried by a small Express API and rendered by a vanilla TypeScript/Vite frontend. No frameworks, no in-repo ETL — this is the read-only app layer on top of a warehouse built elsewhere. The app lives entirely in `web/`; the repo root only holds git-hook tooling (lefthook) and data.
