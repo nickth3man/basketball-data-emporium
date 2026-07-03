@@ -135,6 +135,19 @@ app.get(
 );
 
 app.get(
+  "/api/players/:id/form",
+  asyncRoute(async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      res.status(400).json({ error: "Invalid player id" });
+      return;
+    }
+    const limit = clampLimit(req.query.limit);
+    res.json(await q.getPlayerFormTracker(id, limit));
+  }),
+);
+
+app.get(
   "/api/players/:id/shot-splits",
   asyncRoute(async (req, res) => {
     const id = Number(req.params.id);

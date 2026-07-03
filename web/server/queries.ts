@@ -1106,6 +1106,56 @@ export async function getPlayerOnOffSplits(playerId: number): Promise<Row[]> {
 }
 
 // ---------------------------------------------------------------------------
+// Form tracker (rolling averages)
+//
+// agg_player_rolling has precomputed 5/10/20-game rolling pts/reb/ast for
+// every player game back to 1946, one clean row per (player_id, game_id);
+// the window INCLUDES the current game (verified: Kobe's 81-point night on
+// 2006-01-22 shows pts_roll5 = 48.8 = avg of that game plus the prior four).
+// Per-game actuals come from analytics_player_game_complete, which has the
+// known agg-layer fan-out (duplicate player-game rows), so it is deduped
+// with any_value() before joining.
+// ---------------------------------------------------------------------------
+
+export async function getPlayerFormTracker(playerId: number, limit = 40): Promise<Row[]> {
+  return queryObjects(
+    `WITH game_line AS (
+       SELECT
+         game_id,
+         any_value(pts) AS pts,
+         any_value(reb) AS reb,
+         any_value(ast) AS ast,
+         any_value(team_abbreviation) AS team_abbreviation,
+         any_value(season_year) AS season_year
+       FROM analytics_player_game_complete
+       WHERE player_id = ?
+       GROUP BY game_id
+     )
+     SELECT
+       r.game_id,
+       r.game_date,
+       g.season_year,
+       g.team_abbreviation,
+       g.pts,
+       g.reb,
+       g.ast,
+       r.pts_roll5,
+       r.pts_roll10,
+       r.pts_roll20,
+       r.reb_roll5,
+       r.reb_roll10,
+       r.ast_roll5,
+       r.ast_roll10
+     FROM agg_player_rolling r
+     LEFT JOIN game_line g ON g.game_id = r.game_id
+     WHERE r.player_id = ?
+     ORDER BY r.game_date DESC
+     LIMIT ?`,
+    [playerId, playerId, limit],
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Draft combine measurements
 //
 // The four stg_draft_combine* staging tables are queried directly (never

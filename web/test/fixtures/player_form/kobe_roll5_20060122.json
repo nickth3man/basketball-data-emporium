@@ -1,0 +1,20 @@
+{
+  "id": "player_form.kobe_roll5_20060122",
+  "datapoint_class": "player_form",
+  "entity": "Kobe Bryant rolling 5-game scoring average on 2006-01-22 (the 81-point game): (81+37+48+50+28)/5 = 48.8 over his last five games per the BBR game log",
+  "expected": {
+    "game_date": "2006-01-22",
+    "pts_roll5": 48.8,
+    "pts_roll10": 45.5
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/players/b/bryanko01/gamelog/2006",
+  "assertion_mode": "raw_sql",
+  "query_target": {
+    "sql": "SELECT game_date, pts_roll5, pts_roll10 FROM agg_player_rolling WHERE player_id = 977 AND game_date = '2006-01-22' LIMIT 1"
+  },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Guards the Form Tracker's source table (agg_player_rolling). The rolling window includes the current game — verified against the hand-computed average of Kobe's five games ending 2006-01-22 (81, 50, 48, 37, 28 in some order per BBR). One clean row per (player_id, game_id); no agg-layer fan-out in this table.",
+  "skip_if_no_db": true
+}

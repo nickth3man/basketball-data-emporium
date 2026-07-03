@@ -13,6 +13,7 @@ import {
   formatPct,
   formatValue,
   jerseyIcon,
+  labeledSelect,
   navigateToDetail,
   playerPhoto,
   renderDefList,
@@ -101,6 +102,7 @@ export function renderPlayers(container: HTMLElement, initialPlayerId?: string):
         locationSplits,
         estimatedMetrics,
         shotChart,
+        form,
       ] = await Promise.allSettled([
         api.getPlayerHighs(id),
         api.getPlayerRecentGames(id),
@@ -115,9 +117,12 @@ export function renderPlayers(container: HTMLElement, initialPlayerId?: string):
         api.getPlayerLocationSplits(id),
         api.getPlayerEstimatedMetrics(id),
         api.getPlayerShotChart(id),
+        api.getPlayerForm(id, 40),
       ]);
       if (recentGames.status === "fulfilled" && recentGames.value.length > 0)
         renderRecentGames(detail, recentGames.value);
+      if (form.status === "fulfilled" && form.value.length > 0)
+        renderFormTracker(detail, form.value);
       if (profile.seasons.length > 0)
         renderPlayerStats(detail, profile.seasons, rates, per100, advanced);
       if (highs.status === "fulfilled" && highs.value.length > 0) renderHighs(detail, highs.value);
@@ -141,6 +146,7 @@ export function renderPlayers(container: HTMLElement, initialPlayerId?: string):
         recentGames.status === "fulfilled" && recentGames.value.length > 0
           ? ["Recent", "player-recent"]
           : null,
+        form.status === "fulfilled" && form.value.length > 0 ? ["Form", "player-form"] : null,
         profile.seasons.length > 0 ? ["Stats", "player-stats"] : null,
         highs.status === "fulfilled" && highs.value.length > 0 ? ["Highs", "player-highs"] : null,
         profile.awards.length > 0 ? ["Awards", "player-awards"] : null,
@@ -480,6 +486,167 @@ function renderRecentGames(container: HTMLElement, games: Row[]): void {
         ],
         games,
       ),
+    ]),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Form tracker — rolling 5/10-game averages charted over the player's last
+// games (the API returns newest-first; the chart runs oldest → newest). The
+// hot/cold badge compares the latest 5-game average to the 20-game baseline,
+// so a short surge shows against the player's own recent norm rather than a
+// career figure.
+// ---------------------------------------------------------------------------
+
+const FORM_STATS = [
+  { key: "pts", label: "Points" },
+  { key: "reb", label: "Rebounds" },
+  { key: "ast", label: "Assists" },
+] as const;
+
+function formNumber(value: unknown): number | null {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function buildFormChart(rows: Row[], statKey: "pts" | "reb" | "ast"): HTMLElement {
+  const width = 660;
+  const height = 240;
+  const left = 34;
+  const right = 10;
+  const top = 12;
+  const bottom = 26;
+  const plotW = width - left - right;
+  const plotH = height - top - bottom;
+
+  const games = rows.map((row) => ({
+    date: formatValue(row.game_date).slice(0, 10),
+    value: formNumber(row[statKey]),
+    roll5: formNumber(row[`${statKey}_roll5`]),
+    roll10: formNumber(row[`${statKey}_roll10`]),
+  }));
+  const allValues = games.flatMap((g) =>
+    [g.value, g.roll5, g.roll10].filter((v): v is number => v !== null),
+  );
+  const maxY = Math.max(1, ...allValues) * 1.08;
+  const x = (i: number): number =>
+    games.length === 1 ? left + plotW / 2 : left + (i / (games.length - 1)) * plotW;
+  const y = (v: number): number => top + plotH - (v / maxY) * plotH;
+
+  const svg = svgEl("svg", {
+    viewBox: `0 0 ${width} ${height}`,
+    class: "form-chart",
+    role: "img",
+    "aria-label": `Rolling ${statKey} averages over the last ${games.length} games`,
+  });
+
+  // Horizontal gridlines at quarter intervals with y-axis value labels.
+  for (const frac of [0, 0.25, 0.5, 0.75, 1]) {
+    const value = maxY * frac;
+    const gy = y(value);
+    svg.append(
+      svgEl("line", { x1: left, y1: gy, x2: width - right, y2: gy, class: "form-grid" }),
+      svgEl("text", { x: left - 4, y: gy + 3, "text-anchor": "end", class: "form-axis-label" }),
+    );
+    svg.lastElementChild!.textContent = value.toFixed(0);
+  }
+
+  // First / last game dates on the x-axis.
+  const first = games[0];
+  const last = games[games.length - 1];
+  if (first && last) {
+    const firstLabel = svgEl("text", {
+      x: left,
+      y: height - 8,
+      "text-anchor": "start",
+      class: "form-axis-label",
+    });
+    firstLabel.textContent = first.date;
+    const lastLabel = svgEl("text", {
+      x: width - right,
+      y: height - 8,
+      "text-anchor": "end",
+      class: "form-axis-label",
+    });
+    lastLabel.textContent = last.date;
+    svg.append(firstLabel, lastLabel);
+  }
+
+  // Per-game values as dots (the noisy raw signal under the smoothed lines).
+  for (const [i, g] of games.entries()) {
+    if (g.value === null) continue;
+    const dot = svgEl("circle", { cx: x(i), cy: y(g.value), r: 2.4, class: "form-dot" });
+    const title = svgEl("title", {});
+    title.textContent = `${g.date}: ${g.value} ${statKey.toUpperCase()}`;
+    dot.append(title);
+    svg.append(dot);
+  }
+
+  const polyline = (pick: (g: (typeof games)[number]) => number | null, cls: string): void => {
+    const pointsAttr = games
+      .map((g, i) => {
+        const v = pick(g);
+        return v === null ? null : `${x(i).toFixed(1)},${y(v).toFixed(1)}`;
+      })
+      .filter((p): p is string => p !== null)
+      .join(" ");
+    if (pointsAttr) svg.append(svgEl("polyline", { points: pointsAttr, class: cls }));
+  };
+  polyline((g) => g.roll10, "form-line form-line-roll10");
+  polyline((g) => g.roll5, "form-line form-line-roll5");
+
+  return el("div", { className: "form-chart-wrap" }, [svg]);
+}
+
+function formBadge(rows: Row[], statKey: "pts" | "reb" | "ast"): HTMLElement | null {
+  const latest = rows[rows.length - 1];
+  if (!latest) return null;
+  const roll5 = formNumber(latest[`${statKey}_roll5`]);
+  const roll20 = formNumber(latest[`${statKey}_roll20`]);
+  if (roll5 === null || roll20 === null) return null;
+  const delta = roll5 - roll20;
+  const threshold = statKey === "pts" ? 3 : 1.5;
+  const state = delta >= threshold ? "hot" : delta <= -threshold ? "cold" : "steady";
+  const label =
+    state === "hot" ? "Heating up" : state === "cold" ? "Cooling off" : "Holding steady";
+  return el("span", {
+    className: `form-badge form-badge-${state}`,
+    text: `${label}: last 5 games ${roll5.toFixed(1)} vs ${roll20.toFixed(1)} over last 20`,
+  });
+}
+
+function renderFormTracker(container: HTMLElement, rowsNewestFirst: Row[]): void {
+  const rows = rowsNewestFirst.slice().reverse();
+  const body = el("div", {});
+  const { wrapper: statPicker, select: statSelect } = labeledSelect(
+    "Form chart stat",
+    FORM_STATS.map((s) => ({ value: s.key, label: s.label })),
+  );
+
+  const legend = el("div", { className: "form-legend" }, [
+    el("span", { className: "form-legend-item form-legend-roll5", text: "5-game avg" }),
+    el("span", { className: "form-legend-item form-legend-roll10", text: "10-game avg" }),
+    el("span", { className: "form-legend-item form-legend-game", text: "single game" }),
+  ]);
+
+  const redraw = (): void => {
+    const statKey = statSelect.value as "pts" | "reb" | "ast";
+    body.replaceChildren();
+    const badge = formBadge(rows, statKey);
+    if (badge) body.append(badge);
+    body.append(buildFormChart(rows, statKey));
+  };
+  statSelect.addEventListener("change", redraw);
+  redraw();
+
+  container.append(
+    el("section", {}, [
+      sectionHeading("player-form", "Form tracker"),
+      tableNote(
+        "Rolling 5- and 10-game averages over the most recent games, dots are single-game totals.",
+      ),
+      el("div", { className: "form-controls" }, [statPicker, legend]),
+      body,
     ]),
   );
 }

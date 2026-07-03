@@ -171,6 +171,10 @@ export const api = {
   getPlayerPer100: (id: string | number) => getJSON<Row[]>(`/api/players/${id}/per100`),
   getPlayerHighs: (id: string | number) => getJSON<Row[]>(`/api/players/${id}/highs`),
   getPlayerRecentGames: (id: string | number) => getJSON<Row[]>(`/api/players/${id}/recent-games`),
+  getPlayerForm: (id: string | number, limit?: number) =>
+    getJSON<Row[]>(
+      `/api/players/${id}/form${qs({ limit: limit !== undefined ? String(limit) : null })}`,
+    ),
   getPlayerShotSplits: (id: string | number) => getJSON<Row[]>(`/api/players/${id}/shot-splits`),
   getPlayerOnOff: (id: string | number) => getJSON<Row[]>(`/api/players/${id}/on-off`),
   getPlayerCombine: (id: string | number) => getJSON<Row | null>(`/api/players/${id}/combine`),

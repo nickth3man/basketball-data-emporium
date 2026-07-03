@@ -48,7 +48,8 @@ export type DatapointClass =
   | "league_leader_all_time"
   | "franchise_leader"
   | "player_season_rank"
-  | "draft_value";
+  | "draft_value"
+  | "player_form";
 
 export type AssertionMode = "query_fn" | "raw_sql" | "composite";
 export type MatchMode =
@@ -141,6 +142,7 @@ const DATAPOINT_CLASSES: ReadonlySet<string> = new Set<DatapointClass>([
   "franchise_leader",
   "player_season_rank",
   "draft_value",
+  "player_form",
 ]);
 
 const ASSERTION_MODES: ReadonlySet<string> = new Set<AssertionMode>([
