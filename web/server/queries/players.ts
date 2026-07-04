@@ -344,6 +344,144 @@ export async function getFeaturedPlayer(): Promise<Row | null> {
 }
 
 // ---------------------------------------------------------------------------
+// Players tab: paginated/filterable roster browse
+//
+// Mirrors the dim_player / dim_team_history conventions used by
+// searchPlayers and getPlayerProfile: filter dim_player to its current
+// SCD row, then LEFT JOIN dim_team_history is_current for the franchise
+// abbreviation + nickname. Filters (q/position/team_id/active/letter)
+// are all AND-combined, every dynamic value is bound via ? so no user
+// input is string-interpolated into SQL. The same WHERE clause drives
+// both the COUNT(*) (total) and the rows query.
+// ---------------------------------------------------------------------------
+
+const PLAYER_BROWSE_SORT_CLAUSES: Record<string, string> = {
+  name: "p.full_name ASC",
+  team: "th.abbreviation ASC NULLS LAST, p.full_name ASC",
+  active: "p.is_active DESC, p.full_name ASC",
+};
+
+export interface BrowsePlayerRow extends Row {
+  player_id: number;
+  full_name: string;
+  position: string | null;
+  is_active: boolean;
+  team_id: number | null;
+  team_abbreviation: string | null;
+  team_name: string | null;
+}
+
+export interface BrowsePlayerFacetTeam {
+  team_id: number;
+  abbreviation: string;
+  name: string;
+}
+
+export interface BrowsePlayerFacets {
+  totalPlayers: number;
+  activePlayers: number;
+  teams: BrowsePlayerFacetTeam[];
+  positions: string[];
+}
+
+export interface BrowsePlayersResult {
+  rows: BrowsePlayerRow[];
+  total: number;
+  facets: BrowsePlayerFacets;
+}
+
+export async function browsePlayers(opts: {
+  q?: string | null;
+  position?: string | null;
+  teamId?: number | null;
+  active?: boolean | null;
+  letter?: string | null;
+  sort?: string;
+  limit: number;
+  offset: number;
+}): Promise<BrowsePlayersResult> {
+  const q = (opts.q ?? "").trim();
+  const position = (opts.position ?? "").trim();
+  const teamId = opts.teamId ?? null;
+  const active = opts.active ?? null;
+  const letter = (opts.letter ?? "").trim().toUpperCase();
+  const sortClause =
+    PLAYER_BROWSE_SORT_CLAUSES[opts.sort ?? "name"] ?? PLAYER_BROWSE_SORT_CLAUSES.name;
+  const { limit, offset } = opts;
+
+  const where = `WHERE p.is_current
+      AND (length(?) = 0 OR p.full_name ILIKE ?)
+      AND (? = '' OR p.position = ?)
+      AND (? IS NULL OR p.team_id = ?)
+      AND (? IS NULL OR p.is_active = ?)
+      AND (? = '' OR p.full_name ILIKE ? || '%')`;
+  const filterParams: DuckDBValue[] = [
+    q,
+    `%${q}%`,
+    position,
+    position,
+    teamId,
+    teamId,
+    active,
+    active,
+    letter,
+    letter,
+  ];
+  const baseFrom = `FROM dim_player p
+    LEFT JOIN dim_team_history th ON th.team_id = p.team_id AND th.is_current`;
+
+  const [countRows, pageRows, totalPlayersRows, activePlayersRows, teams, positionRows] =
+    await Promise.all([
+      queryObjects<{ n: number | bigint }>(
+        `SELECT COUNT(*) AS n ${baseFrom} ${where}`,
+        filterParams,
+      ),
+      queryObjects<BrowsePlayerRow>(
+        `SELECT
+           p.player_id,
+           p.full_name,
+           p.position,
+           p.is_active,
+           p.team_id,
+           th.abbreviation AS team_abbreviation,
+           th.nickname AS team_name
+         ${baseFrom}
+         ${where}
+         ORDER BY ${sortClause}
+         LIMIT ? OFFSET ?`,
+        [...filterParams, limit, offset],
+      ),
+      queryObjects<{ n: number | bigint }>(`SELECT COUNT(*) AS n FROM dim_player WHERE is_current`),
+      queryObjects<{ n: number | bigint }>(
+        `SELECT COUNT(*) AS n FROM dim_player WHERE is_current AND is_active`,
+      ),
+      queryObjects<BrowsePlayerFacetTeam>(
+        `SELECT team_id, abbreviation, nickname AS name
+         FROM dim_team_history
+         WHERE is_current
+         ORDER BY abbreviation`,
+      ),
+      queryObjects<{ position: string }>(
+        `SELECT DISTINCT position
+         FROM dim_player
+         WHERE is_current AND position IS NOT NULL
+         ORDER BY position`,
+      ),
+    ]);
+
+  return {
+    rows: pageRows,
+    total: Number(countRows[0]?.n ?? 0),
+    facets: {
+      totalPlayers: Number(totalPlayersRows[0]?.n ?? 0),
+      activePlayers: Number(activePlayersRows[0]?.n ?? 0),
+      teams,
+      positions: positionRows.map((r) => r.position),
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Per-36 / Per-48 (per-100-possession-style rate) tables
 // ---------------------------------------------------------------------------
 

@@ -166,9 +166,65 @@ export interface PerRates {
   per48: Row[];
 }
 
+export interface BrowsePlayer extends Row {
+  player_id: number;
+  full_name: string;
+  position: string | null;
+  is_active: boolean;
+  team_id: number | null;
+  team_abbreviation: string | null;
+  team_name: string | null;
+}
+
+export interface PlayerFacetTeam {
+  team_id: number;
+  abbreviation: string;
+  name: string;
+}
+
+export interface PlayerFacets {
+  totalPlayers: number;
+  activePlayers: number;
+  teams: PlayerFacetTeam[];
+  positions: string[];
+}
+
+export interface PlayerBrowseResult {
+  rows: BrowsePlayer[];
+  total: number;
+  facets: PlayerFacets;
+}
+
 export const api = {
   searchPlayers: (query: string, signal?: AbortSignal) =>
     getJSON<Row[]>(`/api/players${qs({ q: query })}`, signal),
+  browsePlayers: (opts?: {
+    q?: string;
+    position?: string;
+    teamId?: number | null;
+    active?: boolean | null;
+    letter?: string;
+    sort?: "name" | "team" | "active";
+    limit?: number;
+    offset?: number;
+  }) =>
+    getJSON<PlayerBrowseResult>(
+      `/api/players/browse${qs({
+        q: opts?.q,
+        position: opts?.position,
+        team_id: opts?.teamId,
+        active:
+          opts?.active === undefined || opts?.active === null
+            ? null
+            : opts?.active
+              ? "true"
+              : "false",
+        letter: opts?.letter,
+        sort: opts?.sort,
+        limit: opts?.limit,
+        offset: opts?.offset,
+      })}`,
+    ),
   getFeaturedPlayer: () => getJSON<Row | null>("/api/players/featured"),
   getPlayer: (id: string | number) => getJSON<PlayerProfile>(playerPath(id)),
   getPlayerRates: (id: string | number) => getJSON<PerRates>(playerPath(id, "/rates")),

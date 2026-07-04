@@ -125,6 +125,43 @@ app.get(
   }),
 );
 
+// Registered before /api/players/:id so the literal "browse" segment isn't
+// swallowed by the :id param route. Powers the Players tab's filterable /
+// sortable / paginated roster browse.
+app.get(
+  "/api/players/browse",
+  asyncRoute(async (req, res) => {
+    const query = (optionalQueryString(req, "q") ?? "").trim();
+    const position = optionalQueryString(req, "position") ?? "";
+    const teamIdRaw = optionalQueryString(req, "team_id");
+    const teamId = teamIdRaw !== null ? Number(teamIdRaw) : null;
+    const activeRaw = optionalQueryString(req, "active");
+    const active = activeRaw === "true" ? true : activeRaw === "false" ? false : null;
+    const letterRaw = optionalQueryString(req, "letter") ?? "";
+    const letter = /^[A-Z]$/.test(letterRaw) ? letterRaw : "";
+    const sortRaw = optionalQueryString(req, "sort") ?? "name";
+    const sort = sortRaw === "team" || sortRaw === "active" ? sortRaw : "name";
+    // Default limit is 60 (not clampLimit's DEFAULT_LIMIT=50); clampLimit's
+    // MAX_LIMIT=500 ceiling still applies when the client passes `limit`.
+    const limit = req.query.limit !== undefined ? clampLimit(req.query.limit) : 60;
+    const offset = clampOffset(req.query.offset);
+    const teamIdValid = teamId !== null && Number.isFinite(teamId) ? teamId : null;
+    const teamIdInt = teamIdValid !== null && Number.isInteger(teamIdValid) ? teamIdValid : null;
+    res.json(
+      await q.browsePlayers({
+        q: query,
+        position,
+        teamId: teamIdInt,
+        active,
+        letter,
+        sort,
+        limit,
+        offset,
+      }),
+    );
+  }),
+);
+
 playerRoute("/api/players/:id", (id) => q.getPlayerProfile(id));
 playerRoute("/api/players/:id/rates", (id) => q.getPlayerPerRates(id));
 playerRoute("/api/players/:id/advanced", (id) => q.getPlayerAdvancedStats(id));

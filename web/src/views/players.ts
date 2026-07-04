@@ -1,7 +1,9 @@
 import {
   api,
   type Badge,
+  type BrowsePlayer,
   type JerseyStint,
+  type PlayerFacets,
   type PlayerSeasonRank,
   type Row,
   type ShotBin,
@@ -14,9 +16,9 @@ import {
   formatPct,
   formatValue,
   jerseyIcon,
+  labeledSearch,
   labeledSelect,
   loadingEl,
-  pageHeader,
   playerPhoto,
   renderDefList,
   renderJumpNav,
@@ -28,56 +30,16 @@ import {
 import { labelAwardType } from "../awards.ts";
 
 export function renderPlayers(container: HTMLElement, initialPlayerId?: string): void {
-  const resultsList = el("ul", { className: "result-list" });
-  const searchPanel = el("div", { className: "search-panel" }, [resultsList]);
+  // `searchPanel` hosts the player browser; `detail` hosts a player profile.
+  // showPlayer() hides the browser and renders into `detail`, so both names
+  // and the show/hide pattern below must stay in sync with showPlayer().
+  const searchPanel = el("div", { className: "players-browser" });
   const detail = el("div", { className: "detail" });
+  container.append(searchPanel, detail);
 
-  container.append(
-    pageHeader(
-      "Players",
-      "Open a curated player, or use the global search to jump directly to any profile in the warehouse.",
-    ),
-    searchPanel,
-    detail,
-  );
-
-  // Search now lives in the persistent global header (see headerSearch.ts);
-  // this tab just shows a small curated default subset until you navigate
-  // to a specific player's profile.
+  const loadBrowser = mountPlayersBrowser(searchPanel, (id) => void showPlayer(id));
   if (initialPlayerId) void showPlayer(initialPlayerId);
-  else void loadCurated();
-
-  async function loadCurated(): Promise<void> {
-    searchPanel.hidden = false;
-    resultsList.replaceChildren();
-    announceStatus("Loading players…");
-    try {
-      const players = await api.searchPlayers("");
-      if (players.length === 0) {
-        resultsList.append(el("li", { className: "muted", text: "No players found." }));
-        announceStatus("No players found.");
-        return;
-      }
-      announceStatus(`Showing ${players.length} players.`);
-      for (const p of players) {
-        const sub = [p.position, p.team_abbreviation].filter(Boolean).join(" · ");
-        const fullName = String(p.full_name);
-        const button = el("button", { type: "button", className: "result-row" }, [
-          playerPhoto(p.player_id, "player-photo-thumb", fullName),
-          el("div", { className: "result-row-text" }, [
-            el("span", { text: fullName }),
-            el("span", { className: "muted", text: sub }),
-          ]),
-        ]);
-        button.addEventListener("click", () => void showPlayer(String(p.player_id)));
-        resultsList.append(el("li", {}, [button]));
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to load players.";
-      resultsList.append(el("li", {}, [errorEl(message)]));
-      announceStatus(`Failed to load players: ${message}`);
-    }
-  }
+  else loadBrowser();
 
   async function showPlayer(id: string): Promise<void> {
     searchPanel.hidden = true;
@@ -193,6 +155,769 @@ export function renderPlayers(container: HTMLElement, initialPlayerId?: string):
       announceStatus(`Failed to load player: ${message}`);
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// Players browser (list view)
+//
+// A self-contained controller mounted into the Players tab. Owns the hero
+// summary, the filter toolbar (search, position, team, active/retired,
+// A–Z letters, sort, grid/list view), the result grid/list, and a "load
+// more" pager. Any filter/sort/search change resets paging and re-fetches;
+// "Load more" appends the next page. Race conditions are guarded by a
+// monotonic request token — stale responses (from fast typing or rapid
+// filter flips) are ignored rather than painted out of order.
+//
+// All DOM is built with el()/createElementNS — no innerHTML of untrusted
+// data. Scoped under .players-* classes so the shared .result-list /
+// .result-row rules (used by header-search and the Teams tab) are untouched.
+// ---------------------------------------------------------------------------
+
+type PlayerSort = "name" | "team" | "active";
+type PlayerView = "grid" | "list";
+type ActiveFilter = boolean | null;
+
+const PLAYERS_LIMIT = 60;
+const PLAYERS_SEARCH_DEBOUNCE_MS = 200;
+const PLAYERS_VIEW_STORAGE_KEY = "nba:players-view";
+const PLAYERS_SVG_NS = "http://www.w3.org/2000/svg";
+const PLAYERS_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+
+interface PlayersState {
+  q: string;
+  position: string;
+  teamId: number | null;
+  active: ActiveFilter;
+  letter: string | null;
+  sort: PlayerSort;
+  view: PlayerView;
+  offset: number;
+  rows: BrowsePlayer[];
+  total: number;
+  facets: PlayerFacets | null;
+  loading: boolean;
+  loadingMore: boolean;
+  error: string | null;
+  moreError: string | null;
+}
+
+function readPersistedView(): PlayerView {
+  try {
+    const value = window.localStorage.getItem(PLAYERS_VIEW_STORAGE_KEY);
+    if (value === "grid" || value === "list") return value;
+  } catch {
+    /* localStorage may be unavailable (private mode, jsdom) — ignore */
+  }
+  return "grid";
+}
+
+function writePersistedView(view: PlayerView): void {
+  try {
+    window.localStorage.setItem(PLAYERS_VIEW_STORAGE_KEY, view);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** First letters of the first and last name tokens, e.g. "LeBron James" -> "LJ".
+ *  Falls back to the first two characters of a single-token name. */
+function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  const first = parts[0];
+  if (!first) return "";
+  const last = parts.length > 1 ? parts[parts.length - 1] : "";
+  return last ? (first[0] + last[0]).toUpperCase() : first.slice(0, 2).toUpperCase();
+}
+
+function describeFilters(state: PlayersState): string {
+  const parts: string[] = [];
+  if (state.q) parts.push(`search "${state.q}"`);
+  if (state.position) parts.push(`position ${state.position}`);
+  if (state.letter) parts.push(`starts with "${state.letter}"`);
+  if (state.teamId !== null) {
+    const team = state.facets?.teams.find((t) => t.team_id === state.teamId);
+    parts.push(team ? `team ${team.abbreviation}` : "team filter");
+  }
+  if (state.active === true) parts.push("active only");
+  if (state.active === false) parts.push("retired only");
+  if (state.sort !== "name") parts.push(`sort ${state.sort}`);
+  return parts.length === 0 ? "No filters are active." : `Active filters: ${parts.join(" · ")}.`;
+}
+
+function viewIcon(kind: PlayerView): SVGElement {
+  const svg = document.createElementNS(PLAYERS_SVG_NS, "svg");
+  svg.setAttribute("viewBox", "0 0 20 20");
+  svg.setAttribute("aria-hidden", "true");
+  svg.setAttribute("focusable", "false");
+  if (kind === "grid") {
+    for (const [x, y] of [
+      [3, 3],
+      [11, 3],
+      [3, 11],
+      [11, 11],
+    ]) {
+      const rect = document.createElementNS(PLAYERS_SVG_NS, "rect");
+      rect.setAttribute("x", String(x));
+      rect.setAttribute("y", String(y));
+      rect.setAttribute("width", "6");
+      rect.setAttribute("height", "6");
+      rect.setAttribute("rx", "1.2");
+      svg.append(rect);
+    }
+  } else {
+    for (const y of [5, 10, 15]) {
+      const line = document.createElementNS(PLAYERS_SVG_NS, "line");
+      line.setAttribute("x1", "3");
+      line.setAttribute("y1", String(y));
+      line.setAttribute("x2", "17");
+      line.setAttribute("y2", String(y));
+      line.setAttribute("stroke", "currentColor");
+      line.setAttribute("stroke-width", "2");
+      line.setAttribute("stroke-linecap", "round");
+      svg.append(line);
+    }
+  }
+  return svg;
+}
+
+function emptyStateIcon(): SVGElement {
+  const svg = document.createElementNS(PLAYERS_SVG_NS, "svg");
+  svg.setAttribute("viewBox", "0 0 48 48");
+  svg.setAttribute("aria-hidden", "true");
+  svg.setAttribute("focusable", "false");
+  const lens = document.createElementNS(PLAYERS_SVG_NS, "circle");
+  lens.setAttribute("cx", "21");
+  lens.setAttribute("cy", "21");
+  lens.setAttribute("r", "13");
+  lens.setAttribute("fill", "none");
+  lens.setAttribute("stroke", "currentColor");
+  lens.setAttribute("stroke-width", "2.5");
+  const handle = document.createElementNS(PLAYERS_SVG_NS, "line");
+  handle.setAttribute("x1", "31");
+  handle.setAttribute("y1", "31");
+  handle.setAttribute("x2", "41");
+  handle.setAttribute("y2", "41");
+  handle.setAttribute("stroke", "currentColor");
+  handle.setAttribute("stroke-width", "3");
+  handle.setAttribute("stroke-linecap", "round");
+  svg.append(lens, handle);
+  return svg;
+}
+
+function renderSkeletonCard(view: PlayerView): HTMLElement {
+  const isGrid = view === "grid";
+  return el("div", { className: isGrid ? "players-skeleton-card" : "players-skeleton-row" }, [
+    el("div", {
+      className: isGrid
+        ? "players-shimmer players-shimmer-photo"
+        : "players-shimmer players-shimmer-photo-sm",
+    }),
+    el("div", { className: "players-skeleton-lines" }, [
+      el("div", { className: "players-shimmer players-shimmer-line" }),
+      el("div", { className: "players-shimmer players-shimmer-line players-shimmer-line-short" }),
+    ]),
+  ]);
+}
+
+function renderSkeleton(view: PlayerView): HTMLElement {
+  const count = view === "grid" ? 12 : 8;
+  const cards = Array.from({ length: count }, () => renderSkeletonCard(view));
+  return el(
+    "div",
+    {
+      className:
+        view === "grid"
+          ? "players-grid players-grid-skeleton"
+          : "players-list players-list-skeleton",
+    },
+    cards,
+  );
+}
+
+function renderGridCard(p: BrowsePlayer, onSelect: (id: string) => void): HTMLElement {
+  const fullName = String(p.full_name);
+  const metaChildren: (Node | string)[] = [];
+  if (p.position)
+    metaChildren.push(el("span", { className: "players-pos-badge", text: p.position }));
+  if (p.team_abbreviation)
+    metaChildren.push(el("span", { className: "players-team-abbr", text: p.team_abbreviation }));
+  if (p.team_name)
+    metaChildren.push(el("span", { className: "players-team-name muted", text: p.team_name }));
+  if (!p.team_abbreviation && !p.team_name)
+    metaChildren.push(el("span", { className: "muted", text: "—" }));
+
+  const card = el(
+    "button",
+    {
+      type: "button",
+      className: "players-card",
+      "aria-label": `Open ${fullName} profile`,
+      onclick: () => onSelect(String(p.player_id)),
+    },
+    [
+      playerPhoto(p.player_id, "players-photo-card", fullName, initialsOf(fullName)),
+      el("div", { className: "players-card-main" }, [
+        el("span", { className: "players-card-name", text: fullName }),
+        el("span", { className: "players-card-meta" }, metaChildren),
+      ]),
+    ],
+  );
+  if (p.is_active)
+    card.append(el("span", { className: "players-active-dot", "aria-hidden": "true" }));
+  return card;
+}
+
+function renderGrid(rows: BrowsePlayer[], onSelect: (id: string) => void): HTMLElement {
+  return el(
+    "div",
+    { className: "players-grid" },
+    rows.map((p) => renderGridCard(p, onSelect)),
+  );
+}
+
+function renderListRow(p: BrowsePlayer, onSelect: (id: string) => void): HTMLElement {
+  const fullName = String(p.full_name);
+  const metaParts: string[] = [];
+  if (p.position) metaParts.push(p.position);
+  if (p.team_abbreviation) metaParts.push(p.team_abbreviation);
+  else if (p.team_name) metaParts.push(p.team_name);
+  const row = el(
+    "button",
+    {
+      type: "button",
+      className: "players-list-row",
+      "aria-label": `Open ${fullName} profile`,
+      onclick: () => onSelect(String(p.player_id)),
+    },
+    [
+      playerPhoto(p.player_id, "players-photo-row", fullName, initialsOf(fullName)),
+      el("span", { className: "players-list-name", text: fullName }),
+      el("span", { className: "players-list-meta muted", text: metaParts.join(" · ") || "—" }),
+    ],
+  );
+  if (p.is_active)
+    row.append(el("span", { className: "players-active-dot", "aria-hidden": "true" }));
+  return row;
+}
+
+function renderListRows(rows: BrowsePlayer[], onSelect: (id: string) => void): HTMLElement {
+  return el(
+    "div",
+    { className: "players-list" },
+    rows.map((p) => renderListRow(p, onSelect)),
+  );
+}
+
+/** Mounts the full player browser into `host`. Returns a `load()` callback
+ *  that triggers the first fetch (call it unless a profile is opened
+ *  directly via initialPlayerId). */
+function mountPlayersBrowser(host: HTMLElement, onSelectPlayer: (id: string) => void): () => void {
+  const state: PlayersState = {
+    q: "",
+    position: "",
+    teamId: null,
+    active: null,
+    letter: null,
+    sort: "name",
+    view: readPersistedView(),
+    offset: 0,
+    rows: [],
+    total: 0,
+    facets: null,
+    loading: false,
+    loadingMore: false,
+    error: null,
+    moreError: null,
+  };
+
+  let requestSeq = 0;
+  let facetsPopulated = false;
+
+  // ---- Hero ---------------------------------------------------------------
+  const statTotal = el("span", { className: "players-stat-num", text: "—" });
+  const statActive = el("span", { className: "players-stat-num", text: "—" });
+  const statFranchises = el("span", { className: "players-stat-num", text: "—" });
+  const hero = el("section", { className: "players-hero", "aria-label": "Players overview" }, [
+    el("div", { className: "players-hero-body" }, [
+      el("p", { className: "page-kicker", text: "Roster explorer" }),
+      el("h2", { className: "players-hero-title", text: "Players" }),
+      el("p", {
+        className: "players-hero-desc",
+        text: "Browse every player in the warehouse by name, position, team, or status. Pick any player to open their full profile.",
+      }),
+      el("ul", { className: "players-summary-stats" }, [
+        el("li", {}, [statTotal, el("span", { className: "players-stat-label", text: "Players" })]),
+        el("li", {}, [statActive, el("span", { className: "players-stat-label", text: "Active" })]),
+        el("li", {}, [
+          statFranchises,
+          el("span", { className: "players-stat-label", text: "Franchises" }),
+        ]),
+      ]),
+    ]),
+  ]);
+
+  // ---- Toolbar: search ----------------------------------------------------
+  const { wrapper: searchWrap, input: searchInput } = labeledSearch(
+    "Search players by name",
+    "Search by name…",
+    "players-search-input",
+  );
+  searchWrap.classList.add("players-search");
+  let searchTimer: ReturnType<typeof setTimeout> | null = null;
+  const runSearch = (): void => {
+    if (searchTimer !== null) {
+      clearTimeout(searchTimer);
+      searchTimer = null;
+    }
+    state.q = searchInput.value.trim();
+    void fetchFresh();
+  };
+  searchInput.addEventListener("input", () => {
+    if (searchTimer !== null) clearTimeout(searchTimer);
+    searchTimer = setTimeout(runSearch, PLAYERS_SEARCH_DEBOUNCE_MS);
+  });
+  searchInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      runSearch();
+    }
+  });
+
+  // ---- Toolbar: position / team / sort selects ---------------------------
+  const { wrapper: positionWrap, select: positionSelect } = labeledSelect(
+    "Position",
+    [{ value: "", label: "All positions" }],
+    "players-position-select",
+  );
+  positionSelect.addEventListener("change", () => {
+    state.position = positionSelect.value;
+    void fetchFresh();
+  });
+
+  const { wrapper: teamWrap, select: teamSelect } = labeledSelect(
+    "Team",
+    [{ value: "", label: "All teams" }],
+    "players-team-select",
+  );
+  teamSelect.addEventListener("change", () => {
+    const raw = teamSelect.value;
+    state.teamId = raw === "" ? null : Number(raw);
+    void fetchFresh();
+  });
+
+  const { wrapper: sortWrap, select: sortSelect } = labeledSelect(
+    "Sort by",
+    [
+      { value: "name", label: "Name (A–Z)" },
+      { value: "team", label: "Team" },
+      { value: "active", label: "Active first" },
+    ],
+    "players-sort-select",
+  );
+  sortSelect.value = "name";
+  sortSelect.addEventListener("change", () => {
+    state.sort = sortSelect.value as PlayerSort;
+    void fetchFresh();
+  });
+
+  // ---- Toolbar: active/retired segmented control -------------------------
+  const activeGroup = el("div", {
+    className: "players-segmented",
+    role: "group",
+    "aria-label": "Player status",
+  });
+  const activeButtons = new Map<ActiveFilter, HTMLButtonElement>();
+  const activeOptions: [ActiveFilter, string][] = [
+    [null, "All"],
+    [true, "Active"],
+    [false, "Retired"],
+  ];
+  for (const [value, label] of activeOptions) {
+    const btn = el("button", {
+      type: "button",
+      text: label,
+      "aria-pressed": "false",
+    }) as HTMLButtonElement;
+    btn.addEventListener("click", () => {
+      state.active = value;
+      syncActiveToggle();
+      void fetchFresh();
+    });
+    activeButtons.set(value, btn);
+    activeGroup.append(btn);
+  }
+  const activeWrap = el("div", { className: "labeled-control" }, [
+    el("span", { className: "control-label", text: "Status" }),
+    activeGroup,
+  ]);
+
+  // ---- Toolbar: grid/list view toggle ------------------------------------
+  const viewGroup = el("div", {
+    className: "players-view-toggle",
+    role: "group",
+    "aria-label": "Result layout",
+  });
+  const viewButtons = new Map<PlayerView, HTMLButtonElement>();
+  const viewOptions: [PlayerView, string][] = [
+    ["grid", "Grid view"],
+    ["list", "List view"],
+  ];
+  for (const [value, label] of viewOptions) {
+    const btn = el("button", {
+      type: "button",
+      "aria-label": label,
+      "aria-pressed": "false",
+      title: label,
+    }) as HTMLButtonElement;
+    btn.append(viewIcon(value));
+    btn.addEventListener("click", () => {
+      if (state.view === value) return;
+      state.view = value;
+      writePersistedView(value);
+      syncViewToggle();
+      renderResults();
+    });
+    viewButtons.set(value, btn);
+    viewGroup.append(btn);
+  }
+  const viewWrap = el("div", { className: "labeled-control" }, [
+    el("span", { className: "control-label", text: "View" }),
+    viewGroup,
+  ]);
+
+  // ---- Toolbar: A–Z letter chips -----------------------------------------
+  const lettersGroup = el("div", {
+    className: "players-letters",
+    role: "group",
+    "aria-label": "Filter by first letter",
+  });
+  const letterButtons = new Map<string, HTMLButtonElement>();
+  const allLettersBtn = el("button", {
+    type: "button",
+    className: "players-letter",
+    text: "All",
+    "aria-pressed": "true",
+  }) as HTMLButtonElement;
+  allLettersBtn.addEventListener("click", () => {
+    state.letter = null;
+    syncLetters();
+    void fetchFresh();
+  });
+  letterButtons.set("", allLettersBtn);
+  lettersGroup.append(allLettersBtn);
+  for (const ch of PLAYERS_ALPHABET) {
+    const btn = el("button", {
+      type: "button",
+      className: "players-letter",
+      text: ch,
+      "aria-pressed": "false",
+    }) as HTMLButtonElement;
+    btn.addEventListener("click", () => {
+      state.letter = state.letter === ch ? null : ch;
+      syncLetters();
+      void fetchFresh();
+    });
+    letterButtons.set(ch, btn);
+    lettersGroup.append(btn);
+  }
+
+  // ---- Toolbar: clear filters --------------------------------------------
+  const clearBtn = el("button", {
+    type: "button",
+    className: "players-clear",
+    text: "Clear filters",
+  }) as HTMLButtonElement;
+  clearBtn.hidden = true;
+  clearBtn.addEventListener("click", () => {
+    state.q = "";
+    state.position = "";
+    state.teamId = null;
+    state.active = null;
+    state.letter = null;
+    state.sort = "name";
+    searchInput.value = "";
+    positionSelect.value = "";
+    teamSelect.value = "";
+    sortSelect.value = "name";
+    syncActiveToggle();
+    syncLetters();
+    syncClearButton();
+    void fetchFresh();
+  });
+
+  // ---- Results + footer containers ---------------------------------------
+  const results = el("div", { className: "players-results" });
+  const footer = el("div", { className: "players-footer" });
+
+  // ---- State-derived helpers ---------------------------------------------
+  const hasActiveFilters = (): boolean =>
+    state.q !== "" ||
+    state.position !== "" ||
+    state.teamId !== null ||
+    state.active !== null ||
+    state.letter !== null ||
+    state.sort !== "name";
+
+  const syncActiveToggle = (): void => {
+    for (const [value, btn] of activeButtons) {
+      btn.setAttribute("aria-pressed", String(value === state.active));
+    }
+  };
+  const syncViewToggle = (): void => {
+    for (const [value, btn] of viewButtons) {
+      btn.setAttribute("aria-pressed", String(value === state.view));
+    }
+  };
+  const syncLetters = (): void => {
+    for (const [key, btn] of letterButtons) {
+      const active = key === "" ? state.letter === null : state.letter === key;
+      btn.setAttribute("aria-pressed", String(active));
+    }
+  };
+  const syncClearButton = (): void => {
+    clearBtn.hidden = !hasActiveFilters();
+  };
+
+  const paintHero = (facets: PlayerFacets): void => {
+    statTotal.textContent = formatValue(facets.totalPlayers);
+    statActive.textContent = formatValue(facets.activePlayers);
+    statFranchises.textContent = formatValue(facets.teams.length);
+  };
+
+  const populateFacetedControls = (facets: PlayerFacets): void => {
+    if (facetsPopulated) return;
+    facetsPopulated = true;
+    for (const pos of facets.positions) {
+      const opt = document.createElement("option");
+      opt.value = pos;
+      opt.textContent = pos;
+      positionSelect.append(opt);
+    }
+    for (const team of facets.teams) {
+      const opt = document.createElement("option");
+      opt.value = String(team.team_id);
+      opt.textContent = `${team.abbreviation} — ${team.name}`;
+      teamSelect.append(opt);
+    }
+  };
+
+  const renderErrorState = (message: string): HTMLElement =>
+    el("div", { className: "players-results-state" }, [
+      errorEl(message),
+      el("button", {
+        type: "button",
+        className: "players-retry",
+        text: "Try again",
+        onclick: () => {
+          void fetchFresh();
+        },
+      }),
+    ]);
+
+  const renderEmptyState = (): HTMLElement => {
+    const hasFilters = hasActiveFilters();
+    const children: (Node | string)[] = [
+      el("div", { className: "players-empty-icon" }, [emptyStateIcon()]),
+      el("h3", {
+        text: hasFilters ? "No players match these filters" : "No players found",
+      }),
+    ];
+    if (hasFilters) {
+      children.push(
+        el("p", { text: describeFilters(state) }),
+        el("button", {
+          type: "button",
+          className: "players-clear",
+          text: "Clear filters",
+          onclick: () => {
+            clearBtn.click();
+          },
+        }),
+      );
+    } else {
+      children.push(
+        el("p", { text: "The warehouse returned no players right now." }),
+        el("button", {
+          type: "button",
+          className: "players-clear",
+          text: "Try again",
+          onclick: () => {
+            void fetchFresh();
+          },
+        }),
+      );
+    }
+    return el("div", { className: "players-empty" }, children);
+  };
+
+  const renderFooter = (): void => {
+    footer.replaceChildren();
+    const shown = state.rows.length;
+    if (shown === 0) return;
+    footer.append(
+      el("span", {
+        className: "players-count",
+        text: `Showing 1–${shown} of ${state.total}`,
+      }),
+    );
+    if (shown < state.total) {
+      const moreBtn = el("button", {
+        type: "button",
+        className: "players-load-more",
+        text: state.loadingMore ? "Loading…" : "Load more",
+        onclick: () => {
+          void fetchMore();
+        },
+      }) as HTMLButtonElement;
+      moreBtn.disabled = state.loadingMore;
+      footer.append(moreBtn);
+    }
+    if (state.moreError) {
+      footer.append(
+        el("span", { className: "players-footer-error", text: state.moreError }),
+        el("button", {
+          type: "button",
+          className: "players-retry",
+          text: "Retry",
+          onclick: () => {
+            void fetchMore();
+          },
+        }),
+      );
+    }
+  };
+
+  const renderResults = (): void => {
+    results.replaceChildren();
+    if (state.loading && state.rows.length === 0) {
+      results.append(renderSkeleton(state.view));
+      footer.replaceChildren();
+      return;
+    }
+    if (state.error !== null && state.rows.length === 0) {
+      results.append(renderErrorState(state.error));
+      footer.replaceChildren();
+      return;
+    }
+    if (state.rows.length === 0) {
+      results.append(renderEmptyState());
+      footer.replaceChildren();
+      return;
+    }
+    results.append(
+      state.view === "grid"
+        ? renderGrid(state.rows, onSelectPlayer)
+        : renderListRows(state.rows, onSelectPlayer),
+    );
+    renderFooter();
+  };
+
+  const announceResults = (): void => {
+    const shown = state.rows.length;
+    if (shown === 0) announceStatus("No players match.");
+    else if (shown >= state.total) announceStatus(`Showing all ${shown} players.`);
+    else announceStatus(`Showing ${shown} of ${state.total} players.`);
+  };
+
+  const fetchOpts = (offset: number): Parameters<typeof api.browsePlayers>[0] => ({
+    q: state.q || undefined,
+    position: state.position || undefined,
+    teamId: state.teamId,
+    active: state.active,
+    letter: state.letter ?? undefined,
+    sort: state.sort,
+    limit: PLAYERS_LIMIT,
+    offset,
+  });
+
+  const fetchFresh = async (): Promise<void> => {
+    state.offset = 0;
+    state.rows = [];
+    state.error = null;
+    state.moreError = null;
+    state.loading = true;
+    state.loadingMore = false;
+    syncClearButton();
+    renderResults();
+    announceStatus("Loading players…");
+    requestSeq += 1;
+    const seq = requestSeq;
+    try {
+      const res = await api.browsePlayers(fetchOpts(0));
+      if (seq !== requestSeq) return; // superseded by a newer request
+      state.rows = res.rows;
+      state.total = res.total;
+      state.facets = res.facets;
+      state.loading = false;
+      populateFacetedControls(res.facets);
+      paintHero(res.facets);
+      renderResults();
+      announceResults();
+    } catch (err) {
+      if (seq !== requestSeq) return;
+      state.loading = false;
+      state.error = err instanceof Error ? err.message : "Failed to load players.";
+      renderResults();
+      announceStatus(`Failed to load players: ${state.error}`);
+    }
+  };
+
+  const fetchMore = async (): Promise<void> => {
+    if (state.loading || state.loadingMore) return;
+    if (state.rows.length >= state.total) return;
+    state.loadingMore = true;
+    state.moreError = null;
+    renderFooter();
+    requestSeq += 1;
+    const seq = requestSeq;
+    const nextOffset = state.rows.length;
+    try {
+      const res = await api.browsePlayers(fetchOpts(nextOffset));
+      if (seq !== requestSeq) return; // superseded
+      state.rows = [...state.rows, ...res.rows];
+      state.total = res.total;
+      state.facets = res.facets;
+      state.loadingMore = false;
+      renderResults();
+      announceStatus(`Loaded ${state.rows.length} of ${state.total} players.`);
+    } catch (err) {
+      if (seq !== requestSeq) return;
+      state.loadingMore = false;
+      state.moreError = err instanceof Error ? err.message : "Failed to load more.";
+      renderFooter();
+      announceStatus(`Failed to load more: ${state.moreError}`);
+    }
+  };
+
+  // ---- Assemble + initial sync -------------------------------------------
+  host.append(
+    hero,
+    el("div", { className: "players-toolbar" }, [
+      el("div", { className: "players-toolbar-main" }, [
+        searchWrap,
+        el("div", { className: "players-filters" }, [
+          positionWrap,
+          teamWrap,
+          activeWrap,
+          sortWrap,
+          viewWrap,
+          clearBtn,
+        ]),
+      ]),
+      lettersGroup,
+    ]),
+    results,
+    footer,
+  );
+
+  syncActiveToggle();
+  syncViewToggle();
+  syncLetters();
+  syncClearButton();
+
+  return () => {
+    void fetchFresh();
+  };
 }
 
 // ---------------------------------------------------------------------------

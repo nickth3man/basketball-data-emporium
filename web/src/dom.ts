@@ -276,8 +276,17 @@ export function renderJumpNav(container: HTMLElement, items: JumpNavItem[]): voi
  *  (`/api/players/:id/photo`) returns a real 404 when NBA's CDN has no real
  *  photo for this id (it otherwise serves a generic silhouette with a 200,
  *  which the proxy detects and normalizes away), so a plain <img onerror>
- *  is enough to show our own placeholder instead of NBA's stock graphic. */
-export function playerPhoto(playerId: unknown, sizeClass: string, altText?: string): HTMLElement {
+ *  is enough to show our own placeholder instead of NBA's stock graphic.
+ *
+ *  When `fallbackText` is provided (e.g. a player's initials), the placeholder
+ *  renders that text on a muted tile instead of an empty box. Existing
+ *  callers omit it, so they keep their original "empty box" behavior. */
+export function playerPhoto(
+  playerId: unknown,
+  sizeClass: string,
+  altText?: string,
+  fallbackText?: string,
+): HTMLElement {
   const wrapper = el("div", { className: `player-photo ${sizeClass}` });
   const alt = altText?.trim() ? altText.trim() : "";
   const img = el("img", {
@@ -287,7 +296,13 @@ export function playerPhoto(playerId: unknown, sizeClass: string, altText?: stri
   }) as HTMLImageElement;
   img.addEventListener("error", () => {
     wrapper.replaceChildren();
-    wrapper.classList.add("player-photo-empty");
+    const fallback = fallbackText?.trim();
+    if (fallback) {
+      wrapper.classList.add("player-photo-fallback");
+      wrapper.textContent = fallback;
+    } else {
+      wrapper.classList.add("player-photo-empty");
+    }
   });
   wrapper.append(img);
   return wrapper;
