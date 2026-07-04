@@ -1,0 +1,85 @@
+# Kaggle historical NBA dump dropped in data/external/ (Games, schedules,
+# players, per-game box scores + extended stats, team histories, play-by-play).
+# Coverage: 1946-11-26 through 2026-06-13 (2026 Finals).
+source: kaggle_nba
+
+description: >
+  Kaggle historical NBA dataset: game results, league schedules, player
+  directory, per-game player/team box scores (basic + extended), team
+  histories, and play-by-play (18.7M events / 39k games).
+
+id_notes: >
+  Native NBA.com stats ids throughout: personId, teamId (1610612xxx), gameId
+  (BIGINT, leading zeros lost -- restore with lpad to 10 chars, done as the
+  normalized game_id column in every staged table). Non-NBA opponents
+  (BAA-era clubs, CBA/EuroLeague/NBL exhibition teams) carry synthetic 9xxx
+  team ids invented by the dataset author; BAA clubs resolve to real
+  warehouse ids by name, foreign clubs stay unresolved.
+
+# read_csv options applied to every csv (the box-score files contain quoted
+# comment fields with embedded commas that break the sniffer's auto-detect;
+# sample_size -1 makes type detection scan the whole file).
+csv_defaults:
+  quote: '"'
+  escape: '"'
+  sample_size: -1
+
+files:
+  - table: games
+    path: data/external/Games.csv
+    game_id_column: gameId
+  - table: league_schedule_24_25
+    path: data/external/LeagueSchedule24_25.csv
+    game_id_column: gameId
+  - table: league_schedule_25_26
+    path: data/external/LeagueSchedule25_26.csv
+    game_id_column: gameId
+  - table: players
+    path: data/external/Players.csv
+  - table: player_statistics
+    path: data/external/PlayerStatistics.csv
+    game_id_column: gameId
+  - table: player_statistics_extended
+    path: data/external/PlayerStatisticsExtended.csv
+    game_id_column: gameId
+  - table: team_histories
+    path: data/external/TeamHistories.csv
+  - table: team_statistics
+    path: data/external/TeamStatistics.csv
+    game_id_column: gameId
+  - table: team_statistics_extended
+    path: data/external/TeamStatisticsExtended.csv
+    game_id_column: gameId
+  - table: play_by_play
+    path: data/external/PlayByPlay.parquet
+    game_id_column: gameId
+
+# Where this source's entity ids live. `id` is the column holding the source
+# id; `name` is an optional SQL expression used for name-fallback matching
+# and for human-readable unresolved reports.
+entities:
+  player:
+    - {table: players, id: personId, name: "firstName || ' ' || lastName"}
+    - {table: player_statistics, id: personId, name: "firstName || ' ' || lastName"}
+    - {table: player_statistics_extended, id: personId, name: "firstName || ' ' || lastName"}
+    # NBA.com pbp quirk: personId holds '0' on neutral events (period start)
+    # and a TEAM id on team-level events (timeouts, team turnovers/rebounds).
+    # Those are structural sentinels, not identity gaps -- filter them here.
+    # Team ids live in 1610xxxxxxx; person ids in the 19xxxxxxxx range are
+    # real (international exhibition players) and must NOT be filtered.
+    # Coach person ids (technical fouls) remain and stay is_unresolved, which
+    # is correct: they are real persons that are not in the player dim.
+    - {table: play_by_play, id: personId, name: playerFullName,
+       where: "personId <> '0' AND try_cast(personId AS BIGINT) NOT BETWEEN 1610000000 AND 1611000000"}
+  team:
+    - {table: team_histories, id: teamId, name: "teamCity || ' ' || teamName"}
+    - {table: games, id: hometeamId, name: "hometeamCity || ' ' || hometeamName"}
+    - {table: games, id: awayteamId, name: "awayteamCity || ' ' || awayteamName"}
+    - {table: team_statistics, id: teamId, name: "teamCity || ' ' || teamName"}
+  game:
+    - {table: games, id: gameId}
+    - {table: league_schedule_24_25, id: gameId}
+    - {table: league_schedule_25_26, id: gameId}
+    - {table: player_statistics, id: gameId}
+    - {table: team_statistics, id: gameId}
+    - {table: play_by_play, id: gameId}

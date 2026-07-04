@@ -59,3 +59,6 @@ data/nba.duckdb.wal
 *.duckdb.wal
 
 /data/audit/out
+# External source drops (large raw files) and per-run ingest reports
+data/external/
+data/ingest/reports/

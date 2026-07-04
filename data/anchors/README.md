@@ -11,9 +11,11 @@ priority source in `web/server/queries.ts::getPlayerProfile` (after
 | --- | --- |
 | `bbref-pages/` | On-disk HTML cache for BBR pages (many entity types). |
 | `bbref-pages/team_roster/{TLA}_{YYYY}.html` | Per-season team roster pages consumed by the jersey scraper. Cached files are reused across runs; the scraper skips network fetches when a file already exists. |
+| `bbref-pages/uniform_numbers/number_{N}.html` | Uniform-number index pages (`friv/numbers.fcgi`) consumed by `scrape_uniform_numbers.py`. |
 | `bbr_jerseys.jsonl` | Jersey rows: one JSON object per `(player_id, team_id, season_year, jersey_num)`. Read at request time via DuckDB `read_json_auto`. |
 | `bbr_jerseys.jsonl.meta.json` | Sidecar from the last scraper run (`row_count`, `skip_counts`, `teams`, `seasons`, cache/fetch counts). For humans and debugging — DuckDB reads only the `.jsonl`. |
-| `scrape_team_rosters.py` | Scraper: roster HTML → warehouse IDs → JSONL. |
+| `scrape_uniform_numbers.py` | **Preferred jersey scraper**: BBR's ~101 uniform-number pages cover every (player, team, season, number) in NBA/ABA/BAA history — no per-team-season page sweep needed. See "Uniform-number scraper" below. |
+| `scrape_team_rosters.py` | Legacy jersey scraper: per-(team, season) roster HTML → warehouse IDs → JSONL. Still works, but needs ~1,700 pages for the same coverage. |
 | `generate_manifest.py` / `manifest.json` | Inventory of the **whole** `bbref-pages/` tree (player pages, box scores, leaders, etc.). Unrelated to jersey scraping except that both share the cache root. |
 | `scrape_run.log` | Ad-hoc stderr capture from a bulk scrape attempt (not written by the script automatically). |
 
@@ -82,7 +84,44 @@ Each line is one roster assignment:
 * Rows with unmatched `player_id` / `team_id` are dropped at scrape time and
   never written.
 
-## Running the jersey scraper
+## Uniform-number scraper (preferred)
+
+`scrape_uniform_numbers.py` fetches
+`https://www.basketball-reference.com/friv/numbers.fcgi?number={N}&year=`
+for `00` plus `0`-`99` (101 pages, ~6 minutes at the 3s delay) and emits the
+same JSONL. Per row it resolves:
+
+* **player** — BBR slug (from the player link href) → `player_id` via
+  `bridge_player_bbr`, deduped one warehouse id per slug by game-log volume
+  (the `PLAYER_BBR_XWALK_CTE` rule), with ASCII-folded name match as
+  fallback.
+* **team** — team display name + season end year (from the season link
+  hrefs, full 4-digit years) → `nba_team_id` via `stg_bref_team_summaries`.
+  When the summaries row exists but its `nba_team_id` is null (whole-season
+  gaps: 1971, 1976, 1977), the same name's nearest season with an id is
+  used — which also disambiguates the two reused names "Baltimore Bullets"
+  and "Denver Nuggets".
+
+Unlike the roster scraper, rows that fail resolution are **still written**
+with null `player_id`/`team_id` (ABA-only franchises like the Kentucky
+Colonels, a few unbridged players); every consumer filters nulls itself.
+Extra field vs the roster scraper: `bbr_team_name` (the page's display
+name). A player who wore two numbers for one team-season (Jordan 1994-95:
+45 then 23) appears on both number pages and yields two rows; downstream
+priority/dedup picks one.
+
+```sh
+# Full sweep (writes the production JSONL):
+python data/anchors/scrape_uniform_numbers.py
+
+# Smoke test, cache only:
+python data/anchors/scrape_uniform_numbers.py --numbers 45 --out /tmp/smoke.jsonl --no-network
+```
+
+After regenerating the JSONL, rebuild the materialized warehouse tables
+(dev server stopped): `duckdb data/nba.duckdb -c ".read data/audit/build_coach_jersey_tables.sql"`.
+
+## Running the legacy roster scraper
 
 ```sh
 # Smoke test (one cached page, no network):

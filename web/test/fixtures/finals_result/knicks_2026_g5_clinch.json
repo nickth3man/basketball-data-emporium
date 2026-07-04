@@ -1,0 +1,29 @@
+{
+  "id": "finals_result.knicks_2026_g5_clinch",
+  "datapoint_class": "finals_result",
+  "entity": "2026 NBA Finals Game 5: New York Knicks 94, San Antonio Spurs 90",
+  "expected": {
+    "game_id": "0042500405",
+    "game_date": "2026-06-13",
+    "season_year": "2025-26",
+    "season_type": "Playoffs",
+    "game_label": "NBA Finals",
+    "game_sub_label": "Game 5",
+    "home_team_id": "1610612759",
+    "away_team_id": "1610612752",
+    "home_score": 90,
+    "away_score": 94,
+    "winner_team_id": "1610612752"
+  },
+  "bbr_source_url": "https://www.basketball-reference.com/boxscores/202606130SAS.html",
+  "assertion_mode": "raw_sql",
+  "query_target": {
+    "sql": "SELECT game_id, CAST(game_date AS VARCHAR) AS game_date, season_year, season_type, game_label, game_sub_label, home_team_id, away_team_id, home_score, away_score, winner_team_id FROM fact_game WHERE game_id = '0042500405'",
+    "extract": "[0]"
+  },
+  "match": "objectMatching",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Regression guard for the Kaggle 2026 playoff backfill: Finals Game 5 was absent from fact_game before the repair.",
+  "skip_if_no_db": true
+}
