@@ -36,7 +36,7 @@ const CHAT_ROOT = path.resolve(__dirname, ".."); // chat/frontend/.. -> chat/
 
 export default defineConfig({
   testDir: "./e2e",
-  testMatch: /.*\.(smoke|spec|test)\.ts$/, // match `.smoke.ts` (semantic) and the conventional `.spec.ts` / `.test.ts`
+  testMatch: /.*\.(smoke|spec|test|error)\.ts$/, // match `.smoke.ts` / `.error.ts` (semantic) and the conventional `.spec.ts` / `.test.ts`
   fullyParallel: false, // shared backend + live agent — serialize
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,

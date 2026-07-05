@@ -60,6 +60,21 @@ const KIND_LABEL: Record<ChipDescriptor["kind"], string> = {
   gap: "gap",
 };
 
+const KIND_ARIA_PREFIX: Record<ChipDescriptor["kind"], string> = {
+  table: "Cites table",
+  metric: "Cites metric definition",
+  gap: "Known data gap",
+};
+
+/**
+ * Accessible name for a citation chip (PLAN §15 — minor a11y). The
+ * visible inner spans are kept as-is; the accessible name annotates
+ * what each chip represents without polluting the visual layout.
+ */
+function chipAriaLabel(chip: ChipDescriptor): string {
+  return `${KIND_ARIA_PREFIX[chip.kind]} ${chip.label}`;
+}
+
 export function EvidenceCard({ citations }: EvidenceCardProps) {
   const chips = citations.map(describe).filter((c): c is ChipDescriptor => c !== null);
 
@@ -87,6 +102,7 @@ export function EvidenceCard({ citations }: EvidenceCardProps) {
             <span
               className={`inline-flex items-center gap-1 rounded border px-2 py-0.5 font-mono text-xs ${KIND_STYLES[chip.kind]}`}
               title={chip.detail ?? chip.label}
+              aria-label={chipAriaLabel(chip)}
             >
               <span aria-hidden="true" className="text-[10px] uppercase tracking-wide opacity-70">
                 {KIND_LABEL[chip.kind]}

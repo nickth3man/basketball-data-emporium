@@ -2,17 +2,22 @@
  * ChatTimeline (PLAN §8.3, §8.4).
  *
  * The scrolling message list. Auto-scrolls to the bottom on new
- * content (history append OR live `answer_delta`s). Owns the
- * `aria-live="polite"` region for the streaming answer and the
- * `aria-busy` flag for the timeline while a turn is running.
+ * content (history append OR live `answer_delta`s). Owns:
+ *
+ *   - `role="log"` for the scroll region
+ *   - `aria-busy` while a turn is running
+ *   - A separate visually-hidden (`sr-only`) polite live region that
+ *     announces coarse turn-status ("Assistant is typing…" / "Done." /
+ *     "Cancelled." / "Error.") — kept distinct from the answer-stream
+ *     live region so screen readers don't overlap (§8.4 / §15).
+ *
+ * The status prop is intentionally explicit (separate from `liveTurn`)
+ * so the parent can drive announcement text from a unified terminal
+ * marker (`ChatView` derives it from `state.status` +
+ * `lastError`/`lastCancelled`).
  *
  * Empty state surfaces a friendly hint with three example questions
  * from the benchmark (§12) so first-time users have something to try.
- *
- * The auto-scroll is intentionally simple (scrollTop = scrollHeight):
- *   - We do not pause scroll on user-up-scroll because the chat is
- *     mostly short in Phase 5; Phase 7 polish can add "scroll to
- *     bottom" affordance + "user is reading" detection.
  */
 import { useEffect, useRef } from "react";
 
@@ -26,10 +31,19 @@ export interface TimelineMessage {
   turn?: ChatTurnState;
 }
 
+/**
+ * Coarse turn status surfaced to assistive tech as a separate polite
+ * announcement. Mirrors `useChatTurn`'s status + ChatView's lifted
+ * terminal markers (`lastError` / `lastCancelled`).
+ */
+export type TimelineStatus = "idle" | "running" | "done" | "error" | "cancelled";
+
 export interface ChatTimelineProps {
   messages: TimelineMessage[];
   /** The live, in-flight turn (if any). Rendered as a trailing assistant bubble. */
   liveTurn: ChatTurnState | null;
+  /** Coarse status for the sr-only live region; derived by ChatView. */
+  status?: TimelineStatus;
 }
 
 const EXAMPLE_QUESTIONS: string[] = [
@@ -38,7 +52,30 @@ const EXAMPLE_QUESTIONS: string[] = [
   "Most career assists in games where the player scored 0.",
 ];
 
-export function ChatTimeline({ messages, liveTurn }: ChatTimelineProps) {
+/**
+ * Map the coarse status to the user-visible announcement text.
+ * Empty string suppresses the announcement (idle = nothing to say).
+ */
+function statusAnnouncement(status: TimelineStatus | undefined): string {
+  switch (status) {
+    case "running":
+      return "Assistant is typing…";
+    case "done":
+      return "Done.";
+    case "cancelled":
+      return "Cancelled.";
+    case "error":
+      return "Error.";
+    default:
+      return "";
+  }
+}
+
+export function ChatTimeline({
+  messages,
+  liveTurn,
+  status = "idle",
+}: ChatTimelineProps) {
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const isBusy = liveTurn?.status === "running";
 
@@ -54,10 +91,10 @@ export function ChatTimeline({ messages, liveTurn }: ChatTimelineProps) {
     // cheap primitive; the cost is dwarfed by the scroll itself.
     const len = messages.length;
     const ansLen = liveAnswerLen;
-    const status = liveStatus;
+    const st = liveStatus;
     void len;
     void ansLen;
-    void status;
+    void st;
     const el = bottomRef.current;
     if (!el) return;
     // Use rAF so the DOM has applied the latest text before we measure.
@@ -68,6 +105,7 @@ export function ChatTimeline({ messages, liveTurn }: ChatTimelineProps) {
   }, [messages.length, liveAnswerLen, liveStatus]);
 
   const isEmpty = messages.length === 0 && liveTurn === null;
+  const announcement = statusAnnouncement(status);
 
   return (
     <div
@@ -76,6 +114,21 @@ export function ChatTimeline({ messages, liveTurn }: ChatTimelineProps) {
       aria-busy={isBusy}
       className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-4"
     >
+      {/*
+       * sr-only polite live region for coarse turn status. Lives
+       * outside the answer region on purpose so screen readers don't
+       * merge it with the streamed answer chunks. `aria-atomic`
+       * ensures the whole string is re-read on each change.
+       */}
+      <span
+        aria-live="polite"
+        aria-atomic="true"
+        className="sr-only"
+        data-turn-status={status}
+      >
+        {announcement}
+      </span>
+
       {isEmpty && <EmptyState />}
       {messages.map((msg) => (
         <MessageBubble
