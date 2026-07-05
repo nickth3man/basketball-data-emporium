@@ -139,9 +139,7 @@ function notAnswerableSseFrames(args: {
       },
     },
   ];
-  return frames
-    .map((f) => `event: ${f.event}\ndata: ${JSON.stringify(f.data)}\n\n`)
-    .join("");
+  return frames.map((f) => `event: ${f.event}\ndata: ${JSON.stringify(f.data)}\n\n`).join("");
 }
 
 test("not-answerable answer renders as a normal assistant bubble, not an error banner", async ({

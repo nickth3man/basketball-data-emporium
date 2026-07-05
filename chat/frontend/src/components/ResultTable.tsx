@@ -2,25 +2,16 @@
  * ResultTable (PLAN §8.3, §16).
  *
  * TanStack Table v8 + TanStack Virtual v3. Columns are built from
- * `ChatTurnTable.columns` (one `ColumnSpec` per column from the
- * `table_ready` event); cell values are stringified before render
- * because the backend already produces JSON-safe values.
+ * `ChatTurnTable.columns`. Cell values are formatted with d3-format
+ * (per-column format picked from the column name + sample values), with
+ * a toLocaleString fallback for general floats. Native `<table>` keeps
+ * the implicit `role="table"` the e2e smoke asserts on.
  *
- * Render cap (PLAN §16):
- *   - The backend may return up to DEFAULT_LIMIT rows in the SSE preview.
- *   - The UI never renders more than 10,000 rows; if `table.rows.length`
- *     exceeds that, we slice + show a "Showing N of M rows" notice.
+ * Render cap (PLAN §16): the UI never renders more than 10,000 rows.
  *
- * Sortable column headers (TanStack `getSortedRowModel`) and a
- * "Copy CSV" affordance that copies the currently rendered rows.
- *
- * Accessibility:
- *   - A native `<table>` with `<thead>`/`<tbody>` and `scope="col"`.
- *   - Sort buttons in headers carry `aria-sort` semantics via TanStack's
- *     `flexRender` output (the lib writes `aria-sort` for us).
- *   - The outer scroll container carries a focusable `tabIndex` so
- *     keyboard users can scroll the table without a mouse.
- *   - `role="region"` + `aria-label` for screen-reader orientation.
+ * Sortable column headers (TanStack `getSortedRowModel`) and a "Copy CSV"
+ * affordance that copies the currently rendered rows + fires a sonner
+ * toast.
  */
 import {
   flexRender,
@@ -30,20 +21,17 @@ import {
   type ColumnDef,
   type SortingState,
 } from "@tanstack/react-table";
+import { format as d3Format } from "d3-format";
 import { useCallback, useMemo, useRef, useState } from "react";
+import { ArrowDown, ArrowUp, ChevronsUpDown, Check, Copy, Table2 } from "lucide-react";
+import { toast } from "sonner";
 
 import type { ChatTurnTable } from "@/hooks/useChatTurn";
+import type { ColumnSpec } from "@/generated/sse-events";
 import { rowsToCsv } from "@/lib/csv";
+import { cn } from "@/lib/utils";
 
-/**
- * Hard cap on rendered rows (PLAN §16). The SSE preview already caps at ~200 rows
- * (pipeline table_ready), so the table is always small in v1 and renders directly
- * without virtualization. TanStack Virtual is deferred until result sets actually
- * exceed ~1k rows; the absolute-positioned-<tr> approach it requires is fragile
- * across browsers and broke alignment for small tables.
- */
 const MAX_RENDERED_ROWS = 10_000;
-/** Max scroll-area height in px. */
 const MAX_TABLE_HEIGHT = 480;
 
 export interface ResultTableProps {
@@ -54,19 +42,70 @@ interface CellRow extends Record<string, unknown> {
   __rowIndex: number;
 }
 
-function formatCell(value: unknown): string {
+/**
+ * Build a per-column number formatter from the column name + its sample
+ * values. Returns a `(value: unknown) => string`. Non-numeric columns
+ * fall back to a generic stringifier.
+ */
+function makeColumnFormatter(
+  spec: ColumnSpec,
+  rows: Record<string, unknown>[],
+): (value: unknown) => string {
+  const name = spec.name.toLowerCase();
+  const values = rows
+    .map((r) => r[spec.name])
+    .filter((v): v is number => typeof v === "number" && Number.isFinite(v));
+  const raw = formatRaw;
+
+  if (values.length === 0) return raw;
+
+  const allInt = values.every((v) => Number.isInteger(v));
+  const maxAbs = Math.max(...values.map((v) => Math.abs(v)));
+
+  // Percentage / rate columns. NBA convention: proportions in [0,1]
+  // (e.g. fg_pct = 0.482) → ".1%"; already-on-0-100 scales append "%".
+  if (
+    /(pct|percent|rate|eff_|efg|ts_|_fg|fg3|ft_|per36|usage|usg)/.test(name) ||
+    name.includes("%")
+  ) {
+    if (maxAbs <= 1.5) return guard(d3Format(".1%"));
+    if (maxAbs <= 150) return (v) => `${d3Format(".1f")(asNum(v))}%`;
+  }
+
+  // Currency-ish large numbers (salaries, cap hits).
+  if (/(salary|cap|price|cost|usd|dollar|payroll)/.test(name) && maxAbs >= 1000) {
+    return (v) => `$${d3Format(",.0f")(asNum(v))}`;
+  }
+
+  // Grouped integers (game counts, totals).
+  if (allInt) return guard(d3Format(",.0f"));
+
+  // General floats: trim trailing zeros via toLocaleString for a clean
+  // read (PER, PPG, etc. all look better without fixed ".000").
+  return (v) =>
+    typeof v === "number" && Number.isFinite(v)
+      ? v.toLocaleString(undefined, { maximumFractionDigits: 3 })
+      : raw(v);
+}
+
+function asNum(v: unknown): number {
+  return typeof v === "number" && Number.isFinite(v) ? v : 0;
+}
+
+/** Wrap a d3 formatter so non-numeric / null values don't print "NaN". */
+function guard(fn: (n: number) => string): (v: unknown) => string {
+  return (v) => (typeof v === "number" && Number.isFinite(v) ? fn(v) : formatRaw(v));
+}
+
+function formatRaw(value: unknown): string {
   if (value === null || value === undefined) return "";
   if (typeof value === "number") {
-    // Avoid scientific notation for tiny ints; trim trailing zeros only for floats.
     if (Number.isInteger(value)) return value.toLocaleString();
     return value.toLocaleString(undefined, { maximumFractionDigits: 6 });
   }
-  if (typeof value === "string") return value;
   if (typeof value === "boolean") return value ? "true" : "false";
   if (typeof value === "bigint") return value.toString();
-  // Objects/arrays — fall back to JSON. The backend's json_safe.py is
-  // responsible for keeping these out of result tables; this is a defensive
-  // fallback only.
+  if (typeof value === "string") return value;
   return JSON.stringify(value);
 }
 
@@ -76,12 +115,20 @@ export function ResultTable({ table }: ResultTableProps) {
   const truncatedByCap = allRows.length > MAX_RENDERED_ROWS;
   const visibleRows = truncatedByCap ? allRows.slice(0, MAX_RENDERED_ROWS) : allRows;
 
-  // Tag each row with its stable 1-based index for React keys + copy-CSV
-  // parity with the backend's row numbering.
   const data = useMemo<CellRow[]>(
     () => visibleRows.map((r, i) => ({ ...r, __rowIndex: i })),
     [visibleRows],
   );
+
+  // Pre-compute a formatter per column (memoized on the column specs +
+  // the row batch so it survives the live turn's table_ready refresh).
+  const formatters = useMemo(() => {
+    const map = new Map<string, (v: unknown) => string>();
+    for (const spec of table.columns) {
+      map.set(spec.name, makeColumnFormatter(spec, visibleRows));
+    }
+    return map;
+  }, [table.columns, visibleRows]);
 
   const columns = useMemo<ColumnDef<CellRow>[]>(
     () =>
@@ -89,16 +136,15 @@ export function ResultTable({ table }: ResultTableProps) {
         id: spec.name,
         accessorKey: spec.name,
         header: spec.name,
-        cell: (info) => formatCell(info.getValue()),
-        // Numbers sort numerically; everything else as strings.
+        cell: (info) => (formatters.get(spec.name) ?? formatRaw)(info.getValue()),
         sortingFn: (a, b, columnId) => {
           const av = a.getValue(columnId);
           const bv = b.getValue(columnId);
           if (typeof av === "number" && typeof bv === "number") return av - bv;
-          return formatCell(av).localeCompare(formatCell(bv));
+          return formatRaw(av).localeCompare(formatRaw(bv));
         },
       })),
-    [table.columns],
+    [table.columns, formatters],
   );
 
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -112,8 +158,6 @@ export function ResultTable({ table }: ResultTableProps) {
     getSortedRowModel: getSortedRowModel(),
   });
 
-  // Virtualization is deferred (see module note). The scroll container still
-  // bounds the height so large result sets scroll within the panel.
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const sortedRows = tableInstance.getRowModel().rows;
 
@@ -121,12 +165,9 @@ export function ResultTable({ table }: ResultTableProps) {
 
   const handleCopyCsv = useCallback(async (): Promise<void> => {
     try {
-      // Copy the post-sort visible rows in the order the user sees them.
       const rowsForCsv = sortedRows.map((row) => {
         const out: Record<string, unknown> = {};
-        for (const c of table.columns) {
-          out[c.name] = row.original[c.name];
-        }
+        for (const c of table.columns) out[c.name] = row.original[c.name];
         return out;
       });
       const csv = rowsToCsv(
@@ -135,15 +176,17 @@ export function ResultTable({ table }: ResultTableProps) {
       );
       await navigator.clipboard.writeText(csv);
       setCopied(true);
+      toast.success(`Copied ${sortedRows.length.toLocaleString()} rows as CSV`);
       window.setTimeout(() => setCopied(false), 1500);
     } catch {
       setCopied(false);
+      toast.error("Couldn't copy — clipboard unavailable");
     }
   }, [sortedRows, table.columns]);
 
   if (table.columns.length === 0) {
     return (
-      <p className="rounded border border-[color:var(--color-border)] bg-[color:var(--color-muted)] px-3 py-2 text-sm text-[color:var(--color-muted-foreground)]">
+      <p className="rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-muted)]/40 px-3 py-2 text-sm text-[color:var(--color-muted-foreground)]">
         No rows.
       </p>
     );
@@ -152,62 +195,73 @@ export function ResultTable({ table }: ResultTableProps) {
   return (
     <section
       aria-label={`Result table with ${table.columns.length} column${table.columns.length === 1 ? "" : "s"}`}
-      className="flex flex-col gap-2 rounded border border-[color:var(--color-border)] bg-[color:var(--color-background)]"
+      className="flex flex-col gap-0 overflow-hidden rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-card)]"
     >
-      <header className="flex items-center justify-between gap-2 px-3 py-2 text-xs text-[color:var(--color-muted-foreground)]">
-        <span>
-          Showing {sortedRows.length.toLocaleString()} of {totalRowCount.toLocaleString()} row
-          {totalRowCount === 1 ? "" : "s"}
-          {table.truncated ? " · backend-truncated" : ""}
-          {truncatedByCap ? " · UI-render cap" : ""}
+      <header className="flex items-center justify-between gap-2 border-b border-[color:var(--color-border)] bg-[color:var(--color-muted)]/40 px-3 py-2 text-[0.7rem] text-[color:var(--color-muted-foreground)]">
+        <span className="inline-flex items-center gap-1.5">
+          <Table2 className="h-3.5 w-3.5" aria-hidden="true" />
+          <span>
+            {sortedRows.length.toLocaleString()} of {totalRowCount.toLocaleString()} row
+            {totalRowCount === 1 ? "" : "s"}
+            {table.truncated ? " · backend-truncated" : ""}
+            {truncatedByCap ? " · UI-render cap" : ""}
+          </span>
         </span>
         <button
           type="button"
           onClick={() => {
             void handleCopyCsv();
           }}
-          className="rounded border border-[color:var(--color-border)] bg-[color:var(--color-background)] px-2 py-0.5 text-xs font-medium hover:bg-[color:var(--color-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-background)]"
+          className={cn(
+            "inline-flex items-center gap-1 rounded-md border border-[color:var(--color-border)]",
+            "bg-[color:var(--color-card)] px-2 py-1 text-xs font-medium",
+            "transition-colors hover:bg-[color:var(--color-muted)]",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-card)]",
+          )}
           aria-label={copied ? "CSV copied to clipboard" : "Copy result rows as CSV"}
         >
+          {copied ? (
+            <Check className="h-3 w-3 text-[color:var(--color-ok-fg)]" aria-hidden="true" />
+          ) : (
+            <Copy className="h-3 w-3" aria-hidden="true" />
+          )}
           {copied ? "Copied" : "Copy CSV"}
         </button>
       </header>
       <div
         ref={scrollRef}
-        className="relative overflow-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-background)]"
+        className="relative overflow-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-ring)] focus-visible:ring-inset"
         style={{ maxHeight: MAX_TABLE_HEIGHT }}
       >
         <table className="w-full border-collapse text-sm">
-          <thead className="sticky top-0 z-10 bg-[color:var(--color-muted)]">
+          <thead className="sticky top-0 z-10 bg-[color:var(--color-muted)] backdrop-blur-sm">
             {tableInstance.getHeaderGroups().map((hg) => (
               <tr key={hg.id}>
                 {hg.headers.map((header) => {
                   const canSort = header.column.getCanSort();
                   const sortDir = header.column.getIsSorted();
                   const ariaSort: "ascending" | "descending" | "none" =
-                    sortDir === "asc"
-                      ? "ascending"
-                      : sortDir === "desc"
-                        ? "descending"
-                        : "none";
+                    sortDir === "asc" ? "ascending" : sortDir === "desc" ? "descending" : "none";
                   return (
                     <th
                       key={header.id}
                       scope="col"
                       aria-sort={canSort ? ariaSort : undefined}
-                      className="border-b border-[color:var(--color-border)] px-2 py-1.5 text-left font-medium"
+                      className="border-b border-[color:var(--color-border)] px-2.5 py-2 text-left font-display text-[0.7rem] font-semibold uppercase tracking-[0.06em] text-[color:var(--color-muted-foreground)]"
                     >
                       {canSort ? (
                         <button
                           type="button"
                           onClick={header.column.getToggleSortingHandler()}
-                          className="inline-flex items-center gap-1 rounded px-1 py-0.5 hover:bg-[color:var(--color-background)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-muted)]"
+                          className={cn(
+                            "inline-flex items-center gap-1 rounded px-1 py-0.5 transition-colors",
+                            "hover:bg-[color:var(--color-background)] hover:text-[color:var(--color-foreground)]",
+                            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-ring)] focus-visible:ring-offset-1 focus-visible:ring-offset-[color:var(--color-muted)]",
+                          )}
                           aria-label={`Sort by ${header.column.columnDef.header as string} ${ariaSort === "ascending" ? "descending" : "ascending"}`}
                         >
                           {flexRender(header.column.columnDef.header, header.getContext())}
-                          <span aria-hidden="true" className="text-xs">
-                            {sortDir === "asc" ? "▲" : sortDir === "desc" ? "▼" : "↕"}
-                          </span>
+                          <SortIcon dir={sortDir} />
                         </button>
                       ) : (
                         flexRender(header.column.columnDef.header, header.getContext())
@@ -219,12 +273,18 @@ export function ResultTable({ table }: ResultTableProps) {
             ))}
           </thead>
           <tbody>
-            {sortedRows.map((row) => (
-              <tr key={row.id}>
+            {sortedRows.map((row, rowIdx) => (
+              <tr
+                key={row.id}
+                className={cn(
+                  "transition-colors hover:bg-[color:var(--color-muted)]/50",
+                  rowIdx % 2 === 1 && "bg-[color:var(--color-muted)]/25",
+                )}
+              >
                 {row.getVisibleCells().map((cell) => (
                   <td
                     key={cell.id}
-                    className="border-b border-[color:var(--color-border)] px-2 py-1 align-top"
+                    className="border-b border-[color:var(--color-border)]/60 px-2.5 py-1.5 align-top tabular-nums"
                   >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>
@@ -236,4 +296,10 @@ export function ResultTable({ table }: ResultTableProps) {
       </div>
     </section>
   );
+}
+
+function SortIcon({ dir }: { dir: false | "asc" | "desc" }) {
+  if (dir === "asc") return <ArrowUp className="h-3 w-3" aria-hidden="true" />;
+  if (dir === "desc") return <ArrowDown className="h-3 w-3" aria-hidden="true" />;
+  return <ChevronsUpDown className="h-3 w-3 opacity-40" aria-hidden="true" />;
 }

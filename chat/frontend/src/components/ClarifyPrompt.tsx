@@ -6,12 +6,9 @@
  * fallback input. All paths funnel into the same `onAnswer(text)`
  * callback, so the parent (`ChatView`) can re-send the answer through
  * the same `useChatTurn.send()` pipeline.
- *
- * The free-text fallback is a single-line input with an Enter-to-submit
- * shortcut; the parent owns the broader chat input, this is just a
- * focused, context-specific reply box for the clarification.
  */
 import { useCallback, useState, type FormEvent } from "react";
+import { HelpCircle, Send } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
 
@@ -23,7 +20,12 @@ export interface ClarifyPromptProps {
   disabled?: boolean;
 }
 
-export function ClarifyPrompt({ question, options, onAnswer, disabled = false }: ClarifyPromptProps) {
+export function ClarifyPrompt({
+  question,
+  options,
+  onAnswer,
+  disabled = false,
+}: ClarifyPromptProps) {
   const [freeText, setFreeText] = useState<string>("");
 
   const handleFreeSubmit = useCallback(
@@ -40,10 +42,13 @@ export function ClarifyPrompt({ question, options, onAnswer, disabled = false }:
   return (
     <fieldset
       aria-label="Clarification needed"
-      className="flex flex-col gap-3 rounded border border-amber-300 bg-amber-50 p-3 text-sm"
+      className="flex flex-col gap-3 rounded-xl border border-[color:var(--color-warn-border)] bg-[color:var(--color-warn-bg)] p-3 text-sm"
     >
       <legend className="sr-only">Clarification needed</legend>
-      <p className="font-medium text-amber-900">{question}</p>
+      <p className="flex items-start gap-2 font-medium text-[color:var(--color-warn-fg)]">
+        <HelpCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+        <span>{question}</span>
+      </p>
       {options !== null && options.length > 0 && (
         <ul className="flex flex-wrap gap-2">
           {options.map((opt) => (
@@ -51,6 +56,7 @@ export function ClarifyPrompt({ question, options, onAnswer, disabled = false }:
               <Button
                 type="button"
                 variant="subtle"
+                size="sm"
                 disabled={disabled}
                 onClick={() => {
                   onAnswer(opt);
@@ -73,9 +79,10 @@ export function ClarifyPrompt({ question, options, onAnswer, disabled = false }:
           onChange={(e) => setFreeText(e.target.value)}
           placeholder="Or type your own answer…"
           disabled={disabled}
-          className="min-w-0 flex-1 rounded border border-amber-300 bg-[color:var(--color-background)] px-2 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-amber-50 disabled:opacity-50"
+          className="min-w-0 flex-1 rounded-lg border border-[color:var(--color-warn-border)] bg-[color:var(--color-card)] px-3 py-1.5 text-sm text-[color:var(--color-foreground)] placeholder:text-[color:var(--color-muted-foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-warn-bg)] disabled:opacity-50"
         />
-        <Button type="submit" variant="primary" disabled={disabled || freeText.trim().length === 0}>
+        <Button type="submit" size="sm" disabled={disabled || freeText.trim().length === 0}>
+          <Send className="h-3.5 w-3.5" aria-hidden="true" />
           Send
         </Button>
       </form>

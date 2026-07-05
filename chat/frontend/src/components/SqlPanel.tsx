@@ -7,32 +7,27 @@
  * Collapsed by default per §8.3; users open it explicitly when they want
  * to inspect the query. Copy-to-clipboard uses the modern
  * `navigator.clipboard.writeText` API and degrades gracefully when
- * unavailable (e.g. insecure context).
+ * unavailable (e.g. insecure context); a sonner toast confirms the copy.
  *
  * **A11y structure:** a custom header row carries both the disclosure
  * toggle (a `<button aria-expanded>` styled like the previous
  * `<summary>`) and the Copy button as SIBLINGS — putting a focusable
  * `<button>` inside a `<summary>` triggers axe's `nested-interactive`
- * violation (the `<summary>` itself is keyboard-focusable). React state
- * replaces the native `<details>` toggle to keep Copy always visible
- * regardless of expand state.
+ * violation. React state replaces the native `<details>` toggle to keep
+ * Copy always visible regardless of expand state.
  *
  * The element is purely presentational: it does not parse or re-execute
- * SQL. The backend's `validation.py` (§7.4) is the only thing allowed to
- * run SQL, against the template's table allowlist.
- *
- * highlight.js output is a fixed grammar of `<span class="hljs-…">…`
- * wrappers; we parse that HTML into React nodes (no `dangerouslySetInnerHTML`)
- * so the only HTML that reaches the DOM is the `<span>` wrappers we
- * generate ourselves.
+ * SQL. highlight.js output is parsed into safe React nodes (no
+ * `dangerouslySetInnerHTML`).
  */
 import { Fragment, useCallback, useId, useMemo, useState } from "react";
 import hljs from "highlight.js/lib/core";
 import sqlLang from "highlight.js/lib/languages/sql";
+import { Check, ChevronRight, Copy, Database, Terminal } from "lucide-react";
+import { toast } from "sonner";
 
-// Register SQL once (idempotent — `registerLanguage` is a no-op on repeat
-// calls with the same name, but we still gate on `getLanguage()` so the
-// registration doesn't pollute the bundle log).
+import { cn } from "@/lib/utils";
+
 if (!hljs.getLanguage("sql")) {
   hljs.registerLanguage("sql", sqlLang);
 }
@@ -41,17 +36,7 @@ export interface SqlPanelProps {
   sql: string;
 }
 
-/**
- * Parse highlight.js's HTML output into safe React nodes. hljs emits
- * `<span class="hljs-…">token</span>` wrappers interleaved with raw text;
- * the wrappers never include user-controlled attributes (highlight.js's
- * SQL grammar emits a fixed set of class names), so we can map them onto
- * JSX children with stable, content-based keys.
- */
 function highlightToNodes(html: string): React.ReactNode[] {
-  // Split keeping the wrapper tokens. The regex matches the full span
-  // including its class attribute; the inner text is restricted to
-  // characters highlight.js would ever emit (no `<`).
   const tokenRe = /<span class="(hljs-[a-z0-9-]+)">([^<]*)<\/span>/g;
   const nodes: React.ReactNode[] = [];
   const matches = Array.from(html.matchAll(tokenRe));
@@ -85,12 +70,11 @@ export function SqlPanel({ sql }: SqlPanelProps) {
     try {
       await navigator.clipboard.writeText(sql);
       setCopied(true);
+      toast.success("SQL copied to clipboard");
       window.setTimeout(() => setCopied(false), 1500);
     } catch {
-      // Clipboard API can be unavailable in insecure contexts or when
-      // permissions are denied. We intentionally swallow the error —
-      // the panel still renders the SQL for manual selection.
       setCopied(false);
+      toast.error("Couldn't copy — clipboard unavailable");
     }
   }, [sql]);
 
@@ -100,37 +84,63 @@ export function SqlPanel({ sql }: SqlPanelProps) {
   );
 
   return (
-    <section className="rounded border border-[color:var(--color-border)] bg-[color:var(--color-muted)]">
-      <header className="flex items-center justify-between gap-2 border-b border-[color:var(--color-border)] px-3 py-2">
+    <section className="overflow-hidden rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-muted)]/40">
+      <header className="flex items-center justify-between gap-2 border-b border-[color:var(--color-border)] bg-[color:var(--color-card)]/60 px-2 py-1.5">
         <button
           type="button"
           aria-expanded={expanded}
           aria-controls={codeId}
           onClick={() => setExpanded((v) => !v)}
-          className="flex cursor-pointer items-center gap-2 text-sm font-medium select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-background)]"
+          className={cn(
+            "flex cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-1 text-sm font-medium select-none",
+            "transition-colors hover:bg-[color:var(--color-muted)]",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-card)]",
+          )}
         >
-          <span aria-hidden="true" className="text-xs">
-            {expanded ? "▾" : "▸"}
-          </span>
-          SQL
+          <ChevronRight
+            className="h-3.5 w-3.5 text-[color:var(--color-muted-foreground)] transition-transform duration-200"
+            style={{ transform: expanded ? "rotate(90deg)" : undefined }}
+            aria-hidden="true"
+          />
+          <Database className="h-3.5 w-3.5 text-[color:var(--color-primary)]" aria-hidden="true" />
+          <span className="font-display text-xs font-semibold uppercase tracking-[0.1em]">SQL</span>
         </button>
         <button
           type="button"
           onClick={() => {
             void handleCopy();
           }}
-          className="rounded border border-[color:var(--color-border)] bg-[color:var(--color-background)] px-2 py-0.5 text-xs font-medium hover:bg-[color:var(--color-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-background)]"
+          className={cn(
+            "inline-flex items-center gap-1 rounded-md border border-[color:var(--color-border)]",
+            "bg-[color:var(--color-card)] px-2 py-1 text-xs font-medium",
+            "transition-colors hover:bg-[color:var(--color-muted)]",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-card)]",
+          )}
           aria-label={copied ? "SQL copied to clipboard" : "Copy SQL to clipboard"}
         >
+          {copied ? (
+            <Check className="h-3 w-3 text-[color:var(--color-ok-fg)]" aria-hidden="true" />
+          ) : (
+            <Copy className="h-3 w-3" aria-hidden="true" />
+          )}
           {copied ? "Copied" : "Copy"}
         </button>
       </header>
       {expanded && (
-        <pre className="m-0 overflow-x-auto px-3 pb-3 pt-1 text-xs leading-relaxed">
+        <pre className="m-0 overflow-x-auto px-3 py-2.5 leading-relaxed">
           <code id={codeId} className="hljs language-sql block">
             {highlighted}
           </code>
         </pre>
+      )}
+      {!expanded && (
+        <div className="flex items-center gap-1.5 px-3 py-1.5 text-[0.7rem] text-[color:var(--color-muted-foreground)]">
+          <Terminal className="h-3 w-3" aria-hidden="true" />
+          <span className="truncate font-mono">
+            {sql.replace(/\s+/g, " ").trim().slice(0, 80)}
+            {sql.length > 80 ? "…" : ""}
+          </span>
+        </div>
       )}
     </section>
   );

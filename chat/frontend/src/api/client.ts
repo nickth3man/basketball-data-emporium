@@ -76,15 +76,12 @@ export async function getSessionHistory(
   limit = 50,
   offset = 0,
 ): Promise<HistoryPage> {
-  const { data, error } = await apiClient.GET(
-    "/api/sessions/{session_id}/history",
-    {
-      params: {
-        path: { session_id: sessionId },
-        query: { limit, offset },
-      },
+  const { data, error } = await apiClient.GET("/api/sessions/{session_id}/history", {
+    params: {
+      path: { session_id: sessionId },
+      query: { limit, offset },
     },
-  );
+  });
   if (error || !data) {
     throw new Error(`failed to load history: ${error ?? "no data"}`);
   }

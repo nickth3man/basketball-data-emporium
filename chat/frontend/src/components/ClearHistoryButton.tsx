@@ -3,16 +3,16 @@
  *
  * Confirms then calls `DELETE /api/sessions/{id}`, then fires the
  * `onCleared` callback so the parent can reset its local timeline
- * state. Disabled while the request is in flight.
+ * state. Fires a sonner toast on success/failure. Disabled while the
+ * request is in flight.
  *
- * Confirmation strategy: a native `window.confirm()` is intentionally
- * used for v1 (the plan notes "simpler and accessible enough"). The
- * `confirm` dialog is keyboard-friendly, blocks accidental clicks, and
- * keeps the component a single button — no inline state machine needed.
- * A later polish pass can replace it with an inline two-step confirm
- * (button → "Are you sure? [Yes][No]") without changing the public API.
+ * Confirmation strategy: native `window.confirm()` (keyboard-friendly,
+ * blocks accidental clicks). A later polish pass can swap to an inline
+ * two-step confirm without changing the public API.
  */
 import { useState } from "react";
+import { Eraser, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 import { deleteSession } from "@/api/client";
 
@@ -41,13 +41,27 @@ export function ClearHistoryButton({
     try {
       await deleteSession(sessionId);
       onCleared();
+      toast.success("History cleared");
+    } catch {
+      toast.error("Couldn't clear history");
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <Button type="button" variant="ghost" disabled={busy} onClick={() => void handleClick()}>
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      disabled={busy}
+      onClick={() => void handleClick()}
+    >
+      {busy ? (
+        <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+      ) : (
+        <Eraser className="h-3.5 w-3.5" aria-hidden="true" />
+      )}
       {busy ? "Clearing…" : label}
     </Button>
   );
