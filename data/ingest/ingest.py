@@ -226,9 +226,9 @@ def resolve_teams(con, source):
         CREATE OR REPLACE TEMP TABLE _wh_teams AS
         SELECT team_id, norm_name(team_full) AS nname
         FROM (
-            SELECT team_id, city || ' ' || nickname AS team_full FROM dim_team_history
+            SELECT team_id, city || ' ' || nickname AS team_full FROM dim_team_era
             UNION
-            SELECT team_id, team_city || ' ' || team_name FROM dim_defunct_team
+            SELECT team_id, team_city || ' ' || team_name FROM src_dim_defunct_team
             UNION
             SELECT team_id, full_name FROM dim_team
         )""")
@@ -298,20 +298,13 @@ def reconcile_player_bbr_matches(con):
     this reuses the answer bridge_player_bbr already has instead of
     re-deriving it. json_slug ids are ~all the same BBR slugs under a
     different source label, so both are reconciled the same way."""
-    ranked_bbr = """
-        SELECT b.*,
-               row_number() OVER (
-                 PARTITION BY bbr_player_id
-                 ORDER BY coalesce(g.gp, 0) DESC, nba_player_id
-               ) AS preferred_rank
-        FROM bridge_player_bbr b
-        LEFT JOIN (
-          SELECT player_id, count(*) AS gp
-          FROM fact_player_game_boxscore
-          GROUP BY 1
-        ) g ON g.player_id = b.nba_player_id
-    """
-    con.execute(f"CREATE OR REPLACE TEMP TABLE _preferred_bbr AS SELECT * FROM ({ranked_bbr}) WHERE preferred_rank = 1")
+    # map_player_bbr.is_preferred already carries this exact ranking,
+    # computed once in build_nba.py's build_maps() -- read it directly
+    # instead of re-deriving it here.
+    con.execute(
+        "CREATE OR REPLACE TEMP TABLE _preferred_bbr AS "
+        "SELECT player_id AS nba_player_id, bbr_player_id FROM map_player_bbr WHERE is_preferred"
+    )
     before = con.execute(
         """
         SELECT count(*) FROM bridge_player_source_id

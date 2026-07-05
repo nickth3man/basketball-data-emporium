@@ -2,10 +2,18 @@
 -- sources imported by import_source_tables.sql, keeping table names and
 -- column shapes identical so web/server/queries.ts keeps working unchanged.
 --
+-- HISTORICAL / ARCHIVAL RECORD -- NOT part of the routine rebuild pipeline.
+-- Its premise (preserving agg_player_season-family table names for
+-- web/server/queries.ts compatibility) predates the 2026-07-04 schema
+-- rebuild; the app now reads canonical dim_*/fact_*/mart_* tables directly
+-- and no longer consumes these names. Re-running this against the current
+-- data/nba.duckdb would recreate legacy tables the app doesn't use rather
+-- than fix anything live. Kept for provenance/reference only.
+--
 -- Fixes (see docs/data-quality-audit.md):
 --   #1 agg_player_season / _per36 / _per48 / _advanced / agg_player_career
 --      were inflated by the franchise-era fan-out -> rebuilt from
---      fact_player_season_stat_resolved (BBR, all eras) + fact_player_game_log
+--      fact_player_season_stat_resolved (BBR, all eras) + fact_player_game_box
 --      (Cup rows) + fact_player_game_advanced (NBA tracking metrics).
 --   #3 fact_player_awards dropped diacritic players -> rebuilt from the
 --      stg_bref_* award tables via the crosswalk (id-based, lossless).
@@ -35,7 +43,7 @@ FROM (
            ORDER BY coalesce(g.gp, 0) DESC, b.nba_player_id
          ) AS rn
   FROM bridge_player_bbr b
-  LEFT JOIN (SELECT player_id, count(*) AS gp FROM fact_player_game_log GROUP BY 1) g
+  LEFT JOIN (SELECT player_id, count(*) AS gp FROM fact_player_game_box GROUP BY 1) g
     ON g.player_id = b.nba_player_id
 ) WHERE rn = 1;
 
@@ -111,7 +119,7 @@ cup AS (
          sum(pts) / nullif(2 * (sum(fga) + 0.44 * sum(fta)), 0) AS avg_ts_pct,
          CAST(NULL AS DOUBLE) AS avg_usg_pct,
          CAST(NULL AS DOUBLE) AS avg_pie
-  FROM fact_player_game_log
+  FROM fact_player_game_box
   WHERE season_type = 'Cup'
   GROUP BY player_id, team_id, season_year, season_type
 )
@@ -186,7 +194,7 @@ WITH nba AS (
          sum(a.pace * a.poss) / nullif(sum(a.poss), 0) AS avg_pace,
          sum(a.pie  * a.poss) / nullif(sum(a.poss), 0) AS avg_pie
   FROM fact_player_game_advanced a
-  JOIN fact_player_game_log gl
+  JOIN fact_player_game_box gl
     ON gl.game_id = a.game_id AND gl.player_id = a.player_id
   GROUP BY a.player_id, a.team_id, a.season_year, gl.season_type
 ),

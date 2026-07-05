@@ -235,19 +235,9 @@ class DbLookups:
         try:
             for slug, pid in conn.execute(
                 """
-                SELECT bbr_player_id, nba_player_id
-                FROM (
-                  SELECT b.bbr_player_id, b.nba_player_id,
-                         row_number() OVER (
-                           PARTITION BY b.bbr_player_id
-                           ORDER BY coalesce(g.gp, 0) DESC, b.nba_player_id
-                         ) AS rn
-                  FROM bridge_player_bbr b
-                  LEFT JOIN (
-                    SELECT player_id, count(*) AS gp
-                    FROM fact_player_game_log GROUP BY 1
-                  ) g ON g.player_id = b.nba_player_id
-                ) WHERE rn = 1
+                SELECT bbr_player_id, player_id AS nba_player_id
+                FROM map_player_bbr
+                WHERE is_preferred
                 """
             ).fetchall():
                 self._slug_to_player[str(slug)] = int(pid)
@@ -261,7 +251,7 @@ class DbLookups:
                 self._name_to_player.setdefault(str(name), int(pid))
             for pid, name in conn.execute(
                 "SELECT DISTINCT TRY_CAST(person_id AS BIGINT), display_first_last "
-                "FROM common_player_info WHERE display_first_last IS NOT NULL"
+                "FROM src_common_player_info WHERE display_first_last IS NOT NULL"
             ).fetchall():
                 if pid is not None:
                     self._name_to_player.setdefault(str(name), int(pid))
@@ -274,7 +264,7 @@ class DbLookups:
             for team, season, tid, abbr in conn.execute(
                 """
                 SELECT DISTINCT team, season, nba_team_id, abbreviation
-                FROM stg_bref_team_summaries
+                FROM src_stg_bref_team_summaries
                 WHERE team IS NOT NULL AND season IS NOT NULL
                 """
             ).fetchall():

@@ -1,6 +1,16 @@
 -- Import the adoptable tables from the source database into the local
 -- warehouse (data/nba.duckdb), per docs/source-db-adoption.md.
 --
+-- HISTORICAL / ARCHIVAL RECORD -- NOT part of the routine rebuild pipeline.
+-- This script's primary connection is the pre-migration raw source db (it
+-- writes v1-era table names like fact_game/fact_player_game_boxscore/
+-- dim_bref_player -- the exact names data/audit/build_nba.py's
+-- CANONICAL_SOURCE_TABLES expects from a --source-db, not the final
+-- warehouse's dim_*/fact_* names). It documents how that raw source was
+-- built before it was archived outside this repo; do not run it against
+-- the current data/nba.duckdb -- doing so would overwrite the final
+-- warehouse with legacy pre-rebuild tables.
+--
 -- Run from the repo root with the app dev server STOPPED (needs write lock):
 --   duckdb data/nba.duckdb -c ".read data/audit/import_source_tables.sql"
 --
@@ -47,7 +57,7 @@ FROM (
            ORDER BY coalesce(g.gp, 0) DESC, b.nba_player_id
          ) AS rn
   FROM bridge_player_bbr b
-  LEFT JOIN (SELECT player_id, sum(gp) AS gp FROM agg_player_season GROUP BY 1) g
+  LEFT JOIN (SELECT player_id, count(*) AS gp FROM fact_player_game_boxscore GROUP BY 1) g
     ON g.player_id = b.nba_player_id
 ) WHERE rn = 1;
 

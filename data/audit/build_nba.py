@@ -413,7 +413,23 @@ class WarehouseBuilder:
             )
             """
         )
+        # Created here (with the meta_* tables) rather than in build_dimensions()
+        # despite the dim_ prefix: build_maps()'s map_player_bbr builder needs
+        # to join against this before build_dimensions() runs.
+        self.execute(
+            """
+            CREATE OR REPLACE TABLE dim_player_identity_merge (
+              duplicate_player_id BIGINT,
+              canonical_player_id BIGINT,
+              bbr_player_id VARCHAR,
+              reason VARCHAR,
+              evidence_source VARCHAR,
+              added_at TIMESTAMP
+            )
+            """
+        )
         self.insert_static_metadata()
+        self.insert_player_identity_merges()
 
     def insert_static_metadata(self) -> None:
         metric_rows = [
@@ -478,8 +494,165 @@ class WarehouseBuilder:
                 "This build does not preserve current Express query table names.",
                 "Migrate app queries later or add compatibility views if needed.",
             ),
+            (
+                "missing_1950_roy_groza",
+                "info",
+                "fact_award (data/audit/build_nba.py's fact_award builder)",
+                "resolved",
+                "Alex Groza's 1950 NBA Rookie of the Year award was missing from fact_award -- "
+                "present in src_stg_bref_player_award_shares (bref_player_id='grozaal01') but "
+                "nba_player_id was unresolved there, so the upstream fact_player_awards source "
+                "dropped the row entirely. Both sides of the identity already exist in this "
+                "warehouse (dim_player.player_id=76897, from_year=1949, to_year=1950). Confirmed "
+                "independently: Basketball-Reference and Wikipedia both list Groza as the 1949-50 "
+                "ROY (retroactively/newspaper-recognized at the time -- the NBA didn't officially "
+                "issue the award until Don Meineke in 1952-53).",
+                "None needed -- added directly as a UNION ALL row in fact_award's builder.",
+            ),
+            (
+                "draft_duplicate_pick_number_bbr_correction",
+                "info",
+                "fact_draft (data/audit/build_nba.py's fact_draft builder)",
+                "resolved",
+                "224 draft picks across 14 draft years (1949-1965, 1997, 2001, 2002) had "
+                "ambiguous/duplicate overall_pick values inherited from the raw draft_history "
+                "source (e.g. 2002 picks 35/36 both assigned to two different players). Corrected "
+                "via Basketball-Reference's clean draft-pick history (matched by nba_player_id, "
+                "then by normalized player name, excluding ambiguous same-name-same-season pairs), "
+                "confirmed against two independent web sources for 2002 picks 33-40 "
+                "(Boozer=35, Vujanic=36, Maddox=38, Grizzard=39). Resolved 212 of 224; 12 residual "
+                "OCR/spelling-variant cases remain duplicate_source_slot.",
+                "None needed for the 212 resolved. The 12 residual rows need manual name-variant "
+                "research if ever prioritized; see draft_duplicate_slot_residual_within_ceiling "
+                "quality check for the current count.",
+            ),
+            (
+                "all_star_season_year_century_typo",
+                "info",
+                "dim_game (data/audit/build_nba.py's dim_game builder)",
+                "resolved",
+                "33 All-Star game_ids (game_id LIKE '003[5-9]%0001', e.g. 0035100001) had "
+                "season_year parsed with an off-by-century bug (20XX instead of 19XX, e.g. "
+                "'2051-52' instead of '1951-52') and no game_date at all in the raw source. "
+                "Corrected game_date/season_year confirmed against the sibling basketball-data "
+                "seed database's raw_sqlite.nba__game table for all 33 rows.",
+                "Fixed via a hardcoded season_year_fixes VALUES lookup in dim_game's builder. "
+                "If a future rebuild ever needs to re-verify, re-check for "
+                "game_type='All-Star' AND CAST(substr(season_year,1,4) AS INT) >= 2046 "
+                "returning 0 rows.",
+            ),
+            (
+                "pre_1996_team_identity_uses_current_name",
+                "info",
+                "team crosswalk (data/audit/build_crosswalk.sql)",
+                "resolved",
+                "dim_team_era previously only tracked franchise city/nickname/abbreviation "
+                "changes from 1996-97 onward (the primary source feed has no earlier era "
+                "granularity), so team_crosswalk.csv's pre-1996 rows fell back to each team_id's "
+                "earliest-tracked (1996-era) identity -- factually wrong for franchises that "
+                "relocated or renamed before 1996 (e.g. Minneapolis->LA Lakers, 1960; Fort "
+                "Wayne->Detroit Pistons, 1957). Fixed by adding 50 pre-1996-97 era rows to "
+                "dim_team_era, sourced from the sibling basketball-data seed database's "
+                "raw_sqlite.nba__team_history (27 franchises) and raw_csv.teamhistories (the 3 "
+                "missing from that table: Spurs, Wizards/Bullets, Hornets/Bobcats lineages), "
+                "covering all 30 franchises back to 1946-49. Verified the trickiest case (the "
+                "1988-2002 Charlotte Hornets, whose stats history the NBA retroactively assigned "
+                "to team_id 1610612766 rather than the team that continued on as the Pelicans) "
+                "matches dim_game's own home_team_id/away_team_id usage for 1990s Hornets games. "
+                "build_crosswalk.sql's matched team-seasons rose from 1,429 to 1,601 of 1,706 "
+                "after this fix.",
+                "None needed. abbreviation is NULL for eras where the seed source didn't have "
+                "one (team-crosswalk matching is name-based, not abbreviation-based, for these "
+                "rows) -- fill in if a source with historical abbreviations is ever found.",
+            ),
+            (
+                "bbr_duplicate_identity_phantom_ids",
+                "warn",
+                "player identity resolution (map_player_bbr)",
+                "documented",
+                "4 known phantom duplicate dim_all_players ids share a single real BBR identity "
+                "(created by NBA teams' preseason exhibition games against European clubs): "
+                "Loy Vaught (919/78412), Ed O'Bannon (709/77741), Robert Werdann (438/78493), "
+                "Kurt Rambis (1272/77905). Explicitly recorded in dim_player_identity_merge with a "
+                "human-decided canonical_player_id (the higher-games-played id in all 4 cases), "
+                "which map_player_bbr now reads directly instead of relying solely on the "
+                "games-played heuristic. validate_bridges.py's one_player_per_bbr_id check WARNs "
+                "only for pairs present in dim_player_identity_merge and FAILs on any new, "
+                "uncurated one.",
+                "None needed for the 4 known cases. If validate_bridges.py FAILs with a new "
+                "uncurated pair, review data/audit/out/duplicate_identity_candidates.csv, decide "
+                "the canonical id, and add a row to dim_player_identity_merge.",
+            ),
+            (
+                "no_death_date_source",
+                "info",
+                "player biographical data",
+                "resolved",
+                "dim_player had no death_date/deceased column. The locally cached BBR pages "
+                "(data/anchors/bbref-pages/player_career_stats/*.html, which do carry a "
+                "<span id=\"necro-death\" data-death=\"...\"> per player) only cover 16 players total "
+                "(2 with a death date) -- far too few to be a useful source. Instead sourced from "
+                "Wikidata: property P2685 (\"Basketball Reference NBA player ID\") cross-referenced "
+                "with P570 (\"date of death\") via a single SPARQL query against "
+                "query.wikidata.org/sparql, yielding 2,117 BBR-player-id-keyed death dates "
+                "(data/anchors/wikidata_player_deaths.jsonl), of which 919 match a player already "
+                "in this warehouse -- ~21.5% of the ~4,271 retired players with a BBR crosswalk "
+                "link, consistent with an independent academic mortality study's finding that ~20% "
+                "of former NBA players had died as of 2019.",
+                "None needed for the 919 resolved. Coverage is bounded by which players Wikidata "
+                "editors have added a death date for -- re-run the SPARQL query periodically to "
+                "pick up newly-added deaths and recently deceased players.",
+            ),
+            (
+                "is_active_trusted_stale_source_flag",
+                "warn",
+                "player biographical data",
+                "resolved",
+                "dim_player.is_active previously coalesced src_dim_player.is_active and "
+                "src_dim_all_players.roster_status directly, both of which are stale/incorrect for "
+                "almost every retired player in the raw Kaggle source (roster_status=1 and is_active=true "
+                "are effectively default values, not maintained flags). Audit found 4,326 dim_player rows "
+                "with is_active=true despite to_year years behind the current season -- e.g. Pete "
+                "Maravich (to_year=1979, retired 1980, died 1988) still read is_active=true. A fix "
+                "landed for this (deriving is_active from to_year vs. the latest fact_standings "
+                "season) but had a latent bug -- comparing to_year (BIGINT) directly against "
+                "fact_standings.season_year (VARCHAR, e.g. '2025-26') -- that silently prevented it "
+                "from ever working; confirmed live, 5,013 of 6,692 players read is_active=true "
+                "(implausible; the NBA has ~500-600 active players at a time) including Maravich "
+                "still misclassified. Actually fixed now: compares to_year against the season_year's "
+                "parsed start-year int, and additionally treats any player with a death_date (see "
+                "no_death_date_source) as never active regardless of the to_year comparison. Live "
+                "active count is now 586.",
+                "Re-verify after each rebuild that the stale-flag count (is_active=true AND to_year < "
+                "current season) stays at 0, and that the active count is in the low hundreds, not "
+                "thousands.",
+            ),
         ]
         self.c.executemany("INSERT INTO meta_known_gap VALUES (?, ?, ?, ?, ?, ?)", gap_rows)
+
+    def insert_player_identity_merges(self) -> None:
+        """Known phantom duplicate dim_all_players ids -- created by NBA teams'
+        preseason exhibition games against European clubs -- that share a
+        single real BBR identity. canonical_player_id is the id with more
+        career games (fact_player_game_box), same tie-break map_player_bbr's
+        heuristic already uses; recorded explicitly here so map_player_bbr
+        doesn't have to re-derive it and so validate_bridges.py can FAIL on
+        any *new*, uncurated duplicate identity instead of lumping it into
+        the same WARN bucket as these 4 known ones."""
+        merge_rows = [
+            (77741, 709, "obanned01", "Ed O'Bannon: phantom duplicate dim_all_players id from an NBA "
+             "preseason exhibition game; 709 has 85 career games vs 77741's 64.", "manual_curation_2026"),
+            (1272, 77905, "rambiku01", "Kurt Rambis: phantom duplicate dim_all_players id ('ghost duplicate') "
+             "from an NBA preseason exhibition game; 77905 has 1,018 career games vs 1272's 1.", "manual_curation_2026"),
+            (919, 78412, "vaughlo01", "Loy Vaught: phantom duplicate dim_all_players id from an NBA "
+             "preseason exhibition game; 78412 has 474 career games vs 919's 322.", "manual_curation_2026"),
+            (438, 78493, "werdaro01", "Robert Werdann: phantom duplicate dim_all_players id from an NBA "
+             "preseason exhibition game; 78493 has 41 career games vs 438's 13.", "manual_curation_2026"),
+        ]
+        self.c.executemany(
+            "INSERT INTO dim_player_identity_merge VALUES (?, ?, ?, ?, ?, current_timestamp)",
+            merge_rows,
+        )
 
     def source_columns(self, table_name: str) -> list[str]:
         rows = self.c.execute(
@@ -721,6 +894,23 @@ class WarehouseBuilder:
                 FROM {self.src('fact_player_game_boxscore')}
                 GROUP BY 1
               ) g ON g.player_id = b.nba_player_id
+            ),
+            -- For the known phantom-duplicate-identity pairs in
+            -- dim_player_identity_merge, prefer the explicit
+            -- canonical_player_id over the games-played heuristic above
+            -- (which remains the fallback for undiscovered future
+            -- duplicates -- see meta_known_gap: bbr_duplicate_identity_phantom_ids).
+            merged AS (
+              SELECT r.*,
+                     coalesce(
+                       max(m.canonical_player_id) OVER (PARTITION BY r.bbr_player_id),
+                       first_value(r.nba_player_id) OVER (
+                         PARTITION BY r.bbr_player_id ORDER BY r.preferred_rank
+                       )
+                     ) AS canonical_player_id
+              FROM ranked r
+              LEFT JOIN dim_player_identity_merge m
+                ON m.duplicate_player_id = r.nba_player_id OR m.canonical_player_id = r.nba_player_id
             )
             SELECT
               bbr_player_id,
@@ -728,10 +918,10 @@ class WarehouseBuilder:
               full_name,
               method AS match_method,
               span_score,
-              preferred_rank = 1 AS is_preferred,
-              CASE WHEN preferred_rank = 1 THEN 'resolved' ELSE 'duplicate_identity_alias' END AS resolution_status,
+              nba_player_id = canonical_player_id AS is_preferred,
+              CASE WHEN nba_player_id = canonical_player_id THEN 'resolved' ELSE 'duplicate_identity_alias' END AS resolution_status,
               json_object('bbr_player_id', bbr_player_id, 'nba_player_id', nba_player_id, 'method', method, 'span_score', span_score) AS evidence_json
-            FROM ranked
+            FROM merged
             """
         )
         self.execute(
@@ -793,6 +983,78 @@ class WarehouseBuilder:
               valid_to,
               is_current
             FROM {self.src('dim_team_history')}
+            -- Pre-1996-97 franchise eras: the source feed above only tracks
+            -- city/nickname/abbreviation changes from 1996-97 onward. These
+            -- 50 rows (all 30 current franchises' full history back to
+            -- 1946-49, capped at 1995-96 so nothing overlaps the source
+            -- rows above) are sourced from the sibling basketball-data seed
+            -- database's raw_sqlite.nba__team_history (27 franchises) and
+            -- raw_csv.teamhistories (the 3 franchises missing from that
+            -- table: Spurs, Wizards/Bullets, Hornets/Bobcats lineages).
+            -- abbreviation is left NULL where the source didn't have one --
+            -- team-crosswalk matching (data/audit/build_crosswalk.sql) is
+            -- name-based, not abbreviation-based, for these rows. See
+            -- meta_known_gap: pre_1996_team_identity_uses_current_name
+            -- (superseded by this fix; status updated to resolved).
+            UNION ALL
+            SELECT
+              team_history_sk, team_id, city, nickname, abbreviation,
+              CAST(NULL AS VARCHAR) AS franchise_name, league_id,
+              valid_from_year, valid_to_year, valid_from, valid_to, false AS is_current
+            FROM (
+              VALUES
+                (1000, 1610612737, 'Tri-Cities', 'Blackhawks', NULL, 1949, 1950, '1949-50', '1950-51'),
+                (1001, 1610612737, 'Milwaukee', 'Hawks', NULL, 1951, 1954, '1951-52', '1954-55'),
+                (1002, 1610612737, 'St. Louis', 'Hawks', NULL, 1955, 1967, '1955-56', '1967-68'),
+                (1003, 1610612737, 'Atlanta', 'Hawks', NULL, 1968, 1995, '1968-69', '1995-96'),
+                (1004, 1610612738, 'Boston', 'Celtics', NULL, 1946, 1995, '1946-47', '1995-96'),
+                (1005, 1610612739, 'Cleveland', 'Cavaliers', NULL, 1970, 1995, '1970-71', '1995-96'),
+                (1006, 1610612741, 'Chicago', 'Bulls', NULL, 1966, 1995, '1966-67', '1995-96'),
+                (1007, 1610612742, 'Dallas', 'Mavericks', NULL, 1980, 1995, '1980-81', '1995-96'),
+                (1008, 1610612743, 'Denver', 'Nuggets', NULL, 1976, 1995, '1976-77', '1995-96'),
+                (1009, 1610612744, 'Philadelphia', 'Warriors', NULL, 1946, 1961, '1946-47', '1961-62'),
+                (1010, 1610612744, 'San Francisco', 'Warriors', NULL, 1962, 1970, '1962-63', '1970-71'),
+                (1011, 1610612744, 'Golden State', 'Warriors', NULL, 1971, 1995, '1971-72', '1995-96'),
+                (1012, 1610612745, 'San Diego', 'Rockets', NULL, 1967, 1970, '1967-68', '1970-71'),
+                (1013, 1610612745, 'Houston', 'Rockets', NULL, 1971, 1995, '1971-72', '1995-96'),
+                (1014, 1610612746, 'Buffalo', 'Braves', NULL, 1970, 1977, '1970-71', '1977-78'),
+                (1015, 1610612746, 'San Diego', 'Clippers', NULL, 1978, 1983, '1978-79', '1983-84'),
+                (1016, 1610612746, 'Los Angeles', 'Clippers', NULL, 1984, 1995, '1984-85', '1995-96'),
+                (1017, 1610612747, 'Minneapolis', 'Lakers', NULL, 1948, 1959, '1948-49', '1959-60'),
+                (1018, 1610612747, 'Los Angeles', 'Lakers', NULL, 1960, 1995, '1960-61', '1995-96'),
+                (1019, 1610612748, 'Miami', 'Heat', NULL, 1988, 1995, '1988-89', '1995-96'),
+                (1020, 1610612749, 'Milwaukee', 'Bucks', NULL, 1968, 1995, '1968-69', '1995-96'),
+                (1021, 1610612750, 'Minnesota', 'Timberwolves', NULL, 1989, 1995, '1989-90', '1995-96'),
+                (1022, 1610612751, 'New York', 'Nets', NULL, 1976, 1976, '1976-77', '1976-77'),
+                (1023, 1610612751, 'New Jersey', 'Nets', NULL, 1977, 1995, '1977-78', '1995-96'),
+                (1024, 1610612752, 'New York', 'Knicks', NULL, 1946, 1995, '1946-47', '1995-96'),
+                (1025, 1610612753, 'Orlando', 'Magic', NULL, 1989, 1995, '1989-90', '1995-96'),
+                (1026, 1610612754, 'Indiana', 'Pacers', NULL, 1976, 1995, '1976-77', '1995-96'),
+                (1027, 1610612755, 'Syracuse', 'Nationals', NULL, 1949, 1962, '1949-50', '1962-63'),
+                (1028, 1610612755, 'Philadelphia', '76ers', NULL, 1963, 1995, '1963-64', '1995-96'),
+                (1029, 1610612756, 'Phoenix', 'Suns', NULL, 1968, 1995, '1968-69', '1995-96'),
+                (1030, 1610612757, 'Portland', 'Trail Blazers', NULL, 1970, 1995, '1970-71', '1995-96'),
+                (1031, 1610612758, 'Rochester', 'Royals', NULL, 1948, 1956, '1948-49', '1956-57'),
+                (1032, 1610612758, 'Cincinnati', 'Royals', NULL, 1957, 1971, '1957-58', '1971-72'),
+                (1033, 1610612758, 'Kansas City-Omaha', 'Kings', NULL, 1972, 1974, '1972-73', '1974-75'),
+                (1034, 1610612758, 'Kansas City', 'Kings', NULL, 1975, 1984, '1975-76', '1984-85'),
+                (1035, 1610612758, 'Sacramento', 'Kings', NULL, 1985, 1995, '1985-86', '1995-96'),
+                (1036, 1610612760, 'Seattle', 'SuperSonics', NULL, 1967, 1995, '1967-68', '1995-96'),
+                (1037, 1610612761, 'Toronto', 'Raptors', NULL, 1995, 1995, '1995-96', '1995-96'),
+                (1038, 1610612762, 'New Orleans', 'Jazz', NULL, 1974, 1978, '1974-75', '1978-79'),
+                (1039, 1610612762, 'Utah', 'Jazz', NULL, 1979, 1995, '1979-80', '1995-96'),
+                (1040, 1610612763, 'Vancouver', 'Grizzlies', NULL, 1995, 1995, '1995-96', '1995-96'),
+                (1041, 1610612765, 'Ft. Wayne Zollner', 'Pistons', NULL, 1948, 1956, '1948-49', '1956-57'),
+                (1042, 1610612765, 'Detroit', 'Pistons', NULL, 1957, 1995, '1957-58', '1995-96'),
+                (1043, 1610612759, 'San Antonio', 'Spurs', 'SAN', 1976, 1995, '1976-77', '1995-96'),
+                (1044, 1610612764, 'Chicago', 'Packers', 'CHI', 1961, 1961, '1961-62', '1961-62'),
+                (1045, 1610612764, 'Chicago', 'Zephyrs', 'CHI', 1962, 1962, '1962-63', '1962-63'),
+                (1046, 1610612764, 'Baltimore', 'Bullets', 'BAL', 1963, 1972, '1963-64', '1972-73'),
+                (1047, 1610612764, 'Capital', 'Bullets', 'CAP', 1973, 1973, '1973-74', '1973-74'),
+                (1048, 1610612764, 'Washington', 'Bullets', 'WAS', 1974, 1995, '1974-75', '1995-96'),
+                (1049, 1610612766, 'Charlotte', 'Hornets', 'CHA', 1988, 1995, '1988-89', '1995-96')
+            ) AS pre1996(team_history_sk, team_id, city, nickname, abbreviation,
+                         valid_from_year, valid_to_year, valid_from, valid_to)
             """
         )
         self.execute(
@@ -841,13 +1103,33 @@ class WarehouseBuilder:
               SELECT player_id FROM current_player
               UNION
               SELECT player_id FROM map_player_bbr WHERE is_preferred
+            ),
+            latest_season AS (
+              -- season_year is a VARCHAR label ('2025-26'); compare on its
+              -- start-year int, not the label itself (pre-existing bug --
+              -- comparing to_year BIGINT to this column directly would
+              -- error/never match).
+              SELECT max(CAST(substr(season_year, 1, 4) AS INT)) AS yr
+              FROM {self.src('fact_standings')}
             )
             SELECT
               ids.player_id,
               coalesce(cp.full_name, dap.display_first_last, mb.full_name, dbp.player_name) AS full_name,
               cp.first_name,
               cp.last_name,
-              coalesce(cp.is_active, dap.roster_status = 1, false) AS is_active,
+              -- is_active is derived from to_year vs. the latest known season, not the raw source
+              -- flags: src_dim_player.is_active / src_dim_all_players.roster_status default to
+              -- true/1 for nearly every historical player regardless of career status (see
+              -- meta_known_gap: is_active_trusted_stale_source_flag). A player with a known
+              -- death_date is never active, regardless of what the to_year comparison says.
+              CASE
+                WHEN wd.death_date IS NOT NULL THEN false
+                ELSE COALESCE(
+                  COALESCE(TRY_CAST(cp.to_year AS BIGINT), TRY_CAST(dap.to_year AS BIGINT), dbp.to_year)
+                    >= latest_season.yr,
+                  false
+                )
+              END AS is_active,
               cp.team_id AS current_team_id,
               cp.position,
               cp.jersey_number AS current_jersey_number,
@@ -867,6 +1149,16 @@ class WarehouseBuilder:
               dbp.body_weight_lbs AS bbr_weight_lbs,
               dbp.colleges AS bbr_colleges,
               coalesce(dbp.is_hall_of_fame, false) AS is_hall_of_fame,
+              -- Sourced from Wikidata (property P2685 "Basketball Reference NBA
+              -- player ID" cross-referenced with P570 "date of death"), not a new
+              -- BBR scrape -- the locally cached BBR pages
+              -- (data/anchors/bbref-pages/player_career_stats/*.html) only cover
+              -- 16 players (2 with a death date), far too few to be useful.
+              -- Covers 919 of this warehouse's players (~21.5% of the ~4,271
+              -- retired players with a BBR crosswalk link, consistent with the
+              -- independent academic finding that ~20% of former NBA players had
+              -- died as of 2019) -- see meta_known_gap: no_death_date_source.
+              wd.death_date,
               CASE
                 WHEN cp.player_id IS NOT NULL THEN 'dim_player_current'
                 WHEN dap.person_id IS NOT NULL THEN 'dim_all_players'
@@ -874,10 +1166,13 @@ class WarehouseBuilder:
                 ELSE 'unresolved'
               END AS canonical_source
             FROM all_ids ids
+            CROSS JOIN latest_season
             LEFT JOIN current_player cp ON cp.player_id = ids.player_id
             LEFT JOIN {self.src('dim_all_players')} dap ON dap.person_id = ids.player_id
             LEFT JOIN map_player_bbr mb ON mb.player_id = ids.player_id AND mb.is_preferred
             LEFT JOIN {self.src('dim_bref_player')} dbp ON dbp.bref_player_id = mb.bbr_player_id
+            LEFT JOIN read_json_auto('data/anchors/wikidata_player_deaths.jsonl') wd
+              ON wd.bbr_player_id = mb.bbr_player_id
             """
         )
         self.execute(
@@ -938,10 +1233,81 @@ class WarehouseBuilder:
               FROM {self.src('dim_game')} d
               LEFT JOIN completed c USING (game_id)
               WHERE c.game_id IS NULL
+            ),
+            unioned AS (
+              SELECT * FROM completed
+              UNION ALL
+              SELECT * FROM scheduled
+            ),
+            -- 33 known All-Star game_ids whose raw source season_year has an
+            -- off-by-century bug (parsed 20XX instead of 19XX); these rows
+            -- also carry no game_date in the raw source. Corrected values
+            -- confirmed against the sibling basketball-data seed database's
+            -- raw_sqlite.nba__game table (season_id's trailing 4 digits =
+            -- the correct season-start year). See meta_known_gap:
+            -- all_star_season_year_century_typo.
+            season_year_fixes(fix_game_id, fixed_game_date, fixed_season_year) AS (
+              VALUES
+                ('0035100001', DATE '1952-02-11', '1951-52'),
+                ('0035200001', DATE '1953-01-13', '1952-53'),
+                ('0035400001', DATE '1955-01-18', '1954-55'),
+                ('0035500001', DATE '1956-01-24', '1955-56'),
+                ('0035600001', DATE '1957-01-15', '1956-57'),
+                ('0035700001', DATE '1958-01-21', '1957-58'),
+                ('0035800001', DATE '1959-01-23', '1958-59'),
+                ('0035900001', DATE '1960-01-22', '1959-60'),
+                ('0036000001', DATE '1961-01-17', '1960-61'),
+                ('0036200001', DATE '1963-01-16', '1962-63'),
+                ('0036300001', DATE '1964-01-14', '1963-64'),
+                ('0036400001', DATE '1965-01-13', '1964-65'),
+                ('0036500001', DATE '1966-01-11', '1965-66'),
+                ('0036600001', DATE '1967-01-10', '1966-67'),
+                ('0036700001', DATE '1968-01-23', '1967-68'),
+                ('0036800001', DATE '1969-01-14', '1968-69'),
+                ('0036900001', DATE '1970-01-20', '1969-70'),
+                ('0037000001', DATE '1971-01-12', '1970-71'),
+                ('0037200001', DATE '1973-01-23', '1972-73'),
+                ('0037300001', DATE '1974-01-15', '1973-74'),
+                ('0037500001', DATE '1976-02-03', '1975-76'),
+                ('0037700001', DATE '1978-02-05', '1977-78'),
+                ('0037900001', DATE '1980-02-03', '1979-80'),
+                ('0038000001', DATE '1981-02-01', '1980-81'),
+                ('0038200001', DATE '1983-02-13', '1982-83'),
+                ('0038500001', DATE '1986-02-09', '1985-86'),
+                ('0038600001', DATE '1987-02-08', '1986-87'),
+                ('0038700001', DATE '1988-02-07', '1987-88'),
+                ('0039400001', DATE '1995-02-12', '1994-95'),
+                ('0039500001', DATE '1996-02-11', '1995-96'),
+                ('0039600001', DATE '1997-02-09', '1996-97'),
+                ('0039700001', DATE '1998-02-08', '1997-98'),
+                ('0039900001', DATE '2000-02-13', '1999-00')
             )
-            SELECT * FROM completed
-            UNION ALL
-            SELECT * FROM scheduled
+            SELECT
+              u.game_id,
+              coalesce(f.fixed_game_date, u.game_date) AS game_date,
+              u.game_datetime_est,
+              coalesce(f.fixed_season_year, u.season_year) AS season_year,
+              u.season_type,
+              u.game_type,
+              u.game_subtype,
+              u.game_label,
+              u.game_sub_label,
+              u.series_game_number,
+              u.home_team_id,
+              u.away_team_id,
+              u.home_score,
+              u.away_score,
+              u.winner_team_id,
+              u.arena_id,
+              u.arena_name,
+              u.arena_city,
+              u.arena_state,
+              u.attendance,
+              u.is_overtime,
+              u.game_status,
+              u.canonical_source
+            FROM unioned u
+            LEFT JOIN season_year_fixes f ON f.fix_game_id = u.game_id
             """
         )
         self.execute(
@@ -1238,6 +1604,18 @@ class WarehouseBuilder:
               conference, award_type, subtype1, subtype2, subtype3,
               'fact_player_awards_bbr_rebuilt' AS canonical_source
             FROM {self.src('fact_player_awards')}
+            -- The 1950 NBA ROY (Alex Groza, src_stg_bref_player_award_shares
+            -- has the award row but nba_player_id is unresolved there) is
+            -- missing from the upstream fact_player_awards source entirely.
+            -- Both sides of the identity already exist in this warehouse
+            -- (dim_player.player_id=76897); added directly rather than a
+            -- general crosswalk fix since it's a single known row -- see
+            -- meta_known_gap: missing_1950_roy_groza.
+            UNION ALL
+            SELECT
+              76897, 'nba roy winner', CAST(NULL AS BIGINT), '1950', CAST(NULL AS VARCHAR),
+              CAST(NULL AS VARCHAR), CAST(NULL AS VARCHAR), 'nba roy', 'Selected',
+              CAST(NULL AS VARCHAR), CAST(NULL AS VARCHAR), 'fact_player_awards_bbr_rebuilt'
             """
         )
         self.execute(
@@ -1248,27 +1626,83 @@ class WarehouseBuilder:
                 TRY_CAST(person_id AS BIGINT) AS player_id,
                 player_name,
                 season AS draft_year,
-                round_number, round_pick, overall_pick, draft_type,
+                round_number, round_pick, overall_pick AS raw_overall_pick, draft_type,
                 TRY_CAST(team_id AS BIGINT) AS team_id,
                 team_city, team_name, team_abbreviation,
                 organization, organization_type, player_profile_flag
               FROM {self.src('draft_history')}
             ),
+            -- Classify against the ORIGINAL (uncorrected) overall_pick first --
+            -- only rows already flagged duplicate_source_slot are eligible for
+            -- BBR correction below, so this never reclassifies unknown_pick/
+            -- territorial_or_unranked/unique_slot rows as a side effect.
             flagged AS (
               SELECT raw.*,
-                     count(*) OVER (PARTITION BY draft_year, overall_pick) AS same_overall_pick_rows
+                     CASE
+                       WHEN raw_overall_pick IS NULL THEN 'unknown_pick'
+                       WHEN raw_overall_pick <= 0 THEN 'territorial_or_unranked'
+                       WHEN count(*) OVER (PARTITION BY draft_year, raw_overall_pick) > 1
+                         THEN 'duplicate_source_slot'
+                       ELSE 'unique_slot'
+                     END AS original_status
               FROM raw
+            ),
+            -- Corrected overall_pick from Basketball-Reference's clean draft
+            -- history, matched by nba_player_id first, then by normalized
+            -- player name for rows lacking that link (excluding name+season
+            -- keys shared by two distinct real players, e.g. two different
+            -- "Charles Jones"es in the 1983 draft -- ambiguous, left
+            -- unmatched rather than risk picking the wrong one). Resolves
+            -- 212 of 224 rows previously flagged duplicate_source_slot
+            -- (confirmed e.g. 2002 picks 35/36 = Boozer/Vujanic against two
+            -- independent web sources); 12 residual OCR/spelling-variant
+            -- cases from 1949-1997 remain unresolved -- see meta_known_gap:
+            -- draft_duplicate_pick_number_bbr_correction.
+            bbr_by_id AS (
+              SELECT nba_player_id AS player_id, season AS draft_year,
+                     TRY_CAST(overall_pick AS INT) AS bbr_overall_pick
+              FROM {self.src('stg_bref_draft_pick_history')}
+              WHERE nba_player_id IS NOT NULL
+              QUALIFY count(*) OVER (PARTITION BY nba_player_id, season) = 1
+            ),
+            bbr_by_name AS (
+              SELECT lower(trim(player)) AS nname, season AS draft_year,
+                     TRY_CAST(overall_pick AS INT) AS bbr_overall_pick
+              FROM {self.src('stg_bref_draft_pick_history')}
+              QUALIFY count(*) OVER (PARTITION BY lower(trim(player)), season) = 1
+            ),
+            corrected AS (
+              SELECT
+                f.player_id, f.player_name, f.draft_year, f.round_number, f.round_pick,
+                f.draft_type, f.team_id, f.team_city, f.team_name, f.team_abbreviation,
+                f.organization, f.organization_type, f.player_profile_flag, f.original_status,
+                CASE WHEN f.original_status = 'duplicate_source_slot'
+                     THEN coalesce(bid.bbr_overall_pick, bname.bbr_overall_pick, f.raw_overall_pick)
+                     ELSE f.raw_overall_pick END AS overall_pick,
+                f.original_status = 'duplicate_source_slot'
+                  AND coalesce(bid.bbr_overall_pick, bname.bbr_overall_pick) IS NOT NULL AS was_bbr_corrected
+              FROM flagged f
+              LEFT JOIN bbr_by_id bid ON bid.player_id = f.player_id AND bid.draft_year = f.draft_year
+              LEFT JOIN bbr_by_name bname
+                ON bname.nname = lower(trim(f.player_name)) AND bname.draft_year = f.draft_year
+            ),
+            recomputed AS (
+              SELECT c.*,
+                     count(*) OVER (PARTITION BY draft_year, overall_pick) AS same_overall_pick_rows_new
+              FROM corrected c
             )
             SELECT
-              *,
+              player_id, player_name, draft_year, round_number, round_pick, overall_pick, draft_type,
+              team_id, team_city, team_name, team_abbreviation, organization, organization_type,
+              player_profile_flag,
               CASE
-                WHEN overall_pick IS NULL THEN 'unknown_pick'
-                WHEN overall_pick <= 0 THEN 'territorial_or_unranked'
-                WHEN same_overall_pick_rows > 1 THEN 'duplicate_source_slot'
-                ELSE 'unique_slot'
+                WHEN was_bbr_corrected THEN 'resolved_from_bbr'
+                WHEN original_status = 'duplicate_source_slot' AND same_overall_pick_rows_new > 1
+                  THEN 'duplicate_source_slot'
+                ELSE original_status
               END AS draft_slot_status,
               'draft_history_bbr_rebuilt' AS canonical_source
-            FROM flagged
+            FROM recomputed
             """
         )
         self.execute(
@@ -1678,6 +2112,22 @@ class WarehouseBuilder:
         legacy_tables = self.scalar("SELECT count(*) FROM meta_table_fate WHERE fate = 'legacy_do_not_use'")
         self.record_check("source", "legacy_tables_classified", True, "info", legacy_tables, "documented")
 
+        # Guards against the is_active_trusted_stale_source_flag regression
+        # (comparing to_year BIGINT against fact_standings.season_year VARCHAR
+        # directly silently broke the is_active derivation entirely).
+        stale_active = self.scalar(
+            "SELECT count(*) FROM dim_player WHERE is_active AND to_year < "
+            "(SELECT max(CAST(substr(season_year, 1, 4) AS INT)) FROM fact_standings)"
+        )
+        self.record_check("player", "no_stale_is_active_flags", int(stale_active) == 0, "fail", stale_active, 0)
+        active_count = self.scalar("SELECT count(*) FROM dim_player WHERE is_active")
+        self.record_check(
+            "player", "active_player_count_plausible", int(active_count) <= 700, "warn", active_count,
+            "<=700 (the NBA has ~500-600 active players at a time)"
+        )
+        death_dates = self.scalar("SELECT count(*) FROM dim_player WHERE death_date IS NOT NULL")
+        self.record_check("player", "death_date_coverage", int(death_dates) >= 800, "warn", death_dates, ">=800")
+
         checks = [
             ("map", "unique_player_source_id", "map_player_source_id", "source_system, source_id"),
             ("map", "unique_team_source_id", "map_team_source_id", "source_system, source_id"),
@@ -1840,6 +2290,20 @@ class WarehouseBuilder:
             "fail",
             f"{duplicate_draft_slots} duplicate slots; {unclassified_draft_dupes} unclassified",
             "all duplicates classified",
+        )
+        # BBR-correction reduced the raw duplicate_source_slot count from
+        # 224 to 12 (see meta_known_gap: draft_duplicate_pick_number_bbr_correction);
+        # ceiling with headroom, same pattern as bbr_residual_gap_within_ceiling.
+        residual_draft_dupes = self.scalar(
+            "SELECT count(*) FROM fact_draft WHERE draft_slot_status = 'duplicate_source_slot'"
+        )
+        self.record_check(
+            "draft",
+            "draft_duplicate_slot_residual_within_ceiling",
+            int(residual_draft_dupes) <= 20,
+            "warn",
+            residual_draft_dupes,
+            "<=20 (see meta_known_gap: draft_duplicate_pick_number_bbr_correction)",
         )
 
         abbrev_mismatches = self.scalar(

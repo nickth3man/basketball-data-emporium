@@ -33,7 +33,7 @@ WITH spans AS (
   SELECT player_id,
          min(CAST(substr(season_year, 1, 4) AS INT)) + 1 AS from_end_year,
          max(CAST(substr(season_year, 1, 4) AS INT)) + 1 AS to_end_year
-  FROM wh.agg_player_season
+  FROM wh.mart_player_season
   GROUP BY 1
 )
 SELECT d.player_id AS nba_player_id,
@@ -42,8 +42,7 @@ SELECT d.player_id AS nba_player_id,
        s.from_end_year,
        s.to_end_year
 FROM wh.dim_player d
-JOIN spans s ON d.player_id = s.player_id
-WHERE d.is_current;
+JOIN spans s ON d.player_id = s.player_id;
 
 CREATE OR REPLACE TEMP TABLE bbr_players AS
 WITH nba_spans AS (
@@ -241,28 +240,39 @@ COPY (
 
 -- ------------------------------------------------------------------ teams
 
--- Warehouse team-season identity: game logs where present (1996-97+),
--- the historical `game` table before that. Seasons keyed by END year to
--- match BBR convention.
+-- Warehouse team-season identity, keyed by season END year to match BBR
+-- convention. dim_game's home/away team_id is NBA.com's stable numeric id,
+-- consistent across a franchise's entire history (including relocations),
+-- so season coverage spans the full 1946-47+ warehouse. Era-accurate
+-- naming (dim_team_era) only exists from 1996-97 onward -- the source feed
+-- doesn't track city/nickname changes before that -- so pre-1996 seasons
+-- fall back to each team_id's earliest-tracked (1996-era) identity, which
+-- is factually wrong for the handful of franchises that relocated/renamed
+-- before 1996 (e.g. Minneapolis->LA Lakers, 1960). See meta_known_gap:
+-- pre_1996_team_identity_uses_current_name.
 CREATE OR REPLACE TEMP TABLE wh_team_seasons AS
-SELECT DISTINCT
-       CAST(substr(season_id, 1, 4) AS INT) + 1 AS season,
-       team_id, team_abbreviation, team_name
-FROM wh.fact_team_game_log
-UNION
-SELECT DISTINCT
-       CAST(substr(season_id, 2) AS INT) + 1 AS season,
-       team_id_home, team_abbreviation_home, team_name_home
-FROM wh.game
-WHERE season_type = 'Regular Season'
-  AND CAST(substr(season_id, 2) AS INT) < 1996
-UNION
-SELECT DISTINCT
-       CAST(substr(season_id, 2) AS INT) + 1 AS season,
-       team_id_away, team_abbreviation_away, team_name_away
-FROM wh.game
-WHERE season_type = 'Regular Season'
-  AND CAST(substr(season_id, 2) AS INT) < 1996;
+WITH game_teams AS (
+  SELECT season_year, home_team_id AS team_id FROM wh.dim_game WHERE season_type = 'Regular'
+  UNION ALL
+  SELECT season_year, away_team_id AS team_id FROM wh.dim_game WHERE season_type = 'Regular'
+),
+seasons AS (
+  SELECT DISTINCT CAST(substr(season_year, 1, 4) AS INT) + 1 AS season, team_id
+  FROM game_teams
+),
+earliest_era AS (
+  SELECT team_id, city, nickname, abbreviation,
+         row_number() OVER (PARTITION BY team_id ORDER BY valid_from_year) AS rn
+  FROM wh.dim_team_era
+)
+SELECT s.season, s.team_id,
+       coalesce(e.abbreviation, ee.abbreviation) AS team_abbreviation,
+       coalesce(e.city || ' ' || e.nickname, ee.city || ' ' || ee.nickname) AS team_name
+FROM seasons s
+LEFT JOIN wh.dim_team_era e
+  ON e.team_id = s.team_id
+ AND s.season BETWEEN e.valid_from_year AND coalesce(e.valid_to_year, 9999)
+LEFT JOIN earliest_era ee ON ee.team_id = s.team_id AND ee.rn = 1;
 
 -- NBA.com and BBR disagree on a handful of display names; normalise the
 -- NBA.com side toward BBR before joining.

@@ -74,7 +74,7 @@ SELECT
   count(*) OVER (PARTITION BY c.team_id, c.season_year) AS coaches_in_season,
   c.source_url
 FROM read_json_auto('data/anchors/bbr_coaches.jsonl') c
-LEFT JOIN dim_team_history th ON th.team_id = c.team_id AND th.is_current
+LEFT JOIN dim_team_era th ON th.team_id = c.team_id AND th.is_current
 ORDER BY c.team_id, c.season_end_year, coach_name;
 
 -- -------------------------------------------------- fact_player_jersey_season
@@ -83,33 +83,28 @@ CREATE OR REPLACE TABLE fact_player_jersey_season AS
 WITH pxw AS (
   -- NBA <-> BBR player crosswalk, one warehouse id per BBR player
   -- (duplicate-identity ids rank by game-log volume) — same dedup rule as
-  -- PLAYER_BBR_XWALK_CTE in the server.
-  SELECT bbr_player_id, nba_player_id
-  FROM (
-    SELECT b.bbr_player_id, b.nba_player_id,
-           row_number() OVER (
-             PARTITION BY b.bbr_player_id
-             ORDER BY coalesce(g.gp, 0) DESC, b.nba_player_id
-           ) AS rn
-    FROM bridge_player_bbr b
-    LEFT JOIN (SELECT player_id, count(*) AS gp FROM fact_player_game_log GROUP BY 1) g
-      ON g.player_id = b.nba_player_id
-  ) WHERE rn = 1
+  -- PLAYER_BBR_XWALK_CTE in the server. map_player_bbr already carries this
+  -- ranking (is_preferred), computed once in build_nba.py's build_maps() —
+  -- read it directly instead of re-deriving it here.
+  SELECT bbr_player_id, player_id AS nba_player_id
+  FROM map_player_bbr
+  WHERE is_preferred
 ),
 -- Player-team-seasons where the player actually appeared (regular season,
 -- gp > 0) — the candidate grain, and the validity gate for observed/bridge
 -- jerseys. Traded players have one row per team.
 stats AS (
+  -- fact_player_season_box already carries a resolved canonical player_id
+  -- directly (no pxw/slug fallback needed, unlike the pre-migration
+  -- fact_player_season_stat_resolved this replaces).
   SELECT DISTINCT
-    coalesce(r.person_id, x.nba_player_id) AS player_id,
-    r.team_id,
-    end_year_to_season(r.season) AS season_year
-  FROM fact_player_season_stat_resolved r
-  LEFT JOIN pxw x ON r.person_id IS NULL AND x.bbr_player_id = r.slug
-  WHERE NOT r.is_playoffs
-    AND r.gp > 0
-    AND r.team_id IS NOT NULL
-    AND coalesce(r.person_id, x.nba_player_id) IS NOT NULL
+    player_id,
+    team_id,
+    season_year
+  FROM fact_player_season_box
+  WHERE season_type = 'Regular'
+    AND gp > 0
+    AND team_id IS NOT NULL
 ),
 -- Tier 1: jersey numbers observed on real game inactive lists (1996-97+).
 per_game AS (
@@ -118,8 +113,8 @@ per_game AS (
     try_cast(ip.team_id AS BIGINT) AS team_id,
     trim(ip.jersey_num) AS jersey_num,
     g.season_year
-  FROM inactive_players ip
-  JOIN fact_game g ON g.game_id = ip.game_id
+  FROM src_inactive_players ip
+  JOIN dim_game g ON g.game_id = ip.game_id
   WHERE trim(ip.jersey_num) != ''
 ),
 per_season_ip AS (
@@ -167,7 +162,7 @@ bridge_dedup AS (
     try_cast(b.team_id AS BIGINT) AS team_id,
     trim(b.jersey_number) AS jersey_num,
     b.season_year
-  FROM bridge_player_team_season b
+  FROM src_bridge_player_team_season b
   JOIN stats s
     ON s.player_id = b.player_id
     AND s.team_id = try_cast(b.team_id AS BIGINT)
@@ -240,17 +235,16 @@ combined AS (
 resolved AS (
   SELECT *
   FROM combined
-  WHERE EXISTS (SELECT 1 FROM dim_team_history th WHERE th.team_id = combined.team_id)
+  WHERE EXISTS (SELECT 1 FROM dim_team_era th WHERE th.team_id = combined.team_id)
   QUALIFY row_number() OVER (
     PARTITION BY player_id, team_id, season_year
     ORDER BY source_priority, jersey_num
   ) = 1
 ),
 player_names AS (
+  -- dim_player is already one row per player_id; no dedup needed.
   SELECT player_id, full_name
   FROM dim_player
-  WHERE is_current
-  QUALIFY row_number() OVER (PARTITION BY player_id ORDER BY player_sk DESC) = 1
 )
 SELECT
   r.player_id,
@@ -264,6 +258,6 @@ SELECT
   r.source
 FROM resolved r
 LEFT JOIN player_names pn ON pn.player_id = r.player_id
-LEFT JOIN stg_common_all_players cap ON cap.person_id = r.player_id
-LEFT JOIN dim_team_history th ON th.team_id = r.team_id AND th.is_current
+LEFT JOIN src_dim_all_players cap ON cap.person_id = r.player_id
+LEFT JOIN dim_team_era th ON th.team_id = r.team_id AND th.is_current
 ORDER BY player_name, r.season_year, r.team_id;

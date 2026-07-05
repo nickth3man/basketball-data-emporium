@@ -3,6 +3,11 @@
 -- run AFTER it, same invocation pattern):
 --   duckdb data/nba.duckdb -c ".read data/audit/rebuild_leaders_layer.sql"
 --
+-- HISTORICAL / ARCHIVAL RECORD -- NOT part of the routine rebuild pipeline,
+-- same caveat as rebuild_curated_layer.sql: predates the 2026-07-04 schema
+-- rebuild, and the app no longer consumes these table names. Kept for
+-- provenance/reference only.
+--
 -- Targets (all still carried the franchise-era fan-out inflation the 2026-07
 -- audit documented; verified via Kobe's LAL points 38,108 vs true 33,643 and
 -- Jokic's 2022-23 PTS rank 26):
@@ -76,7 +81,7 @@ FROM (
            ORDER BY coalesce(g.gp, 0) DESC, b.nba_player_id
          ) AS rn
   FROM bridge_player_bbr b
-  LEFT JOIN (SELECT player_id, count(*) AS gp FROM fact_player_game_log GROUP BY 1) g
+  LEFT JOIN (SELECT player_id, count(*) AS gp FROM fact_player_game_box GROUP BY 1) g
     ON g.player_id = b.nba_player_id
 ) WHERE rn = 1;
 
