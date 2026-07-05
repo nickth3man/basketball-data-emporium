@@ -9,7 +9,7 @@
   "bbr_source_url": "https://www.basketball-reference.com/players/h/hardeja01.html",
   "assertion_mode": "raw_sql",
   "query_target": {
-    "sql": "SELECT CAST(SUM(gp) AS INTEGER) AS gp, CAST(SUM(pts) AS INTEGER) AS pts FROM fact_player_season_stat_resolved WHERE person_id = 201935 AND season = 2021 AND is_playoffs = false",
+    "sql": "SELECT CAST(SUM(gp) AS INTEGER) AS gp, CAST(SUM(total_pts) AS INTEGER) AS pts FROM mart_player_season WHERE player_id = 201935 AND season_year = '2020-21' AND season_type = 'Regular'",
     "extract": "[0]"
   },
   "match": "objectMatching",

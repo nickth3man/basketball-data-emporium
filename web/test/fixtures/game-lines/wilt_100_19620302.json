@@ -3,7 +3,7 @@
   "datapoint_class": "famous_game_line",
   "entity": "Wilt Chamberlain 100 PTS vs New York Knicks on 1962-03-02 (PHW 169-147, all-time NBA single-game record, in Hershey PA)",
   "expected": {
-    "player_name": "Wilt Chamberlain",
+    "full_name": "Wilt Chamberlain",
     "game_date": "1962-03-02",
     "season_year": "1961-62",
     "pts": 100,
@@ -16,11 +16,11 @@
   "bbr_source_url": "https://www.basketball-reference.com/boxscores/196203020PHW.html",
   "assertion_mode": "raw_sql",
   "query_target": {
-    "sql": "SELECT player_id, player_name, team_abbreviation, game_id, game_date, season_year, pts, reb, ast, fgm, fga, ftm, fta FROM analytics_player_game_complete WHERE game_date = '1962-03-02' AND player_name = 'Wilt Chamberlain' AND pts = 100 LIMIT 1"
+    "sql": "SELECT player_id, full_name, team_abbreviation, game_id, CAST(game_date AS VARCHAR) AS game_date, season_year, pts, reb, ast, fgm, fga, ftm, fta FROM analytics_player_game_complete WHERE game_date = '1962-03-02' AND full_name = 'Wilt Chamberlain' AND pts = 100 LIMIT 1"
   },
   "match": "containsObject",
   "status": "stable",
   "confidence": "verified",
-  "notes": "The 100-point game is pre-1996-97, so fact_player_game_log (which starts 1996-11-01) doesn't have it. analytics_player_game_complete covers the full historical back to 1946 and has the row. The franchise had three era-matching abbreviations (PHI/SF/GSW) for that game_id; LIMIT 1 picks the canonical PHI row.",
+  "notes": "The 100-point game is pre-1996-97, so analytics_player_game_complete (which starts 1996-11-01) doesn't have it. analytics_player_game_complete covers the full historical back to 1946 and has the row. The franchise had three era-matching abbreviations (PHI/SF/GSW) for that game_id; LIMIT 1 picks the canonical PHI row.",
   "skip_if_no_db": true
 }

@@ -3,7 +3,7 @@
   "datapoint_class": "famous_game_line",
   "entity": "Klay Thompson 52 PTS (37 in the 3rd quarter) vs Sacramento Kings on 2015-01-23 (GSW 126-101; the 37-point quarter is the NBA record for points in a single quarter)",
   "expected": {
-    "player_name": "Klay Thompson",
+    "full_name": "Klay Thompson",
     "team_abbreviation": "GSW",
     "game_date": "2015-01-23",
     "pts": 52,
@@ -13,11 +13,11 @@
   "bbr_source_url": "https://www.basketball-reference.com/boxscores/201501230GSW.html",
   "assertion_mode": "raw_sql",
   "query_target": {
-    "sql": "SELECT player_name, team_abbreviation, game_date, pts, min, fgm, fga, fg3m, fg3a FROM fact_player_game_log WHERE player_name = 'Klay Thompson' AND game_date = '2015-01-23' AND pts = 52"
+    "sql": "SELECT full_name, team_abbreviation, CAST(game_date AS VARCHAR) AS game_date, pts, min, fgm, fga, fg3m, fg3a FROM analytics_player_game_complete WHERE full_name = 'Klay Thompson' AND game_date = '2015-01-23' AND pts = 52"
   },
   "match": "containsObject",
   "status": "stable",
   "confidence": "verified",
-  "notes": "fact_player_game_log only stores per-game totals, not per-quarter splits; the 37-point quarter is a sub-game stat. The fixture pins the game total (52 PTS) on the date BBR records it, with fg3m=11 / fg3a=15 as a discriminator (Klay's 11 3PM on 15 attempts is the in-game signature of the 3rd-quarter explosion).",
+  "notes": "analytics_player_game_complete only stores per-game totals, not per-quarter splits; the 37-point quarter is a sub-game stat. The fixture pins the game total (52 PTS) on the date BBR records it, with fg3m=11 / fg3a=15 as a discriminator (Klay's 11 3PM on 15 attempts is the in-game signature of the 3rd-quarter explosion).",
   "skip_if_no_db": true
 }

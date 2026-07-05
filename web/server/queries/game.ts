@@ -302,55 +302,15 @@ export async function getGameDetail(gameId: string): Promise<GameDetail> {
     queryObjects(
       `WITH game_row AS (
          SELECT g.*, TRY_CAST(substr(CAST(g.season_year AS VARCHAR), 1, 4) AS INTEGER) AS season_start
-         FROM fact_game g
+         FROM dim_game g
          WHERE g.game_id = ?
-       ),
-       home_history AS (
-         SELECT *
-         FROM (
-           SELECT th.*,
-                  ROW_NUMBER() OVER (
-                    ORDER BY
-                      CASE
-                        WHEN g.season_start >= TRY_CAST(substr(th.valid_from, 1, 4) AS INTEGER)
-                         AND (th.valid_to IS NULL OR g.season_start <= TRY_CAST(substr(th.valid_to, 1, 4) AS INTEGER))
-                        THEN 0
-                        WHEN th.is_current THEN 1
-                        ELSE 2
-                      END,
-                      TRY_CAST(substr(th.valid_from, 1, 4) AS INTEGER) DESC NULLS LAST
-                  ) AS rn
-           FROM game_row g
-           JOIN dim_team_history th ON th.team_id = g.home_team_id
-         )
-         WHERE rn = 1
-       ),
-       away_history AS (
-         SELECT *
-         FROM (
-           SELECT th.*,
-                  ROW_NUMBER() OVER (
-                    ORDER BY
-                      CASE
-                        WHEN g.season_start >= TRY_CAST(substr(th.valid_from, 1, 4) AS INTEGER)
-                         AND (th.valid_to IS NULL OR g.season_start <= TRY_CAST(substr(th.valid_to, 1, 4) AS INTEGER))
-                        THEN 0
-                        WHEN th.is_current THEN 1
-                        ELSE 2
-                      END,
-                      TRY_CAST(substr(th.valid_from, 1, 4) AS INTEGER) DESC NULLS LAST
-                  ) AS rn
-           FROM game_row g
-           JOIN dim_team_history th ON th.team_id = g.away_team_id
-         )
-         WHERE rn = 1
        ),
        context_header AS (
          SELECT game_id,
                 max(attendance) AS attendance,
                 max(NULLIF(game_time, '')) AS game_time,
                 max(NULLIF(game_status_text, '')) AS game_status_text
-         FROM fact_game_context
+         FROM src_fact_game_context
          WHERE game_id = ?
          GROUP BY game_id
        )
@@ -359,31 +319,39 @@ export async function getGameDetail(gameId: string): Promise<GameDetail> {
               g.home_team_id, g.away_team_id, g.home_score, g.away_score,
               g.winner_team_id, g.arena_id,
               COALESCE(g.arena_name, a.arena_name) AS arena_name,
-              COALESCE(g.arena_city, a.city) AS arena_city,
-              COALESCE(g.arena_state, a.state) AS arena_state,
+              COALESCE(g.arena_city, a.arena_city) AS arena_city,
+              COALESCE(g.arena_state, a.arena_state) AS arena_state,
               COALESCE(g.attendance, gi.attendance, gs.attendance, ch.attendance) AS attendance,
-              g.is_overtime, g.odds_home, g.odds_away,
-              th_home.abbreviation AS home_abbreviation, th_home.city AS home_city,
-              th_home.nickname AS home_name,
-              th_away.abbreviation AS away_abbreviation, th_away.city AS away_city,
-              th_away.nickname AS away_name,
+              g.is_overtime,
+              COALESCE(th_home.abbreviation, cur_home.abbreviation) AS home_abbreviation,
+              COALESCE(th_home.city, cur_home.city) AS home_city,
+              COALESCE(th_home.nickname, cur_home.nickname) AS home_name,
+              COALESCE(th_away.abbreviation, cur_away.abbreviation) AS away_abbreviation,
+              COALESCE(th_away.city, cur_away.city) AS away_city,
+              COALESCE(th_away.nickname, cur_away.nickname) AS away_name,
               gs.game_status, COALESCE(gs.game_status_text, ch.game_status_text) AS game_status_text,
               gs.game_clock, gs.game_time_utc, gs.game_et,
               COALESCE(gs.duration, gi.game_duration, ch.game_time) AS game_duration,
               gs.sellout
        FROM game_row g
-       LEFT JOIN home_history th_home ON true
-       LEFT JOIN away_history th_away ON true
+       LEFT JOIN dim_team_era th_home
+         ON th_home.team_id = g.home_team_id
+         AND g.season_start BETWEEN th_home.valid_from_year AND th_home.valid_to_year
+       LEFT JOIN dim_team_era cur_home ON cur_home.team_id = g.home_team_id AND cur_home.is_current
+       LEFT JOIN dim_team_era th_away
+         ON th_away.team_id = g.away_team_id
+         AND g.season_start BETWEEN th_away.valid_from_year AND th_away.valid_to_year
+       LEFT JOIN dim_team_era cur_away ON cur_away.team_id = g.away_team_id AND cur_away.is_current
        LEFT JOIN dim_arena a ON a.arena_id = g.arena_id
-       LEFT JOIN fact_box_score_summary_v3_game_info gi ON gi.game_id = g.game_id
-       LEFT JOIN fact_box_score_summary_v3_game_summary gs ON gs.game_id = g.game_id
+       LEFT JOIN src_fact_box_score_summary_v3_game_info gi ON gi.game_id = g.game_id
+       LEFT JOIN src_fact_box_score_summary_v3_game_summary gs ON gs.game_id = g.game_id
        LEFT JOIN context_header ch ON ch.game_id = g.game_id
        LIMIT 1`,
       [gameId, gameId],
     ),
     queryObjects(
       `SELECT game_id, team_id, period, pts
-       FROM fact_game_quarter_scores
+       FROM src_fact_game_quarter_scores
        WHERE game_id = ?
        ORDER BY period, team_id`,
       [gameId],
@@ -394,7 +362,7 @@ export async function getGameDetail(gameId: string): Promise<GameDetail> {
               pts_ot1, pts_ot2, pts_ot3, pts_ot4, pts_ot5,
               pts_ot6, pts_ot7, pts_ot8, pts_ot9, pts_ot10,
               pts
-       FROM fact_scoreboard_line_score
+       FROM src_fact_scoreboard_line_score
        WHERE game_id = ?`,
       [gameId],
     ),
@@ -404,23 +372,22 @@ export async function getGameDetail(gameId: string): Promise<GameDetail> {
               period1_score AS pts_qtr1, period2_score AS pts_qtr2,
               period3_score AS pts_qtr3, period4_score AS pts_qtr4,
               score AS pts
-       FROM fact_box_score_summary_v3_line_score
+       FROM src_fact_box_score_summary_v3_line_score
        WHERE game_id = ?`,
       [gameId],
     ),
-    queryObjects(`SELECT * FROM line_score WHERE game_id = ? LIMIT 1`, [gameId]),
+    queryObjects(`SELECT * FROM src_line_score WHERE game_id = ? LIMIT 1`, [gameId]),
     queryObjects(
-      `SELECT 'fact_box_score_team' AS box_score_source,
+      `SELECT 'fact_team_game_box' AS box_score_source,
               t.game_id, t.team_id,
-              CASE WHEN t.team_id = g.home_team_id THEN 'home' ELSE 'away' END AS team_side,
+              CASE WHEN t.is_home THEN 'home' ELSE 'away' END AS team_side,
               t.team_name, t.team_abbreviation, t.team_city,
               t.min, t.fgm, t.fga, t.fg_pct, t.fg3m, t.fg3a, t.fg3_pct,
               t.ftm, t.fta, t.ft_pct, t.oreb, t.dreb, t.reb,
               t.ast, t.stl, t.blk, t.tov, t.pf, t.pts, t.plus_minus
-       FROM fact_box_score_team t
-       JOIN fact_game g ON g.game_id = t.game_id
+       FROM fact_team_game_box t
        WHERE t.game_id = ?
-       ORDER BY CASE WHEN t.team_id = g.away_team_id THEN 0 ELSE 1 END`,
+       ORDER BY CASE WHEN t.is_home THEN 1 ELSE 0 END`,
       [gameId],
     ),
     queryObjects(
@@ -451,38 +418,36 @@ export async function getGameDetail(gameId: string): Promise<GameDetail> {
               TRY_CAST(foulsPersonal AS DOUBLE) AS pf,
               TRY_CAST(teamScore AS DOUBLE) AS pts,
               TRY_CAST(plusMinusPoints AS DOUBLE) AS plus_minus
-       FROM teamstatisticsextended
+       FROM src_teamstatisticsextended
        WHERE lpad(gameId, 10, '0') = ?
        ORDER BY CASE WHEN home = '0' THEN 0 ELSE 1 END`,
       [gameId],
     ),
     queryObjects(
-      `SELECT 'fact_player_game_boxscore' AS box_score_source,
+      `SELECT 'fact_player_game_box' AS box_score_source,
               b.game_id, b.player_id, b.team_id, b.opponent_team_id,
-              CASE WHEN b.team_id = g.home_team_id THEN 'home' ELSE 'away' END AS team_side,
-              CASE WHEN b.team_id = g.home_team_id THEN th_home.abbreviation ELSE th_away.abbreviation END AS team_abbreviation,
-              CASE WHEN b.team_id = g.home_team_id THEN th_home.nickname ELSE th_away.nickname END AS team_name,
+              CASE WHEN b.is_home THEN 'home' ELSE 'away' END AS team_side,
+              own_era.abbreviation AS team_abbreviation,
+              own_era.nickname AS team_name,
               p.full_name, b.is_home, b.is_win, NULLIF(b.starting_position, '') AS starting_position,
-              NULLIF(b.comment, '') AS comment, b.min, b.points, b.assists, b.blocks, b.steals,
-              b.turnovers, b.fga, b.fgm, b.fg_pct, b.fg3a, b.fg3m, b.fg3_pct,
-              b.fta, b.ftm, b.ft_pct, b.oreb, b.dreb, b.reb, b.fouls_personal,
+              NULLIF(b.comment, '') AS comment, b.min, b.pts AS points, b.ast AS assists, b.blk AS blocks, b.stl AS steals,
+              b.tov AS turnovers, b.fga, b.fgm, b.fg_pct, b.fg3a, b.fg3m, b.fg3_pct,
+              b.fta, b.ftm, b.ft_pct, b.oreb, b.dreb, b.reb, b.pf AS fouls_personal,
               b.plus_minus, b.off_rating, b.def_rating, b.net_rating, b.ast_pct,
               b.ast_to_turnover_ratio, b.ast_ratio, b.oreb_pct, b.dreb_pct, b.reb_pct,
               b.tov_pct, b.efg_pct, b.ts_pct, b.usg_pct, b.pace, b.pie,
               CASE
-                WHEN TRY_CAST(substr(CAST(g.season_year AS VARCHAR), 1, 4) AS INTEGER) < 1996
+                WHEN TRY_CAST(substr(CAST(b.season_year AS VARCHAR), 1, 4) AS INTEGER) < 1996
                 THEN 'scoring_only'
                 ELSE 'modern'
               END AS coverage_level
-       FROM fact_player_game_boxscore b
-       JOIN fact_game g ON g.game_id = b.game_id
-       LEFT JOIN dim_player p ON p.player_id = b.player_id AND p.is_current
-       LEFT JOIN dim_team_history th_home ON th_home.team_id = g.home_team_id AND th_home.is_current
-       LEFT JOIN dim_team_history th_away ON th_away.team_id = g.away_team_id AND th_away.is_current
+       FROM fact_player_game_box b
+       LEFT JOIN dim_player p ON p.player_id = b.player_id
+       LEFT JOIN dim_team_era own_era ON own_era.team_id = b.team_id AND own_era.is_current
        WHERE b.game_id = ?
-       ORDER BY CASE WHEN b.team_id = g.away_team_id THEN 0 ELSE 1 END,
+       ORDER BY CASE WHEN b.is_home THEN 1 ELSE 0 END,
                 CASE WHEN NULLIF(b.starting_position, '') IS NULL THEN 1 ELSE 0 END,
-                b.min DESC NULLS LAST, b.points DESC NULLS LAST`,
+                b.min DESC NULLS LAST, b.pts DESC NULLS LAST`,
       [gameId],
     ),
     queryObjects(
@@ -535,7 +500,7 @@ export async function getGameDetail(gameId: string): Promise<GameDetail> {
               TRY_CAST(pace AS DOUBLE) AS pace,
               TRY_CAST(playerImpactEstimate AS DOUBLE) AS pie,
               'modern' AS coverage_level
-       FROM playerstatisticsextended
+       FROM src_playerstatisticsextended
        WHERE lpad(gameId, 10, '0') = ?
        ORDER BY CASE WHEN home = '0' THEN 0 ELSE 1 END,
                 CASE WHEN NULLIF(startingPosition, '') IS NULL THEN 1 ELSE 0 END,
@@ -546,7 +511,7 @@ export async function getGameDetail(gameId: string): Promise<GameDetail> {
     queryObjects(
       `SELECT l.leader_type, l.person_id, l.name, l.team_tricode,
               l.points, l.rebounds, l.assists
-       FROM fact_game_leaders l
+       FROM src_fact_game_leaders l
        WHERE l.game_id = ?
        ORDER BY l.leader_type, l.points DESC`,
       [gameId],
@@ -556,20 +521,20 @@ export async function getGameDetail(gameId: string): Promise<GameDetail> {
          SELECT 1 AS source_rank, 'fact_game_official' AS official_source,
                 CAST(o.official_id AS VARCHAR) AS official_id,
                 o.official_name AS name, d.first_name, d.last_name, d.jersey_num
-         FROM fact_game_official o
+         FROM src_fact_game_official o
          LEFT JOIN dim_official d ON d.official_id = o.official_id
          WHERE o.game_id = ?
          UNION ALL
          SELECT 2 AS source_rank, 'officials' AS official_source,
                 official_id, trim(first_name || ' ' || last_name) AS name,
                 first_name, last_name, jersey_num
-         FROM officials
+         FROM src_officials
          WHERE game_id = ?
          UNION ALL
          SELECT 3 AS source_rank, 'fact_box_score_summary_v3_officials' AS official_source,
                 CAST(person_id AS VARCHAR) AS official_id, name,
                 first_name, family_name AS last_name, jersey_num
-         FROM fact_box_score_summary_v3_officials
+         FROM src_fact_box_score_summary_v3_officials
          WHERE game_id = ?
        ),
        ranked AS (
@@ -587,21 +552,20 @@ export async function getGameDetail(gameId: string): Promise<GameDetail> {
       [gameId, gameId, gameId],
     ),
     queryObjects(
-      `SELECT s.team_id, s.person_id, s.starting_position,
+      `SELECT s.team_id, s.player_id, s.starting_position,
               p.full_name,
-              CASE WHEN s.team_id = g.home_team_id THEN th_home.abbreviation ELSE th_away.abbreviation END AS team_abbreviation
-       FROM fact_starting_lineup_player s
-       JOIN fact_game g ON g.game_id = s.game_id
-       LEFT JOIN dim_player p ON p.player_id = s.person_id AND p.is_current
-       LEFT JOIN dim_team_history th_home ON th_home.team_id = g.home_team_id AND th_home.is_current
-       LEFT JOIN dim_team_history th_away ON th_away.team_id = g.away_team_id AND th_away.is_current
+              own_era.abbreviation AS team_abbreviation
+       FROM fact_starting_lineup s
+       JOIN dim_game g ON g.game_id = s.game_id
+       LEFT JOIN dim_player p ON p.player_id = s.player_id
+       LEFT JOIN dim_team_era own_era ON own_era.team_id = s.team_id AND own_era.is_current
        WHERE s.game_id = ?
        ORDER BY CASE WHEN s.team_id = g.away_team_id THEN 0 ELSE 1 END, s.starting_position`,
       [gameId],
     ),
     queryObjects(
       `SELECT period, clock, description, score_home, score_away, points_total
-       FROM fact_pbp_events
+       FROM fact_pbp_event
        WHERE game_id = ? AND score_home IS NOT NULL
          AND points_total IS NOT NULL AND points_total > 0
        ORDER BY seconds_elapsed DESC
@@ -622,7 +586,7 @@ export async function getGameDetail(gameId: string): Promise<GameDetail> {
               TRY_CAST(pointsInThePaint AS BIGINT) AS pts_paint,
               TRY_CAST(pointsSecondChance AS BIGINT) AS pts_2nd_chance,
               TRY_CAST(timesTied AS BIGINT) AS times_tied
-       FROM teamstatisticsextended
+       FROM src_teamstatisticsextended
        WHERE lpad(gameId, 10, '0') = ?
        ORDER BY CASE WHEN home = '0' THEN 0 ELSE 1 END`,
       [gameId],
@@ -641,7 +605,7 @@ export async function getGameDetail(gameId: string): Promise<GameDetail> {
               pts_paint,
               pts_2nd_chance,
               times_tied
-       FROM fact_game_context
+       FROM src_fact_game_context
        WHERE game_id = ? AND team_id IS NOT NULL
        ORDER BY team_id`,
       [gameId],

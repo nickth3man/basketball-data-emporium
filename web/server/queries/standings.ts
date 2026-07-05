@@ -12,7 +12,7 @@ export async function listStandingsSeasons(): Promise<string[]> {
        SELECT season_year FROM fact_standings
        UNION ALL
        SELECT printf('%d-%02d', season - 1, season % 100) AS season_year
-       FROM stg_bref_team_summaries
+       FROM src_stg_bref_team_summaries
        WHERE lg = 'NBA'
          AND source_table = 'team_summaries'
          AND nba_team_id IS NOT NULL
@@ -25,6 +25,7 @@ export async function listStandingsSeasons(): Promise<string[]> {
 
 export async function getStandings(season: string, seasonType: string): Promise<Row[]> {
   const seasonEndYear = Number(season.slice(0, 4)) + 1;
+  const seasonStartYear = Number(season.slice(0, 4));
 
   // Era-matched the same way as player seasons (see getPlayerProfile), so
   // 1996-97 Seattle standings show "SuperSonics" rather than "Thunder".
@@ -84,7 +85,7 @@ export async function getStandings(season: string, seasonType: string): Promise<
          ? AS season_type,
          team AS source_team_name,
          abbreviation AS source_abbreviation
-       FROM stg_bref_team_summaries
+       FROM src_stg_bref_team_summaries
        WHERE ? = 'Regular'
          AND season = ?
          AND lg = 'NBA'
@@ -97,11 +98,6 @@ export async function getStandings(season: string, seasonType: string): Promise<
        SELECT * FROM fact_rows
        UNION ALL
        SELECT * FROM bref_rows
-     ),
-     latest_team_history AS (
-       SELECT *
-       FROM dim_team_history
-       QUALIFY ROW_NUMBER() OVER (PARTITION BY team_id ORDER BY valid_from DESC) = 1
      )
      SELECT
        s.team_id,
@@ -123,15 +119,14 @@ export async function getStandings(season: string, seasonType: string): Promise<
        s.diff_pts_pg,
        s.season_year,
        s.season_type,
-       COALESCE(th.nickname, lth.nickname, s.source_team_name) AS team_name,
-       COALESCE(th.abbreviation, lth.abbreviation, s.source_abbreviation) AS abbreviation
+       COALESCE(era.nickname, cur_era.nickname, s.source_team_name) AS team_name,
+       COALESCE(era.abbreviation, cur_era.abbreviation, s.source_abbreviation) AS abbreviation
      FROM standings_rows s
-     LEFT JOIN dim_team_history th
-       ON th.team_id = s.team_id
-       AND s.season_year >= th.valid_from
-       AND (th.valid_to IS NULL OR s.season_year < th.valid_to)
-     LEFT JOIN latest_team_history lth ON lth.team_id = s.team_id
+     LEFT JOIN dim_team_era era
+       ON era.team_id = s.team_id
+       AND ? BETWEEN era.valid_from_year AND era.valid_to_year
+     LEFT JOIN dim_team_era cur_era ON cur_era.team_id = s.team_id AND cur_era.is_current
      ORDER BY s.conference NULLS LAST, s.conf_rank NULLS LAST, team_name`,
-    [season, seasonType, season, seasonType, seasonType, seasonEndYear],
+    [season, seasonType, season, seasonType, seasonType, seasonEndYear, seasonStartYear],
   );
 }

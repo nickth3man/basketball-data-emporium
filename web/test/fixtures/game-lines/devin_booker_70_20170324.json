@@ -3,7 +3,7 @@
   "datapoint_class": "famous_game_line",
   "entity": "Devin Booker 70 PTS vs Boston Celtics on 2017-03-24 (PHX 120-130; Booker was 21, the youngest player ever to score 70 in a game)",
   "expected": {
-    "player_name": "Devin Booker",
+    "full_name": "Devin Booker",
     "team_abbreviation": "PHX",
     "game_date": "2017-03-24",
     "pts": 70,
@@ -13,11 +13,11 @@
   "bbr_source_url": "https://www.basketball-reference.com/boxscores/201703240BOS.html",
   "assertion_mode": "raw_sql",
   "query_target": {
-    "sql": "SELECT player_name, team_abbreviation, game_date, pts, min, fgm, fga, fg3m FROM fact_player_game_log WHERE player_name = 'Devin Booker' AND game_date = '2017-03-24' AND pts = 70"
+    "sql": "SELECT full_name, team_abbreviation, CAST(game_date AS VARCHAR) AS game_date, pts, min, fgm, fga, fg3m FROM analytics_player_game_complete WHERE full_name = 'Devin Booker' AND game_date = '2017-03-24' AND pts = 70"
   },
   "match": "containsObject",
   "status": "stable",
   "confidence": "verified",
-  "notes": "Booker's 70 came in a loss, and the BBR box-score URL uses the home team (BOS) in the path even though Booker was the road team. fact_player_game_log has the road team's row directly keyed on (player_name, game_date, pts).",
+  "notes": "Booker's 70 came in a loss, and the BBR box-score URL uses the home team (BOS) in the path even though Booker was the road team. analytics_player_game_complete has the road team's row directly keyed on (full_name, CAST(game_date AS VARCHAR) AS game_date, pts).",
   "skip_if_no_db": true
 }

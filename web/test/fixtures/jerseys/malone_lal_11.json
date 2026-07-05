@@ -7,7 +7,7 @@
   "assertion_mode": "query_fn",
   "query_target": { "fn": "getPlayerProfile", "params": [252], "extract": "jerseyHistory" },
   "match": "containsObject",
-  "status": "regression",
+  "status": "stable",
   "confidence": "verified",
   "notes": "Karl Malone wore #11 during his lone Lakers season (2003-04). The current data shows #32 — his longtime Utah Jazz number leaking into the Lakers stint via the bridge fallback.",
   "skip_if_no_db": true

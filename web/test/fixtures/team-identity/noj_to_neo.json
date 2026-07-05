@@ -17,6 +17,6 @@
   "match": "containsObject",
   "status": "stable",
   "confidence": "verified",
-  "notes": "NOJ is the BBR source abbreviation for the New Orleans Jazz (1974-79 before relocation to Utah). dim_team_history only starts at 1996-97, so the modern Jazz era is UTA there; the historical NOJ era is captured in dim_team with abbreviation NEO.",
+  "notes": "NOJ is the BBR source abbreviation for the New Orleans Jazz (1974-79 before relocation to Utah). dim_team_era only starts at 1996-97, so the modern Jazz era is UTA there; the historical NOJ era is captured in dim_team with abbreviation NEO.",
   "skip_if_no_db": true
 }

@@ -6,7 +6,7 @@
   "bbr_source_url": "https://www.basketball-reference.com/boxscores/202401220PHI.html",
   "assertion_mode": "raw_sql",
   "query_target": {
-    "sql": "SELECT pts FROM fact_player_game_log WHERE player_name = 'Joel Embiid' AND game_date = '2024-01-22' AND pts = 70",
+    "sql": "SELECT pts FROM analytics_player_game_complete WHERE full_name = 'Joel Embiid' AND game_date = '2024-01-22' AND pts = 70",
     "extract": "[0].pts"
   },
   "match": "gte",

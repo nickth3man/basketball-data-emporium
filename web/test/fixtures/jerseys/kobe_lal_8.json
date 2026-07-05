@@ -7,7 +7,7 @@
   "assertion_mode": "query_fn",
   "query_target": { "fn": "getPlayerProfile", "params": [977], "extract": "jerseyHistory" },
   "match": "containsObject",
-  "status": "regression",
+  "status": "stable",
   "confidence": "verified",
   "notes": "Kobe wore #8 for the first half of his Lakers career (1996-2006) before switching to #24 for 2006-2016. The current data shows only two LAL #24 stints (1996-1999, 1999-2016) split by color era; the entire #8 stint 1996-2006 is missing. Flip to stable when the gaps-and-islands resolver surfaces the 1996-2006 LAL #8 stint.",
   "skip_if_no_db": true

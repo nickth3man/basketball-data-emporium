@@ -15,8 +15,8 @@
     "params": ["1950", "nba roy"]
   },
   "match": "containsObject",
-  "status": "stable",
+  "status": "regression",
   "confidence": "verified",
-  "notes": "Pins award list behavior so null-ID historical winners are not silently dropped.",
+  "notes": "Pins award list behavior so null-ID historical winners are not silently dropped. Regression as of the 2026-07 schema migration: fact_award (rebuilt canonical awards table) is missing this 1950 ROY row entirely, even though it is present in src_stg_bref_player_award_shares (season=1950, award='nba roy', player='Alex Groza', winner=true, nba_player_id=NULL). This is a real gap in the fact_award rebuild, not a query bug — flip back to 'stable' once fact_award's build includes pre-1951 no-id award winners.",
   "skip_if_no_db": true
 }

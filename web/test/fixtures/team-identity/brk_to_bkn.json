@@ -11,11 +11,11 @@
   "bbr_source_url": "https://www.basketball-reference.com/teams/BRK/",
   "assertion_mode": "raw_sql",
   "query_target": {
-    "sql": "SELECT team_id, city, nickname, abbreviation, valid_from, valid_to, is_current FROM dim_team_history WHERE team_id = '1610612751' AND is_current"
+    "sql": "SELECT team_id, city, nickname, abbreviation, valid_from, valid_to, is_current FROM dim_team_era WHERE team_id = '1610612751' AND is_current"
   },
   "match": "containsObject",
   "status": "stable",
   "confidence": "verified",
-  "notes": "BRK is the BBR source abbreviation for the Brooklyn Nets (used in scraped BBR roster pages for the franchise's 2012-13 only season); the warehouse canonical is BKN. dim_team_history is_current=true picks the modern era row.",
+  "notes": "BRK is the BBR source abbreviation for the Brooklyn Nets (used in scraped BBR roster pages for the franchise's 2012-13 only season); the warehouse canonical is BKN. dim_team_era is_current=true picks the modern era row.",
   "skip_if_no_db": true
 }

@@ -1,53 +1,58 @@
 import { queryObjects } from "../db.ts";
-import { SEASON_FROM_GAME_ID_SQL } from "./shared.ts";
+import { DIM_GAME_SEASON_GUARD_SQL } from "./shared.ts";
 import type { Row } from "./shared.ts";
 
 // ---------------------------------------------------------------------------
-// Game flow + clutch, derived live from fact_play_by_play_v3 (18.7M events,
+// Game flow + clutch, derived live from fact_pbp_event (18.7M events,
 // 1996-97 onward). Era quirk: modern rows carry the running score on every
 // event, but legacy rows only populate score_home/score_away on scoring
 // plays (0/0 otherwise) — so everything here is built from scoring events
-// only, which works identically in both eras. order_number is not
-// chronological in legacy games; (seconds_elapsed, action_number) is the
-// reliable sort. seconds_elapsed is cumulative across periods.
+// only, which works identically in both eras. action_number is the reliable
+// tie-break sort within (seconds_elapsed), which is cumulative across
+// periods. Season/season_type now come from a dim_game join instead of
+// parsing the game id.
 //
-// The prebuilt clutch tables (agg_clutch_stats etc.) are empty shells, so
-// clutch scoring is computed here: points credited via the score delta
+// Clutch scoring is computed here: points credited via the score delta
 // between consecutive scoring events (era-agnostic, no reliance on
 // action-type taxonomies), filtered to the NBA.com clutch definition —
 // last 5 minutes of the 4th period or overtime, margin within 5 before
-// the event. Sanity-checked against NBA.com's 2024-25 clutch leaders
-// (Edwards / Brunson / Young order reproduced).
-//
-// fact_rotation was evaluated for a stint overlay and rejected: every
-// game is missing its opening stints (earliest in_time ≈ 300s) and
-// pts_diff is always NULL. Don't build on it without an upstream re-scrape.
+// the event.
 // ---------------------------------------------------------------------------
 
 /** Chronological scoring events for one game: the score after each make,
  *  which is everything a margin timeline needs. */
 export async function getGameFlow(gameId: string): Promise<Row[]> {
   return queryObjects(
-    `SELECT
-       period::INTEGER AS period,
-       seconds_elapsed,
-       score_home,
-       score_away,
-       team_tri_code,
-       player_name,
-       description
-     FROM fact_play_by_play_v3
-     WHERE game_id = ? AND (score_home > 0 OR score_away > 0)
-     ORDER BY seconds_elapsed, action_number`,
-    [gameId],
+    `WITH game_meta AS (
+       SELECT game_id, season_year FROM dim_game WHERE game_id = ?
+     )
+     SELECT
+       e.period::INTEGER AS period,
+       e.seconds_elapsed,
+       e.score_home,
+       e.score_away,
+       COALESCE(era.abbreviation, cur.abbreviation) AS team_tri_code,
+       p.full_name AS player_name,
+       e.description
+     FROM fact_pbp_event e
+     JOIN game_meta gm ON gm.game_id = e.game_id
+     LEFT JOIN dim_team_era era
+       ON era.team_id = e.team_id
+       AND CAST(SUBSTR(gm.season_year, 1, 4) AS INTEGER) BETWEEN era.valid_from_year AND era.valid_to_year
+     LEFT JOIN dim_team_era cur ON cur.team_id = e.team_id AND cur.is_current
+     LEFT JOIN dim_player p ON p.player_id = e.player_id
+     WHERE e.game_id = ? AND (e.score_home > 0 OR e.score_away > 0)
+     ORDER BY e.seconds_elapsed, e.action_number`,
+    [gameId, gameId],
   );
 }
 
 export async function listClutchSeasons(): Promise<string[]> {
   const rows = await queryObjects<{ season_year: string }>(
-    `SELECT DISTINCT ${SEASON_FROM_GAME_ID_SQL} AS season_year
-     FROM fact_play_by_play_v3
-     WHERE substr(game_id, 1, 3) = '002'
+    `SELECT DISTINCT g.season_year
+     FROM fact_pbp_event e
+     JOIN dim_game g ON g.game_id = e.game_id
+     WHERE g.season_type = 'Regular' AND (${DIM_GAME_SEASON_GUARD_SQL})
      ORDER BY season_year DESC`,
   );
   return rows.map((r) => r.season_year);
@@ -70,23 +75,25 @@ export function getClutchLeaders(season: string, limit = 30): Promise<Row[]> {
 
 async function queryClutchLeaders(season: string): Promise<Row[]> {
   return queryObjects(
-    `WITH scoring AS (
+    `WITH season_games AS (
+       SELECT game_id FROM dim_game WHERE season_type = 'Regular' AND season_year = ?
+     ),
+     scoring AS (
        SELECT
-         game_id, period, seconds_elapsed, person_id, player_name,
-         score_home + score_away
-           - LAG(score_home + score_away, 1, 0)
-             OVER (PARTITION BY game_id ORDER BY seconds_elapsed, action_number) AS pts,
-         LAG(score_home, 1, 0)
-           OVER (PARTITION BY game_id ORDER BY seconds_elapsed, action_number) AS prev_h,
-         LAG(score_away, 1, 0)
-           OVER (PARTITION BY game_id ORDER BY seconds_elapsed, action_number) AS prev_a
-       FROM fact_play_by_play_v3
-       WHERE substr(game_id, 1, 3) = '002'
-         AND ${SEASON_FROM_GAME_ID_SQL} = ?
-         AND (score_home > 0 OR score_away > 0)
+         e.game_id, e.period, e.seconds_elapsed, e.player_id,
+         e.score_home + e.score_away
+           - LAG(e.score_home + e.score_away, 1, 0)
+             OVER (PARTITION BY e.game_id ORDER BY e.seconds_elapsed, e.action_number) AS pts,
+         LAG(e.score_home, 1, 0)
+           OVER (PARTITION BY e.game_id ORDER BY e.seconds_elapsed, e.action_number) AS prev_h,
+         LAG(e.score_away, 1, 0)
+           OVER (PARTITION BY e.game_id ORDER BY e.seconds_elapsed, e.action_number) AS prev_a
+       FROM fact_pbp_event e
+       JOIN season_games sg ON sg.game_id = e.game_id
+       WHERE e.score_home > 0 OR e.score_away > 0
      ),
      clutch AS (
-       SELECT person_id, any_value(player_name) AS pbp_name,
+       SELECT player_id,
               SUM(pts)::INTEGER AS clutch_pts,
               COUNT(DISTINCT game_id)::INTEGER AS games
        FROM scoring
@@ -95,23 +102,17 @@ async function queryClutchLeaders(season: string): Promise<Row[]> {
          AND (CASE WHEN period <= 4 THEN 720.0 * period
                    ELSE 2880 + 300.0 * (period - 4) END) - seconds_elapsed <= 300
          AND abs(prev_h - prev_a) <= 5
-         AND person_id > 0
-       GROUP BY person_id
-     ),
-     names AS (
-       SELECT player_id, any_value(full_name) AS full_name
-       FROM dim_player
-       WHERE is_current
+         AND player_id > 0
        GROUP BY player_id
      )
      SELECT
-       c.person_id AS player_id,
-       COALESCE(n.full_name, c.pbp_name) AS full_name,
+       c.player_id,
+       p.full_name,
        c.clutch_pts,
        c.games,
        ROUND(c.clutch_pts * 1.0 / NULLIF(c.games, 0), 1) AS pts_per_game
      FROM clutch c
-     LEFT JOIN names n ON n.player_id = c.person_id
+     LEFT JOIN dim_player p ON p.player_id = c.player_id
      ORDER BY c.clutch_pts DESC
      LIMIT 100`,
     [season],

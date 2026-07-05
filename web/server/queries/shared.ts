@@ -4,302 +4,195 @@ import { fileURLToPath } from "node:url";
 
 export type Row = Record<string, unknown>;
 
-// Supplemental jersey-history table scraped from Basketball-Reference
-// per-season team-roster pages. The scraper lives at
-// ``data/anchors/scrape_team_rosters.py``; its output is a JSONL file
-// with one record per (player_id, team_id, season_year, jersey_num).
-// The file is read on every player-profile request via DuckDB's
-// ``read_json_auto`` — at <300 rows the per-request cost is
-// negligible, and a read on every call means re-running the scraper
-// (which writes a new file and atomically replaces the old one) is
-// picked up without a server restart. The path resolves relative to
-// the server directory so it works regardless of CWD
-// (npm scripts, tsx watch, production start, etc.). ``BBR_JERSEYS_PATH``
-// overrides the default for tests / alternate deployments. When the
-// file is missing (fresh checkout, before the scraper has been run)
-// the BBR CTE is omitted entirely — the bridge fallback still works.
-const SERVER_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-export const BBR_JERSEYS_PATH =
-  process.env.BBR_JERSEYS_PATH ?? path.resolve(SERVER_DIR, "../../data/anchors/bbr_jerseys.jsonl");
-export const BBR_JERSEYS_AVAILABLE = existsSync(BBR_JERSEYS_PATH);
-if (BBR_JERSEYS_AVAILABLE) {
-  // One-time diagnostic so the dev can tell from the server log
-  // whether the BBR layer is wired in. The path is logged, not
-  // interpolated into SQL, so no escaping needed.
-  console.log(`[queries] BBR jersey fallback enabled: ${BBR_JERSEYS_PATH}`);
-}
-
 // Supplemental coach-by-season table scraped from Basketball-Reference
-// franchise index pages (``data/anchors/scrape_team_coaches.py``), same
-// JSONL-at-query-time pattern as the jersey table above. dim_coach only has
-// rows for the current season, so this is the only source for historical
-// coach-by-season data.
+// franchise index pages (``data/anchors/scrape_team_coaches.py``). Retained
+// only as a secondary cross-check; `fact_coach_season` in the warehouse is
+// now the primary source for coach history (see teams.ts getTeamCoachHistory).
+const SERVER_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const BBR_COACHES_PATH =
   process.env.BBR_COACHES_PATH ?? path.resolve(SERVER_DIR, "../../data/anchors/bbr_coaches.jsonl");
 export const BBR_COACHES_AVAILABLE = existsSync(BBR_COACHES_PATH);
 if (BBR_COACHES_AVAILABLE) {
-  console.log(`[queries] BBR coach history enabled: ${BBR_COACHES_PATH}`);
+  console.log(`[queries] BBR coach history file present (secondary): ${BBR_COACHES_PATH}`);
 }
-
-export const BBR_SEASON_YEAR_SQL =
-  "CAST(season - 1 AS VARCHAR) || '-' || lpad(CAST(season % 100 AS VARCHAR), 2, '0')";
 
 export function escapeDuckDbPath(pathValue: string): string {
   return pathValue.replaceAll("\\", "/").replaceAll("'", "''");
 }
 
-export const PLAYER_BBR_XWALK_CTE = `player_bbr_xwalk AS (
-         SELECT bbr_player_id, nba_player_id
-         FROM (
-           SELECT
-             b.bbr_player_id,
-             b.nba_player_id,
-             ROW_NUMBER() OVER (
-               PARTITION BY b.bbr_player_id
-               ORDER BY COALESCE(g.gp, 0) DESC, b.nba_player_id
-             ) AS rn
-           FROM bridge_player_bbr b
-           LEFT JOIN (
-             SELECT player_id, COUNT(*) AS gp
-             FROM fact_player_game_log
-             GROUP BY player_id
-           ) g ON g.player_id = b.nba_player_id
-         )
-         WHERE rn = 1
-       )`;
+// dim_game has 33 corrupted All-Star rows (game_date IS NULL) whose
+// season_year was parsed as 20YY instead of 19YY (e.g. "2051-52" instead of
+// "1951-52"). Any query that lists/min/max's dim_game.season_year for a
+// season picker or range must exclude these, or a bogus far-future season
+// leaks into the UI.
+export const DIM_GAME_SEASON_GUARD_SQL = `(season_type <> 'All-Star' OR game_date IS NOT NULL)`;
 
-export const PLAYER_BREF_BIO_CTE = `bref_player_bio AS (
-         SELECT
-           b.nba_player_id AS player_id,
-           ci.bref_player_id,
-           ci.pos AS position,
-           CASE
-             WHEN TRY_CAST(ci.ht_in_in AS BIGINT) IS NULL THEN NULL
-             ELSE CAST(FLOOR(TRY_CAST(ci.ht_in_in AS BIGINT) / 12) AS BIGINT)::VARCHAR
-                  || '-' ||
-                  CAST(TRY_CAST(ci.ht_in_in AS BIGINT) % 12 AS BIGINT)::VARCHAR
-           END AS height,
-           TRY_CAST(ci.wt AS BIGINT) AS weight,
-           CAST(ci.birth_date AS VARCHAR) AS birth_date,
-           ci.colleges AS school,
-           ci."from" AS from_year,
-           ci."to" AS to_year
-         FROM bridge_player_bbr b
-         JOIN stg_bref_player_career_info ci ON ci.bref_player_id = b.bbr_player_id
+// Resolves a canonical NBA player_id to its Basketball-Reference id via
+// map_player_bbr. A small number of bbr_player_id values have more than one
+// candidate row (4 of 4,860); prefer the one flagged is_preferred.
+export const PLAYER_BBR_XWALK_CTE = `player_bbr_xwalk AS (
+         SELECT bbr_player_id, player_id AS nba_player_id
+         FROM map_player_bbr
          QUALIFY ROW_NUMBER() OVER (
-           PARTITION BY b.nba_player_id
-           ORDER BY ci."to" DESC NULLS LAST, ci."from" DESC NULLS LAST, ci.bref_player_id
+           PARTITION BY bbr_player_id
+           ORDER BY is_preferred DESC, player_id
          ) = 1
        )`;
 
-export const PLAYER_SEASON_STATS_CTE = `${PLAYER_BBR_XWALK_CTE},
-       resolved_player_season_source AS (
-         SELECT COALESCE(r.person_id, x.nba_player_id) AS player_id, r.*
-         FROM fact_player_season_stat_resolved r
-         LEFT JOIN player_bbr_xwalk x
-           ON r.person_id IS NULL AND x.bbr_player_id = r.slug
-         WHERE COALESCE(r.person_id, x.nba_player_id) IS NOT NULL
-       ),
-       player_season_stats AS (
+// dim_player carries resolved BBR bio columns (bbr_player_id,
+// bbr_primary_position, bbr_height_inches, bbr_weight_lbs, bbr_colleges),
+// but its OWN height/weight/position/birth_date columns are unreliable for
+// some players (e.g. dim_player.height shows "7-09" for LeBron James, who
+// is actually 6'9" — bbr_height_inches=81 is correct). src_common_player_info
+// (when present) is the best source for height/weight/position/birth_date/
+// country in the format real-world bios use ("6-9" not "6-09", "Center" not
+// "C"); when a player has no common_player_info row, fall back to the BBR
+// columns (bbr_primary_position for position, bbr_height_inches/
+// bbr_weight_lbs converted for height/weight — never dim_player's own
+// height/weight, which can carry the same corruption).
+export const PLAYER_EXTRA_BIO_CTE = `player_extra_bio AS (
+         SELECT
+           TRY_CAST(person_id AS BIGINT) AS player_id,
+           school,
+           greatest_75_flag = 'Y' AS is_greatest_75,
+           season_exp,
+           position AS common_position,
+           height AS common_height,
+           weight AS common_weight,
+           CAST(CAST(birthdate AS DATE) AS VARCHAR) AS common_birth_date,
+           country AS common_country
+         FROM src_common_player_info
+         WHERE TRY_CAST(person_id AS BIGINT) IS NOT NULL
+       )`;
+
+// Thin passthrough over mart_player_season, aliased to the column names the
+// query files already use, so callers don't all need renaming in one shot.
+// Multi-team ("TOT") display logic and per-era team abbreviation resolution
+// no longer come pre-baked from the source table and are handled by callers
+// joining dim_team_era where needed.
+export const PLAYER_SEASON_STATS_CTE = `player_season_stats AS (
          SELECT
            player_id,
            team_id,
-           team_abbrev AS source_team_abbreviation,
-           ${BBR_SEASON_YEAR_SQL} AS season_year,
-           CASE WHEN is_playoffs THEN 'Playoffs' ELSE 'Regular' END AS season_type,
-           CAST(gp AS BIGINT) AS gp,
-           CAST(min AS DOUBLE) AS total_min,
-           min / NULLIF(gp, 0) AS avg_min,
-           CAST(pts AS DOUBLE) AS total_pts,
-           pts / NULLIF(gp, 0) AS avg_pts,
-           CAST(COALESCE(trb, orb + drb) AS DOUBLE) AS total_reb,
-           COALESCE(trb, orb + drb) / NULLIF(gp, 0) AS avg_reb,
-           CAST(ast AS DOUBLE) AS total_ast,
-           ast / NULLIF(gp, 0) AS avg_ast,
-           CAST(stl AS DOUBLE) AS total_stl,
-           stl / NULLIF(gp, 0) AS avg_stl,
-           CAST(blk AS DOUBLE) AS total_blk,
-           blk / NULLIF(gp, 0) AS avg_blk,
-           CAST(tov AS DOUBLE) AS total_tov,
-           tov / NULLIF(gp, 0) AS avg_tov,
-           CAST(fg AS DOUBLE) AS total_fgm,
-           CAST(fga AS DOUBLE) AS total_fga,
-           fg / NULLIF(fga, 0) AS fg_pct,
-           CAST(tp AS DOUBLE) AS total_fg3m,
-           CAST(tpa AS DOUBLE) AS total_fg3a,
-           tp / NULLIF(tpa, 0) AS fg3_pct,
-           CAST(ft AS DOUBLE) AS total_ftm,
-           CAST(fta AS DOUBLE) AS total_fta,
-           ft / NULLIF(fta, 0) AS ft_pct,
-           ortg AS avg_off_rating,
-           drtg AS avg_def_rating,
-           ortg - drtg AS avg_net_rating,
-           pts / NULLIF(2 * (fga + 0.44 * fta), 0) AS avg_ts_pct,
-           usgp / 100.0 AS avg_usg_pct,
-           (fg + 0.5 * tp) / NULLIF(fga, 0) AS avg_efg_pct,
-           astp / 100.0 AS avg_ast_pct,
-           orbp / 100.0 AS avg_oreb_pct,
-           drbp / 100.0 AS avg_dreb_pct,
-           trbp / 100.0 AS avg_reb_pct,
-           tovp / 100.0 AS avg_tov_pct,
-           per,
-           ows,
-           dws,
-           ows + dws AS ws,
-           obpm,
-           dbpm,
-           obpm + dbpm AS bpm,
-           vorp
-         FROM resolved_player_season_source
+           team_abbreviation AS source_team_abbreviation,
+           season_year,
+           season_type,
+           gp,
+           total_min,
+           avg_min,
+           total_pts,
+           avg_pts,
+           total_reb,
+           avg_reb,
+           total_ast,
+           avg_ast,
+           total_stl,
+           avg_stl,
+           total_blk,
+           avg_blk,
+           total_tov,
+           avg_tov,
+           total_fgm,
+           total_fga,
+           fg_pct,
+           total_fg3m,
+           total_fg3a,
+           fg3_pct,
+           total_ftm,
+           total_fta,
+           ft_pct,
+           avg_off_rating,
+           avg_def_rating,
+           avg_net_rating,
+           avg_ts_pct,
+           avg_usg_pct,
+           avg_pie
+         FROM mart_player_season
        )`;
 
-export const PLAYER_AWARD_ROWS_CTE = `${PLAYER_BBR_XWALK_CTE},
-       bref_name_span_xwalk AS (
-         SELECT normalized_player_name, nba_player_id, "from" AS from_year, "to" AS to_year
-         FROM stg_bref_player_career_info
-         WHERE nba_player_id IS NOT NULL
-         QUALIFY ROW_NUMBER() OVER (
-           PARTITION BY normalized_player_name, "from", "to"
-           ORDER BY nba_player_id
-         ) = 1
-       ),
-       award_rows AS (
-         SELECT *
-         FROM (
-           SELECT
-             COALESCE(s.nba_player_id, x.nba_player_id, nx.nba_player_id) AS player_id,
-             s.player AS source_player_name,
-             s.award || CASE WHEN s.winner THEN ' winner' ELSE ' (received votes)' END AS description,
-             CAST(NULL AS BIGINT) AS all_nba_team_number,
-             CAST(s.season AS VARCHAR) AS season,
-             CAST(NULL AS VARCHAR) AS month,
-             CAST(NULL AS VARCHAR) AS week,
-             CAST(NULL AS VARCHAR) AS conference,
-             s.award AS award_type,
-             CASE WHEN s.winner THEN 'Selected' END AS subtype1,
-             CAST(s.share AS VARCHAR) AS subtype2,
-             CAST(NULL AS VARCHAR) AS subtype3
-           FROM stg_bref_player_award_shares s
-           LEFT JOIN player_bbr_xwalk x
-             ON x.bbr_player_id = s.bref_player_id
-           LEFT JOIN bref_name_span_xwalk nx
-             ON s.nba_player_id IS NULL
-             AND s.bref_player_id IS NULL
-             AND nx.normalized_player_name = s.normalized_player_name
-             AND s.season BETWEEN nx.from_year AND nx.to_year
-           WHERE s.winner
-             AND s.award IN ('nba mvp', 'nba roy', 'nba dpoy', 'nba mip', 'nba smoy')
-
-           UNION ALL
-
-           SELECT
-             COALESCE(t.nba_player_id, x.nba_player_id, nx.nba_player_id) AS player_id,
-             t.player AS source_player_name,
-             t.type || ' ' || t.number_tm || ' Team' AS description,
-             CASE t.number_tm WHEN '1st' THEN 1 WHEN '2nd' THEN 2 WHEN '3rd' THEN 3 END AS all_nba_team_number,
-             CAST(t.season AS VARCHAR) AS season,
-             NULL AS month,
-             NULL AS week,
-             NULL AS conference,
-             t.type AS award_type,
-             NULL AS subtype1,
-             NULL AS subtype2,
-             NULL AS subtype3
-           FROM stg_bref_end_of_season_teams t
-           LEFT JOIN player_bbr_xwalk x
-             ON x.bbr_player_id = t.bref_player_id
-           LEFT JOIN bref_name_span_xwalk nx
-             ON t.nba_player_id IS NULL
-             AND t.bref_player_id IS NULL
-             AND nx.normalized_player_name = t.normalized_player_name
-             AND t.season BETWEEN nx.from_year AND nx.to_year
-           WHERE t.lg = 'NBA'
-             AND t.type IN ('All-NBA', 'All-Rookie', 'All-Defense')
-
-           UNION ALL
-
-           SELECT DISTINCT
-             COALESCE(a.nba_player_id, x.nba_player_id, nx.nba_player_id) AS player_id,
-             a.player AS source_player_name,
-             'NBA All-Star' AS description,
-             CAST(NULL AS BIGINT) AS all_nba_team_number,
-             CAST(a.season AS VARCHAR) AS season,
-             NULL AS month,
-             NULL AS week,
-             NULL AS conference,
-             'All-Star' AS award_type,
-             NULL AS subtype1,
-             NULL AS subtype2,
-             NULL AS subtype3
-           FROM stg_bref_all_star_selections a
-           LEFT JOIN player_bbr_xwalk x
-             ON x.bbr_player_id = a.bref_player_id
-           LEFT JOIN bref_name_span_xwalk nx
-             ON a.nba_player_id IS NULL
-             AND a.bref_player_id IS NULL
-             AND nx.normalized_player_name = a.normalized_player_name
-             AND a.season BETWEEN nx.from_year AND nx.to_year
-           WHERE a.lg = 'NBA'
-         )
-       )`;
-
-export const DRAFT_SOURCE_CTE = `draft_source AS (
-         WITH draft_org_fallback AS (
-           SELECT
-             season,
-             overall_pick,
-             lower(player_name) AS player_name_key,
-             organization,
-             organization_type
-           FROM fact_draft_history
-           WHERE organization IS NOT NULL OR organization_type IS NOT NULL
-           QUALIFY ROW_NUMBER() OVER (
-             PARTITION BY season, overall_pick, lower(player_name)
-             ORDER BY CASE WHEN draft_type = 'Draft' THEN 0 ELSE 1 END
-           ) = 1
-         )
+// mart_player_season/mart_player_career don't carry the NBA-tracking-only
+// advanced rate stats (pace, pie, ast_pct, ast_ratio, oreb_pct/dreb_pct,
+// reb_pct, efg_pct, fta_rate, poss) — those still need aggregation from
+// fact_player_game_advanced per player/season/season_type. Minutes-weighted
+// averages match how the old per-game-log aggregation worked.
+export const PLAYER_ADVANCED_SEASON_CTE = `player_advanced_season AS (
          SELECT
-           TRY_CAST(d.nba_player_id AS BIGINT) AS person_id,
-           d.player AS player_name,
-           CAST(d.season AS VARCHAR) AS season,
-           CAST(d.round AS BIGINT) AS round_number,
-           CAST(
-             ROW_NUMBER() OVER (PARTITION BY d.season, d.round ORDER BY d.overall_pick)
-             AS BIGINT
-           ) AS round_pick,
-           CAST(d.overall_pick AS BIGINT) AS overall_pick,
-           tb.team_id,
-           COALESCE(d.tm, tb.team_abbreviation, th.abbreviation) AS team_abbreviation,
-           COALESCE(d.college, org.organization) AS organization,
-           CASE
-             WHEN d.college IS NOT NULL THEN 'College'
-             ELSE org.organization_type
-           END AS organization_type,
-           d.bref_player_id
-         FROM stg_bref_draft_pick_history d
-         LEFT JOIN draft_org_fallback org
-           ON org.season = CAST(d.season AS VARCHAR)
-           AND org.overall_pick = d.overall_pick
-           AND org.player_name_key = lower(d.player)
-         LEFT JOIN bridge_team_bbr tb
-           ON tb.season = d.season
-           AND tb.bbr_abbreviation = d.tm
-           AND tb.lg IN (d.lg, 'NBA')
-         LEFT JOIN dim_team_history th
-           ON th.team_id = tb.team_id
-           AND CAST(d.season AS VARCHAR) >= th.valid_from
-           AND (th.valid_to IS NULL OR CAST(d.season AS VARCHAR) < th.valid_to)
-         WHERE d.lg IN ('NBA', 'BAA')
+           a.player_id,
+           a.team_id,
+           a.season_year,
+           a.season_type,
+           COUNT(*) AS gp,
+           AVG(a.off_rating) AS avg_off_rating,
+           AVG(a.def_rating) AS avg_def_rating,
+           AVG(a.net_rating) AS avg_net_rating,
+           AVG(a.ast_pct) AS avg_ast_pct,
+           AVG(a.ast_to) AS avg_ast_to,
+           AVG(a.ast_ratio) AS avg_ast_ratio,
+           AVG(a.oreb_pct) AS avg_oreb_pct,
+           AVG(a.dreb_pct) AS avg_dreb_pct,
+           AVG(a.reb_pct) AS avg_reb_pct,
+           AVG(a.efg_pct) AS avg_efg_pct,
+           AVG(a.ts_pct) AS avg_ts_pct,
+           AVG(a.usg_pct) AS avg_usg_pct,
+           AVG(a.pace) AS avg_pace,
+           AVG(a.pie) AS avg_pie,
+           SUM(a.poss) AS total_poss,
+           AVG(a.fta_rate) AS avg_fta_rate
+         FROM fact_player_game_advanced a
+         GROUP BY a.player_id, a.team_id, a.season_year, a.season_type
        )`;
 
-// Season label ("1996-97", "2015-16") derived from the two-digit year embedded
-// in every NBA game id (chars 4-5, e.g. 002**96**00001). NBA game ids start in
-// 1946, so a two-digit year of 46+ is the 20th century and anything below is
-// the 21st — a rule that stays correct until the 2045-46 season. Every query
-// that groups or filters game-id-keyed tables by season should use this
-// instead of hand-rolling the '20' || yy version (which silently mislabeled
-// 1996-1999 seasons as 2096-2099).
-export const SEASON_FROM_GAME_ID_SQL = `
-  (CASE WHEN CAST(substr(game_id, 4, 2) AS INTEGER) >= 46 THEN '19' ELSE '20' END)
-  || substr(game_id, 4, 2) || '-' ||
-  lpad(CAST((CAST(substr(game_id, 4, 2) AS INTEGER) + 1) % 100 AS VARCHAR), 2, '0')`;
+// fact_award consolidates the old three-table BBR award UNION
+// (award shares / end-of-season teams / all-star selections) into one
+// table with a resolved player_id, a plain award_type string, and
+// all_nba_team_number already split out as an integer (no more
+// "type || number_tm" string parsing). "season" is a plain end-year string
+// ("2016"), matching what the old CTE already exposed as `season`.
+export const AWARD_ROWS_CTE = `award_rows AS (
+         SELECT
+           player_id,
+           description,
+           all_nba_team_number,
+           season,
+           month,
+           week,
+           conference,
+           award_type,
+           subtype1,
+           subtype2,
+           subtype3
+         FROM fact_award
+       )`;
+
+// fact_draft is already denormalized (team fields, organization, and
+// round_pick all resolved) — no more bridge_team_bbr/dim_team_history join
+// needed. round_pick has been verified to already match a
+// ROW_NUMBER()-by-overall_pick derivation per (season, round).
+export const DRAFT_SOURCE_CTE = `draft_source AS (
+         SELECT
+           player_id AS person_id,
+           player_name,
+           draft_year AS season,
+           round_number,
+           round_pick,
+           overall_pick,
+           team_id,
+           team_abbreviation,
+           organization,
+           organization_type,
+           draft_type
+         FROM fact_draft
+       )`;
+
+// Resolves a team's era-correct city/nickname/abbreviation for a given
+// season. dim_team_era stores valid_from_year/valid_to_year as INTs, with
+// 9999 as the sentinel for "still current" (not NULL) — comparisons are
+// inclusive on both ends: valid_from_year <= season_start_year <= valid_to_year.
+export function teamEraJoinSql(
+  eraAlias: string,
+  teamIdExpr: string,
+  seasonStartYearExpr: string,
+): string {
+  return `${eraAlias} ON ${eraAlias}.team_id = ${teamIdExpr}
+           AND ${seasonStartYearExpr} BETWEEN ${eraAlias}.valid_from_year AND ${eraAlias}.valid_to_year`;
+}

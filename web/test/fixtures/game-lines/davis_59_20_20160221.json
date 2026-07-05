@@ -6,7 +6,7 @@
   "bbr_source_url": "https://www.basketball-reference.com/boxscores/201602210NOP.html",
   "assertion_mode": "raw_sql",
   "query_target": {
-    "sql": "SELECT pts FROM fact_player_game_log WHERE player_name = 'Anthony Davis' AND game_date = '2016-02-21' AND pts = 59 AND reb = 20",
+    "sql": "SELECT pts FROM analytics_player_game_complete WHERE full_name = 'Anthony Davis' AND game_date = '2016-02-21' AND pts = 59 AND reb = 20",
     "extract": "[0].pts"
   },
   "match": "gte",

@@ -40,6 +40,25 @@ export const ANALYTICS_TOOLS: AnalyticsTool[] = [
     description:
       "Dean Oliver's why-teams-win decomposition: shooting, turnovers, rebounding, and free throws for every team-season since 1996-97, plus how the league itself has drifted.",
   },
+  {
+    id: "officials",
+    label: "Officials",
+    kicker: "Referees",
+    description: "Which officials work the most games. Coverage is the 2025-26 season only.",
+  },
+  {
+    id: "coaching",
+    label: "Coaching Leaderboard",
+    kicker: "Coaches",
+    description: "Career regular-season wins across every team a coach has led.",
+  },
+  {
+    id: "franchise-leaders",
+    label: "Franchise Leaders",
+    kicker: "Teams",
+    description:
+      "Career points, assists, rebounds, blocks, and steals leaders for any franchise, plus a sortable all-time roster board.",
+  },
 ];
 
 export function renderAnalytics(container: HTMLElement): void {

@@ -3,7 +3,7 @@
   "datapoint_class": "famous_game_line",
   "entity": "Michael Jordan 69 PTS + 18 REB vs Cleveland Cavaliers on 1990-03-28 (CHI 117-113 OT; the 4th-highest single-game point total in NBA history at the time, and Jordan's career high)",
   "expected": {
-    "player_name": "Michael Jordan",
+    "full_name": "Michael Jordan",
     "team_abbreviation": "CHI",
     "game_date": "1990-03-28",
     "pts": 69,
@@ -14,11 +14,11 @@
   "bbr_source_url": "https://www.basketball-reference.com/boxscores/199003280CHI.html",
   "assertion_mode": "raw_sql",
   "query_target": {
-    "sql": "SELECT player_name, team_abbreviation, game_date, pts, reb, ast, season_year FROM analytics_player_game_complete WHERE player_name = 'Michael Jordan' AND game_date = '1990-03-28' AND pts = 69 LIMIT 1"
+    "sql": "SELECT full_name, team_abbreviation, CAST(game_date AS VARCHAR) AS game_date, pts, reb, ast, season_year FROM analytics_player_game_complete WHERE full_name = 'Michael Jordan' AND game_date = '1990-03-28' AND pts = 69 LIMIT 1"
   },
   "match": "containsObject",
   "status": "stable",
   "confidence": "verified",
-  "notes": "Retired player; match:containsObject with exact values. The 69-point game is pre-1996-97, so fact_player_game_log doesn't have it; analytics_player_game_complete covers the full historical back to 1946. The game went to overtime.",
+  "notes": "Retired player; match:containsObject with exact values. The 69-point game is pre-1996-97, so analytics_player_game_complete doesn't have it; analytics_player_game_complete covers the full historical back to 1946. The game went to overtime.",
   "skip_if_no_db": true
 }

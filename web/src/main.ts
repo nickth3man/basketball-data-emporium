@@ -12,6 +12,9 @@ import { renderBetting } from "./views/betting.ts";
 import { renderFourFactors } from "./views/fourFactors.ts";
 import { renderMatchups } from "./views/matchups.ts";
 import { renderClutch } from "./views/clutch.ts";
+import { renderOfficials } from "./views/officials.ts";
+import { renderCoaching } from "./views/coaching.ts";
+import { renderFranchiseLeaders } from "./views/franchiseLeaders.ts";
 import { mountHeaderSearch } from "./headerSearch.ts";
 
 interface Tab {
@@ -39,6 +42,14 @@ const TABS: Tab[] = [
   { id: "four-factors", label: "Four Factors", render: renderFourFactors, hidden: true },
   { id: "matchups", label: "Matchup Explorer", render: renderMatchups, hidden: true },
   { id: "clutch", label: "Clutch Performers", render: renderClutch, hidden: true },
+  { id: "officials", label: "Officials", render: renderOfficials, hidden: true },
+  { id: "coaching", label: "Coaching Leaderboard", render: renderCoaching, hidden: true },
+  {
+    id: "franchise-leaders",
+    label: "Franchise Leaders",
+    render: renderFranchiseLeaders,
+    hidden: true,
+  },
 ];
 
 const VISIBLE_TABS = TABS.filter((t) => !t.hidden);

@@ -6,7 +6,7 @@
   "bbr_source_url": "https://www.basketball-reference.com/boxscores/202401260DAL.html",
   "assertion_mode": "raw_sql",
   "query_target": {
-    "sql": "SELECT pts FROM fact_player_game_log WHERE player_name = 'Luka Dončić' AND game_date = '2024-01-26' AND pts = 73",
+    "sql": "SELECT pts FROM analytics_player_game_complete WHERE full_name = 'Luka Doncic' AND game_date = '2024-01-26' AND pts = 73",
     "extract": "[0].pts"
   },
   "match": "gte",

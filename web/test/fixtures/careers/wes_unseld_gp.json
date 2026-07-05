@@ -2,7 +2,7 @@
   "id": "career_total.wes_unseld_gp_composite",
   "datapoint_class": "career_total",
   "entity": "Wes Unseld career GP must equal the clean profile total and clean BBR-resolved season sum (984).",
-  "expected": ["984", "984"],
+  "expected": [984, "984"],
   "bbr_source_url": "https://www.basketball-reference.com/players/u/unselwe01.html",
   "assertion_mode": "composite",
   "query_target": {
@@ -15,7 +15,7 @@
       },
       {
         "mode": "raw_sql",
-        "sql": "SELECT SUM(gp) AS career_gp FROM fact_player_season_stat_resolved WHERE person_id = 78392 AND is_playoffs = false",
+        "sql": "SELECT SUM(gp) AS career_gp FROM mart_player_season WHERE player_id = 78392 AND season_type = 'Regular'",
         "extract": "[0].career_gp"
       }
     ]
@@ -23,6 +23,6 @@
   "match": "equals",
   "status": "stable",
   "confidence": "verified",
-  "notes": "Both sub-assertions go through queryObjects, which serialises summed integer columns to JSON strings. The profile resolver and raw clean source aggregation must agree at BBR's 984 GP.",
+  "notes": "The profile resolver (getPlayerProfile) CASTs its career.career_gp to INTEGER, which the DuckDB driver returns as a native JS number (984); the raw mart_player_season SUM(gp) aggregate stays HUGEINT-typed and is stringified by the driver ('984'). Both must agree at BBR's 984 GP.",
   "skip_if_no_db": true
 }

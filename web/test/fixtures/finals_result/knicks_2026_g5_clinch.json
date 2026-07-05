@@ -18,7 +18,7 @@
   "bbr_source_url": "https://www.basketball-reference.com/boxscores/202606130SAS.html",
   "assertion_mode": "raw_sql",
   "query_target": {
-    "sql": "SELECT game_id, CAST(game_date AS VARCHAR) AS game_date, season_year, season_type, game_label, game_sub_label, home_team_id, away_team_id, home_score, away_score, winner_team_id FROM fact_game WHERE game_id = '0042500405'",
+    "sql": "SELECT game_id, CAST(game_date AS VARCHAR) AS game_date, season_year, season_type, game_label, game_sub_label, home_team_id, away_team_id, home_score, away_score, winner_team_id FROM dim_game WHERE game_id = '0042500405'",
     "extract": "[0]"
   },
   "match": "objectMatching",

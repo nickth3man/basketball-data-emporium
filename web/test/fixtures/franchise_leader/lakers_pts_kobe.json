@@ -3,8 +3,7 @@
   "datapoint_class": "franchise_leader",
   "entity": "Los Angeles Lakers franchise career points leader is Kobe Bryant (only Lakers team in his career, 1996-2016).",
   "expected": {
-    "pts_person_id": "977",
-    "pts_player": "Kobe Bryant",
+    "pts_player_id": "977",
     "pts_leader_name": "Kobe Bryant"
   },
   "bbr_source_url": "https://www.basketball-reference.com/teams/LAL/leaders_career.html",

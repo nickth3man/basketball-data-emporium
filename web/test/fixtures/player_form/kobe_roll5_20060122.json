@@ -10,11 +10,11 @@
   "bbr_source_url": "https://www.basketball-reference.com/players/b/bryanko01/gamelog/2006",
   "assertion_mode": "raw_sql",
   "query_target": {
-    "sql": "SELECT game_date, pts_roll5, pts_roll10 FROM agg_player_rolling WHERE player_id = 977 AND game_date = '2006-01-22' LIMIT 1"
+    "sql": "SELECT game_date, pts_roll5, pts_roll10 FROM mart_player_rolling WHERE player_id = 977 AND game_date = '2006-01-22' LIMIT 1"
   },
   "match": "containsObject",
   "status": "stable",
   "confidence": "verified",
-  "notes": "Guards the Form Tracker's source table (agg_player_rolling). The rolling window includes the current game — verified against the hand-computed average of Kobe's five games ending 2006-01-22 (81, 50, 48, 37, 28 in some order per BBR). One clean row per (player_id, game_id); no agg-layer fan-out in this table.",
+  "notes": "Guards the Form Tracker's source table (mart_player_rolling). The rolling window includes the current game — verified against the hand-computed average of Kobe's five games ending 2006-01-22 (81, 50, 48, 37, 28 in some order per BBR). One clean row per (player_id, game_id); no agg-layer fan-out in this table.",
   "skip_if_no_db": true
 }

@@ -329,12 +329,9 @@ app.get(
   }),
 );
 
-app.get(
-  "/api/leaders/stat-keys",
-  asyncRoute(async (_req, res) => {
-    res.json(await q.listLeaderStatKeys());
-  }),
-);
+app.get("/api/leaders/stat-keys", (_req, res) => {
+  res.json(q.listLeaderStatKeys());
+});
 
 app.get(
   "/api/leaders/season",
@@ -490,6 +487,24 @@ playerRoute("/api/matchups/player/:id", (id, req) => {
   const side = req.query.side === "defense" ? "defense" : "offense";
   return q.getPlayerMatchups(id, side, clampLimit(req.query.limit));
 });
+
+// --- Officials + Coaching leaderboards --------------------------------------
+
+app.get(
+  "/api/officials/leaders",
+  asyncRoute(async (req, res) => {
+    const limit = clampLimit(req.query.limit);
+    res.json(await q.getOfficialsLeaders(limit));
+  }),
+);
+
+app.get(
+  "/api/coaches/leaders",
+  asyncRoute(async (req, res) => {
+    const limit = clampLimit(req.query.limit);
+    res.json(await q.getCoachingLeaders(limit));
+  }),
+);
 
 // --- Generic table browser (developer escape hatch, not used by the UI) --
 

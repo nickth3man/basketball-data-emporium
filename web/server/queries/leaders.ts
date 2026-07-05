@@ -4,92 +4,99 @@ import { PLAYER_SEASON_STATS_CTE, type Row } from "./shared.ts";
 // ---------------------------------------------------------------------------
 // League Leaders
 //
-// fact_season_leader is a season-level aggregate (one row per season/split/
-// stat_key — no player_id); the row-per-leader table is agg_league_leaders,
-// which already carries player_id, season_year, season_type, gp, the
-// per-game rate stats (avg_pts, avg_reb, ...) and the league ranks
-// (pts_rank, reb_rank, ...). All-Time is recomputed from fact_player_career
-// (NBA Regular Season, summed per player_id) rather than reading
-// agg_all_time_leaders — that table's totals are inflated/incorrect vs BBR
-// (e.g. LeBron shows 62,564 instead of the BBR-citable ~42k+).
+// mart_league_leaders is a prebuilt, pre-ranked mart, but only covers
+// pts/reb/ast. stl/blk have no prebuilt rank column, so they're ranked live
+// over mart_player_season (same RANK() OVER (...) pattern used for the
+// player-profile "Champ" badges) — this keeps the 5-stat taxonomy the app
+// has always exposed instead of shrinking it to match the narrower mart.
+// All-Time leaders are recomputed from mart_player_career (regular-season
+// totals) rather than a legacy all-time-leaders table whose totals were
+// inflated/incorrect vs BBR.
 // ---------------------------------------------------------------------------
+
+const MART_LEADER_STAT_COLUMNS: Record<string, { avg: string; rank: string }> = {
+  pts: { avg: "avg_pts", rank: "rank_pts" },
+  reb: { avg: "avg_reb", rank: "rank_reb" },
+  ast: { avg: "avg_ast", rank: "rank_ast" },
+};
+
+const LIVE_RANK_STAT_COLUMNS: Record<string, string> = {
+  stl: "avg_stl",
+  blk: "avg_blk",
+};
 
 export async function listLeaderSeasons(): Promise<string[]> {
   const rows = await queryObjects<{ season_year: string }>(
     `SELECT DISTINCT season_year
-     FROM agg_league_leaders
+     FROM mart_league_leaders
      WHERE season_type = 'Regular'
      ORDER BY season_year DESC`,
   );
   return rows.map((r) => r.season_year);
 }
 
-export async function listLeaderStatKeys(): Promise<string[]> {
-  const rows = await queryObjects<{ stat_key: string }>(
-    `SELECT DISTINCT stat_key
-     FROM (
-       SELECT 'pts' AS stat_key FROM agg_league_leaders WHERE avg_pts IS NOT NULL
-       UNION ALL SELECT 'reb' FROM agg_league_leaders WHERE avg_reb IS NOT NULL
-       UNION ALL SELECT 'ast' FROM agg_league_leaders WHERE avg_ast IS NOT NULL
-       UNION ALL SELECT 'stl' FROM agg_league_leaders WHERE avg_stl IS NOT NULL
-       UNION ALL SELECT 'blk' FROM agg_league_leaders WHERE avg_blk IS NOT NULL
-     )
-     ORDER BY stat_key`,
-  );
-  return rows.map((r) => r.stat_key);
+export function listLeaderStatKeys(): string[] {
+  // pts/reb/ast come from the prebuilt mart; stl/blk are computed live over
+  // mart_player_season — both are always available, so this is a fixed list
+  // (adding more stats is just adding another LIVE_RANK_STAT_COLUMNS entry).
+  return ["ast", "blk", "pts", "reb", "stl"];
 }
-
-const LEADER_STAT_COLUMNS: Record<string, { avg: string; rank: string }> = {
-  pts: { avg: "avg_pts", rank: "pts_rank" },
-  reb: { avg: "avg_reb", rank: "reb_rank" },
-  ast: { avg: "avg_ast", rank: "ast_rank" },
-  stl: { avg: "avg_stl", rank: "stl_rank" },
-  blk: { avg: "avg_blk", rank: "blk_rank" },
-};
 
 export async function getSeasonLeaders(
   season: string,
   statKey: string,
   limit = 25,
 ): Promise<Row[]> {
-  // Whitelist stat keys — agg_league_leaders stores each as a separate
-  // rank/avg column, so we can't parameterise the column name. Falling
-  // back to 'pts' on unknown input keeps the endpoint resilient.
-  const cols = LEADER_STAT_COLUMNS[statKey] ?? LEADER_STAT_COLUMNS.pts;
-  return queryObjects(
-    `WITH ${PLAYER_SEASON_STATS_CTE},
-     leader_team AS (
+  const seasonStartYear = Number(season.slice(0, 4));
+
+  if (LIVE_RANK_STAT_COLUMNS[statKey]) {
+    const col = LIVE_RANK_STAT_COLUMNS[statKey];
+    return queryObjects(
+      `WITH ${PLAYER_SEASON_STATS_CTE},
+       leader_team AS (
+         SELECT
+           player_id,
+           COUNT(DISTINCT team_id) AS team_count,
+           MIN(team_id) AS team_id,
+           MAX(source_team_abbreviation) AS source_team_abbreviation,
+           SUM(gp) AS gp,
+           SUM(${col} * gp) / NULLIF(SUM(gp), 0) AS stat_value
+         FROM player_season_stats
+         WHERE season_type = 'Regular' AND season_year = ?
+         GROUP BY player_id
+       ),
+       ranked AS (
+         SELECT
+           *,
+           RANK() OVER (ORDER BY stat_value DESC NULLS LAST) AS stat_rank
+         FROM leader_team
+       )
        SELECT
-         player_id,
-         season_year,
-         COUNT(DISTINCT team_id) AS team_count,
-         MIN(team_id) AS team_id,
-         MAX(source_team_abbreviation) AS source_team_abbreviation
-       FROM player_season_stats
-       WHERE season_type = 'Regular'
-       GROUP BY player_id, season_year
-     ),
-     leader_team_display AS (
-       SELECT
-         lt.player_id,
-         lt.season_year,
+         r.player_id,
+         p.full_name,
+         ? AS season_year,
+         'Regular' AS season_type,
+         r.gp,
+         r.stat_value,
+         r.stat_rank,
          CASE
-           WHEN lt.team_count > 1 THEN 'TOT'
-           ELSE COALESCE(th.abbreviation, lt.source_team_abbreviation)
+           WHEN r.team_count > 1 THEN 'TOT'
+           ELSE COALESCE(era.abbreviation, r.source_team_abbreviation)
          END AS team_abbreviation
-       FROM leader_team lt
-       LEFT JOIN dim_team_history th
-         ON th.team_id = lt.team_id
-         AND left(lt.season_year, 4) >= th.valid_from
-         AND (th.valid_to IS NULL OR left(lt.season_year, 4) < th.valid_to)
-       QUALIFY ROW_NUMBER() OVER (
-         PARTITION BY lt.player_id, lt.season_year
-         ORDER BY
-           CASE WHEN th.team_id IS NOT NULL THEN 0 ELSE 1 END,
-           th.valid_from DESC NULLS LAST
-       ) = 1
-     )
-     SELECT
+       FROM ranked r
+       JOIN dim_player p ON p.player_id = r.player_id
+       LEFT JOIN dim_team_era era
+         ON era.team_id = r.team_id
+         AND ? BETWEEN era.valid_from_year AND era.valid_to_year
+       WHERE r.stat_rank <= ?
+       ORDER BY r.stat_rank ASC`,
+      [season, season, seasonStartYear, limit],
+    );
+  }
+
+  const cols = MART_LEADER_STAT_COLUMNS[statKey] ?? MART_LEADER_STAT_COLUMNS.pts;
+  return queryObjects(
+    `SELECT
        l.player_id,
        p.full_name,
        l.season_year,
@@ -97,18 +104,19 @@ export async function getSeasonLeaders(
        l.gp,
        l.${cols.avg} AS stat_value,
        l.${cols.rank} AS stat_rank,
-       ltd.team_abbreviation
-     FROM agg_league_leaders l
-     JOIN dim_player p ON p.player_id = l.player_id AND p.is_current
-     LEFT JOIN leader_team_display ltd
-       ON ltd.player_id = l.player_id
-       AND ltd.season_year = l.season_year
+       COALESCE(era.abbreviation, cur.abbreviation) AS team_abbreviation
+     FROM mart_league_leaders l
+     JOIN dim_player p ON p.player_id = l.player_id
+     LEFT JOIN dim_team_era era
+       ON era.team_id = l.team_id
+       AND ? BETWEEN era.valid_from_year AND era.valid_to_year
+     LEFT JOIN dim_team_era cur ON cur.team_id = l.team_id AND cur.is_current
      WHERE l.season_year = ?
        AND l.season_type = 'Regular'
        AND l.${cols.rank} IS NOT NULL
      ORDER BY l.${cols.rank} ASC
      LIMIT ?`,
-    [season, limit],
+    [seasonStartYear, season, limit],
   );
 }
 
@@ -116,35 +124,27 @@ export async function getAllTimeLeaders(
   statKey: "pts" | "ast" | "reb" = "pts",
   limit = 50,
 ): Promise<Row[]> {
-  // Recompute from fact_player_career (NBA, Regular Season only — the
-  // schema's `league_id` value for NBA is the literal string 'NBA', and
-  // career_type for regular-season rows is 'Regular Season'). Excludes
-  // Playoffs/Cup so totals are BBR-comparable. All-time ranks are
-  // computed per-stat; the chosen `statKey` determines the ordering and
-  // which column is the "value" surfaced to the client.
+  // mart_player_career only carries per-game rate averages for ast/reb (not
+  // career totals like it does for pts) — total ast/reb are derived from
+  // career_apg/career_rpg * career_gp, which is exact given those averages
+  // were themselves computed from the same totals.
+  const statValueExpr =
+    statKey === "pts"
+      ? "career_pts"
+      : statKey === "ast"
+        ? "ROUND(career_apg * career_gp)"
+        : "ROUND(career_rpg * career_gp)";
   return queryObjects(
-    `WITH career_totals AS (
+    `WITH ranked AS (
        SELECT
          player_id,
-         SUM(pts)::BIGINT AS pts,
-         SUM(ast)::BIGINT AS ast,
-         SUM(reb)::BIGINT AS reb,
-         SUM(gp)::BIGINT AS gp
-       FROM fact_player_career
-       WHERE league_id = 'NBA'
-         AND career_type = 'Regular Season'
-       GROUP BY player_id
-       HAVING SUM(gp) > 0
-     ),
-     ranked AS (
-       SELECT
-         player_id,
-         pts,
-         ast,
-         reb,
-         gp,
-         RANK() OVER (ORDER BY ${statKey} DESC NULLS LAST) AS stat_rank
-       FROM career_totals
+         career_pts AS pts,
+         ROUND(career_apg * career_gp) AS ast,
+         ROUND(career_rpg * career_gp) AS reb,
+         career_gp AS gp,
+         RANK() OVER (ORDER BY ${statValueExpr} DESC NULLS LAST) AS stat_rank
+       FROM mart_player_career
+       WHERE career_gp > 0
      )
      SELECT
        r.stat_rank,
@@ -156,7 +156,7 @@ export async function getAllTimeLeaders(
        r.reb,
        r.gp
      FROM ranked r
-     JOIN dim_player p ON p.player_id = r.player_id AND p.is_current
+     JOIN dim_player p ON p.player_id = r.player_id
      ORDER BY r.stat_rank ASC
      LIMIT ?`,
     [limit],

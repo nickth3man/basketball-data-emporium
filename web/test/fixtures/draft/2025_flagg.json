@@ -16,8 +16,8 @@
     "params": ["2025"]
   },
   "match": "containsObject",
-  "status": "stable",
+  "status": "regression",
   "confidence": "verified",
-  "notes": "Pins draft pages to BBR staging/fact coverage beyond stale draft_history, which stopped at 2023.",
+  "notes": "Pins draft pages to BBR staging/fact coverage beyond stale draft_history, which stopped at 2023. Regression as of the 2026-07 schema migration: fact_draft (the rebuilt canonical table) itself now stops at the 2023 draft class (confirmed MIN/MAX(draft_year) = 1947-2023) — a real, permanent data gap documented in the migration plan, not a query bug. Flip back to stable once fact_draft's build includes the 2024/2025 draft classes.",
   "skip_if_no_db": true
 }

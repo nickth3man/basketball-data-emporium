@@ -65,24 +65,19 @@ export interface AllTimeLeader {
 export interface FranchiseLeaderRow extends Row {
   team_id: number;
   pts: number;
-  pts_person_id: number;
-  pts_player: string;
+  pts_player_id: number;
   pts_leader_name: string | null;
   ast: number;
-  ast_person_id: number;
-  ast_player: string;
+  ast_player_id: number;
   ast_leader_name: string | null;
   reb: number;
-  reb_person_id: number;
-  reb_player: string;
+  reb_player_id: number;
   reb_leader_name: string | null;
   blk: number;
-  blk_person_id: number;
-  blk_player: string;
+  blk_player_id: number;
   blk_leader_name: string | null;
   stl: number;
-  stl_person_id: number;
-  stl_player: string;
+  stl_player_id: number;
   stl_leader_name: string | null;
 }
 
@@ -336,6 +331,9 @@ export const api = {
     getJSON<Row[]>(
       `/api/clutch/leaders${qs({ season, limit: limit !== undefined ? String(limit) : null })}`,
     ),
+
+  getOfficialsLeaders: (limit?: number) => getJSON<Row[]>(`/api/officials/leaders${qs({ limit })}`),
+  getCoachingLeaders: (limit?: number) => getJSON<Row[]>(`/api/coaches/leaders${qs({ limit })}`),
 };
 
 export interface ShotBin {

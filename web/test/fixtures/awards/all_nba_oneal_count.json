@@ -6,7 +6,7 @@
   "bbr_source_url": "https://www.basketball-reference.com/players/o/onealsh01.html",
   "assertion_mode": "raw_sql",
   "query_target": {
-    "sql": "SELECT cast(count(*) AS INTEGER) AS n FROM stg_bref_end_of_season_teams WHERE nba_player_id = 406 AND lg = 'NBA' AND type = 'All-NBA'",
+    "sql": "SELECT cast(count(*) AS INTEGER) AS n FROM fact_award WHERE player_id = 406 AND award_type = 'All-NBA'",
     "extract": "[0].n"
   },
   "match": "equals",

@@ -2,13 +2,13 @@
   "id": "jersey.jordan_chi_23",
   "datapoint_class": "jersey",
   "entity": "Michael Jordan CHI career must include #23 (stable anchor)",
-  "expected": { "abbreviation": "CHI", "start_year": 1984, "end_year": 1998, "jersey_num": "23" },
+  "expected": { "abbreviation": "CHI", "start_year": 1984, "jersey_num": "23" },
   "bbr_source_url": "https://www.basketball-reference.com/teams/CHI/numbers.html",
   "assertion_mode": "query_fn",
   "query_target": { "fn": "getPlayerProfile", "params": [893], "extract": "jerseyHistory" },
   "match": "containsObject",
   "status": "stable",
   "confidence": "verified",
-  "notes": "Jordan's Bulls career (1984-1998) is currently represented as one continuous #23 stint in the data. The #45 comeback-season stint is a separate (regression) fixture.",
+  "notes": "Post-migration, Jordan's Bulls #23 tenure is correctly split into three stints around real jersey changes (a brief #12 game in 1989-90 and the #45 comeback in 1994-95 — see jersey.jordan_chi_45), so end_year is dropped from the assertion; this just anchors that a #23 CHI stint starting 1984 exists.",
   "skip_if_no_db": true
 }

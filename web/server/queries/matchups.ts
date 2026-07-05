@@ -48,7 +48,7 @@ export async function getPlayerMatchups(
   const filter = side === "offense" ? "off_player_id" : "def_player_id";
   return queryObjects(
     `SELECT ${opponent}, ${MATCHUP_STAT_COLS}
-     FROM stg_season_matchups
+     FROM src_stg_season_matchups
      WHERE ${filter} = ?
      ORDER BY matchup_min DESC
      LIMIT ?`,
@@ -80,7 +80,7 @@ export async function getMatchupDefenderLeaders(
          THEN ROUND(SUM(matchup_fgm) / SUM(matchup_fga), 3) END AS fg_pct_allowed,
        SUM(matchup_blk)::INTEGER AS blk,
        SUM(matchup_tov)::INTEGER AS tov_forced
-     FROM stg_season_matchups
+     FROM src_stg_season_matchups
      GROUP BY def_player_id
      HAVING SUM(partial_poss) >= 750
      ORDER BY ${order}

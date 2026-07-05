@@ -1,16 +1,19 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository. It is kept identical to [`AGENTS.md`](AGENTS.md) at the repo root, which serves the same purpose for other coding agents — update both together.
+This file provides guidance to coding agents when working with code in this repository. It is kept identical to [`CLAUDE.md`](CLAUDE.md) at the repo root, which serves the same purpose for Claude Code — update both together.
 
-## ⚠️ Current state: the app and the warehouse are out of sync
+## Schema migration status (2026-07-04 warehouse rebuild)
 
-As of 2026-07-04, `data/nba.duckdb` was rebuilt from scratch by `data/audit/build_nba.py` into a new layered schema (`src_*` / `dim_*` / `fact_*` / `map_*` / `mart_*` / `meta_*`, see below). **The web app's queries were written against the old, pre-rebuild schema and have not been updated yet** (`meta_known_gap.app_contract_not_preserved` documents this as intentional/deferred). Concretely:
+`data/nba.duckdb` was rebuilt from scratch by `data/audit/build_nba.py` into a layered schema (`src_*` / `dim_*` / `fact_*` / `map_*` / `mart_*` / `meta_*`, see below). `web/server/queries/*.ts` has since been rewritten against the new schema — every query file (`players.ts`, `teams.ts`, `game.ts`, `standings.ts`, `draft.ts`, `awards.ts`, `leaders.ts`, `betting.ts`, `fourFactors.ts`, `matchups.ts`, `gameFlow.ts`, plus `shared.ts`) now reads canonical `dim_*`/`fact_*`/`mart_*` tables where one exists, or the matching `src_*`-prefixed lossless copy (joined back to canonical ids via `map_player_bbr`/`map_team_bbr` where needed) where no canonical replacement was built. Three new hidden analytics tabs (`officials`, `coaching`, `franchise-leaders`) surface `fact_official_assignment`/`dim_official`, `fact_coach_season`, and `mart_franchise_leaders` respectively, which previously had no UI.
 
-- Many tables the app queries no longer exist as bare names (`agg_player_season`, `game`, `fact_game`, `fact_player_game_log`, ...) — they only exist under `src_*` prefixes now, or were replaced by differently-named/shaped `mart_*`/`fact_*` tables.
-- Tables that share an old name, like `dim_player`, now have a different schema (no more `is_current` column, which `queries/players.ts` filters on).
-- `web/test/data-hardening.test.ts` only skips its DB-backed suite when `data/nba.duckdb` is **absent** — since the file now exists (just with an incompatible schema), that suite will run and fail loudly instead of skipping.
+Known, permanent (non-bug) coverage gaps carried through the migration — don't try to "fix" these:
+- `fact_official_assignment` only covers the 2025-26 season (a live/current-season feed).
+- `fact_draft` stops at the 2023 draft class (2024/2025 not yet ingested).
+- A handful of `fact_draft` picks retain a `draft_slot_status='duplicate_source_slot'` numbering bug (e.g. 2002 pick 35/36) — flagged but not renumbered.
+- 33 `dim_game` All-Star rows have a corrupted `season_year` (parsed as 20YY instead of 19YY) — any season-range query built on `dim_game`/`fact_pbp_event`/etc. should apply `shared.ts`'s `DIM_GAME_SEASON_GUARD_SQL` to exclude them.
+- `fact_award` is missing at least one pre-1951 no-id award winner present in `src_stg_bref_player_award_shares` (e.g. the 1950 ROY).
 
-Don't spend time debugging "why do all the queries return nothing/error" as if it's a regression — it's this schema swap. The fix is to rewrite `web/server/queries/*.ts` against the new schema (see the Warehouse layers section), which is planned but not yet done.
+If you find a query still referencing an old bare table name (`agg_player_season`, `game`, `fact_game_log`, ...), that's a leftover to fix, not expected behavior — the migration should be complete.
 
 ## What this repo is
 
@@ -81,7 +84,7 @@ Two maintenance passes run alongside the per-entity resolvers:
 ### Server (`web/server/`)
 
 - `index.ts` — all Express routes. Thin: validates params (`clampLimit`, integer id checks), delegates to `queries/*.ts`, wraps handlers in `asyncRoute` for consistent JSON 500s. **Route-ordering convention:** literal-segment routes (e.g. `/api/players/featured`, `/api/teams/by-conference`) must be registered before their `/:id` param siblings. Game ids are 10-char zero-padded numeric strings.
-- `queries/` — every SQL query against the warehouse, split by concern (`players.ts`, `teams.ts`, `game.ts`, `standings.ts`, `draft.ts`, `awards.ts`, `leaders.ts`, `betting.ts`, `fourFactors.ts`, `matchups.ts`, `gameFlow.ts`, plus shared helpers in `shared.ts`); `queries.ts` is just a barrel re-export. This is where nearly all business logic lives — and where the schema-mismatch fixes above will need to land.
+- `queries/` — every SQL query against the warehouse, split by concern (`players.ts`, `teams.ts`, `game.ts`, `standings.ts`, `draft.ts`, `awards.ts`, `leaders.ts`, `betting.ts`, `fourFactors.ts`, `matchups.ts`, `gameFlow.ts`, `leaderboards.ts`, plus shared helpers in `shared.ts`); `queries.ts` is just a barrel re-export. This is where nearly all business logic lives.
 - `db.ts` — single READ_ONLY DuckDB connection (singleton promise). `queryObjects` for parameterized SELECTs; converts BigInt to Number (or string when unsafe) so results survive `JSON.stringify`. DB path: `DUCKDB_PATH` env override, else `../../data/nba.duckdb`.
 - `photos.ts` — proxies NBA CDN headshots with a disk cache at `web/.cache/photos/`. The CDN returns a ~5 KB silhouette (HTTP 200) for players without photos, so a 10 KB size threshold distinguishes real photos; both outcomes are cached (`.png` / `.none`).
 - `teamColorEras.ts` — generated era-accurate franchise colors keyed by team_id and year; used to color player/team UI per season.
@@ -89,16 +92,11 @@ Two maintenance passes run alongside the per-entity resolvers:
 
 ### Supplemental data (`data/anchors/`)
 
-Basketball-Reference JSONL scrapes read **at request time** via DuckDB `read_json_auto` (no server restart needed after re-scraping; paths overridable via `BBR_JERSEYS_PATH` / `BBR_COACHES_PATH`, CTEs omitted entirely if the files are missing):
-
-- `bbr_jerseys.jsonl` — jersey numbers. Per-season jersey sources rank: `inactive_players` (1) > BBR jerseys (2) > `bridge_player_team_season` (3) — see `data/anchors/README.md` for the bridge-suppression rule (bridge rows can leak a player's *current* number into historical seasons).
-- `bbr_coaches.jsonl` — the only source of historical coach-by-season data.
-
-Both are also materialized as warehouse tables by `data/audit/build_coach_jersey_tables.sql` (re-run after re-scraping): `fact_coach_season` and `fact_player_jersey_season` (jersey rows carry a `source` tier). The script header documents known accuracy limits and warns the ESPN/cumulative-stats jersey columns are current-number backfills, never usable for history.
+Basketball-Reference JSONL scrapes (`bbr_jerseys.jsonl`, `bbr_coaches.jsonl`) are materialized into warehouse tables by `data/audit/build_coach_jersey_tables.sql` (re-run after re-scraping): `fact_coach_season` (team-by-season coach records) and `fact_player_jersey_season` (jersey numbers, each row carrying a `source` tier — `game_inactive_list` > `bbr_roster` > `inferred`, in that priority order). The app queries these warehouse tables directly (`teams.ts`'s `getTeamCoachHistory`, `players.ts`'s jersey-history logic in `getPlayerProfile`) rather than reading the JSONL files at request time, so a server restart is no longer avoidable after re-scraping — re-run `build_coach_jersey_tables.sql` to pick up new scrapes. `shared.ts` still resolves `BBR_COACHES_PATH` and logs whether the file is present, as a secondary sanity signal only (not read at query time). The script header on `build_coach_jersey_tables.sql` documents known accuracy limits and warns the ESPN/cumulative-stats jersey columns are current-number backfills, never usable for history.
 
 ### Frontend (`web/src/`)
 
-Vanilla TS, no framework. `main.ts` owns a tab-based SPA: each view in `src/views/` exports a `render(container, detailId?)` function registered in the `TABS` array. Some tabs are `hidden` (search results, game detail) — reachable only via navigation, not the tab bar. Cross-view navigation is done by dispatching a `nba:navigate` CustomEvent (`{ tab, id? }`) on `window`. `dom.ts` provides the `el()` element builder and `announceStatus` (aria-live); `api.ts` holds the shared response types; `headerSearch.ts` is the persistent global search in the header.
+Vanilla TS, no framework. `main.ts` owns a tab-based SPA: each view in `src/views/` exports a `render(container, detailId?)` function registered in the `TABS` array. Some tabs are `hidden` (search results, game detail, and the analytics-hub tools: betting, four-factors, matchups, clutch, officials, coaching, franchise-leaders) — reachable only via navigation, not the tab bar; hidden analytics tools are also linked from the `analytics` tab's hub page (`views/analytics.ts`'s `ANALYTICS_TOOLS`). Cross-view navigation is done by dispatching a `nba:navigate` CustomEvent (`{ tab, id? }`) on `window`. `dom.ts` provides the `el()` element builder and `announceStatus` (aria-live); `api.ts` holds the shared response types; `headerSearch.ts` is the persistent global search in the header.
 
 ### Testing (`web/test/`)
 
@@ -107,4 +105,4 @@ The main suite is **fixture-driven data hardening** (`data-hardening.test.ts`): 
 - `"stable"` — must pass now.
 - `"regression"` — documents a known open bug; registered as `test.fails`, so it flips RED when someone fixes the underlying query (the prompt to flip it back to `"stable"`).
 
-The DB-backed suite skips only when `data/nba.duckdb` is **absent** (an existence check, not a schema/connectivity check — see the warning at the top of this file). `dom.test.ts` runs under jsdom regardless of the DB.
+The DB-backed suite skips only when `data/nba.duckdb` is **absent** (an existence check, not a schema/connectivity check). `dom.test.ts` runs under jsdom regardless of the DB.

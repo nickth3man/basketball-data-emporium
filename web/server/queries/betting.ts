@@ -4,49 +4,53 @@ import type { Row } from "./shared.ts";
 // ---------------------------------------------------------------------------
 // Vegas vs Reality (moneyline betting explorer)
 //
-// fact_game_betting_lines has one row per game back to 2003-04 with REAL
-// moneylines in decimal_home/decimal_away — but its spread_* columns are
-// duplicated moneyline values and `total` is always NULL (verified 2026-07),
-// so only moneyline analysis is possible. Results come from the trusted
-// `game` fact table, which caps usable coverage at the seasons it carries
-// (through 2022-23 as of writing — the betting rows for later seasons have
-// no result to join against) and has a few dozen duplicate game_ids, hence
-// the any_value() dedup. Implied win probability strips the bookmaker's
-// overround by normalizing the two sides' inverse odds to sum to 1.
+// fact_game_odds stores odds in a long (market, selection, odds) shape
+// covering many markets; the 'decimal_home'/'decimal_away' markets are the
+// direct successor of the old fact_game_betting_lines wide columns (same
+// canonical_source, one row per game per side, real decimal moneylines) and
+// cover 2003-04 through 2025-26 — a real coverage extension vs. the old
+// ~2022-23 cap, since results now come from dim_game instead of the legacy
+// `game` table. Implied win probability strips the bookmaker's overround by
+// normalizing the two sides' inverse odds to sum to 1.
 // ---------------------------------------------------------------------------
 
-const BETTING_JOIN_CTE = `game_dedup AS (
+const BETTING_JOIN_CTE = `odds_pivot AS (
     SELECT
       game_id,
-      any_value(game_date) AS game_date,
-      any_value(team_id_home) AS team_id_home,
-      any_value(team_abbreviation_home) AS home,
-      any_value(team_id_away) AS team_id_away,
-      any_value(team_abbreviation_away) AS away,
-      any_value(pts_home) AS pts_home,
-      any_value(pts_away) AS pts_away,
-      any_value(wl_home) AS wl_home,
-      any_value(season_type) AS season_type
-    FROM game
+      MAX(CASE WHEN market = 'decimal_home' THEN odds END) AS decimal_home,
+      MAX(CASE WHEN market = 'decimal_away' THEN odds END) AS decimal_away
+    FROM fact_game_odds
+    WHERE market IN ('decimal_home', 'decimal_away')
     GROUP BY game_id
   ),
   betting_games AS (
     SELECT
-      b.game_id,
-      CAST(g.game_date AS DATE)::VARCHAR AS game_date,
-      substr(b.game_id, 4, 2) AS yy,
-      (CASE WHEN CAST(substr(b.game_id, 4, 2) AS INTEGER) >= 46 THEN '19' ELSE '20' END)
-        || substr(b.game_id, 4, 2) || '-' ||
-        lpad(CAST((CAST(substr(b.game_id, 4, 2) AS INTEGER) + 1) % 100 AS VARCHAR), 2, '0')
-        AS season_year,
+      p.game_id,
+      g.game_date::VARCHAR AS game_date,
+      g.season_year,
       g.season_type,
-      g.team_id_home, g.home, g.team_id_away, g.away,
-      g.pts_home, g.pts_away, g.wl_home,
-      b.decimal_home, b.decimal_away,
-      (1 / b.decimal_home) / ((1 / b.decimal_home) + (1 / b.decimal_away)) AS implied_home
-    FROM fact_game_betting_lines b
-    JOIN game_dedup g USING (game_id)
-    WHERE b.decimal_home > 1 AND b.decimal_away > 1 AND g.wl_home IN ('W', 'L')
+      g.home_team_id AS team_id_home,
+      COALESCE(ht.abbreviation, htc.abbreviation) AS home,
+      g.away_team_id AS team_id_away,
+      COALESCE(aw.abbreviation, awc.abbreviation) AS away,
+      g.home_score AS pts_home,
+      g.away_score AS pts_away,
+      CASE WHEN g.home_score > g.away_score THEN 'W' ELSE 'L' END AS wl_home,
+      p.decimal_home,
+      p.decimal_away,
+      (1 / p.decimal_home) / ((1 / p.decimal_home) + (1 / p.decimal_away)) AS implied_home
+    FROM odds_pivot p
+    JOIN dim_game g ON g.game_id = p.game_id
+    LEFT JOIN dim_team_era ht
+      ON ht.team_id = g.home_team_id
+      AND CAST(SUBSTR(g.season_year, 1, 4) AS INTEGER) BETWEEN ht.valid_from_year AND ht.valid_to_year
+    LEFT JOIN dim_team_era htc ON htc.team_id = g.home_team_id AND htc.is_current
+    LEFT JOIN dim_team_era aw
+      ON aw.team_id = g.away_team_id
+      AND CAST(SUBSTR(g.season_year, 1, 4) AS INTEGER) BETWEEN aw.valid_from_year AND aw.valid_to_year
+    LEFT JOIN dim_team_era awc ON awc.team_id = g.away_team_id AND awc.is_current
+    WHERE p.decimal_home > 1 AND p.decimal_away > 1
+      AND g.home_score IS NOT NULL AND g.away_score IS NOT NULL
   )`;
 
 export async function listBettingSeasons(): Promise<string[]> {
@@ -65,13 +69,13 @@ export async function getBettingMarketBeaters(season: string | null): Promise<Ro
               CASE WHEN wl_home = 'W' THEN 1 ELSE 0 END AS win,
               implied_home AS implied_p
        FROM betting_games
-       WHERE season_type = 'Regular Season'
+       WHERE season_type = 'Regular'
        UNION ALL
        SELECT season_year, team_id_away, away,
               CASE WHEN wl_home = 'W' THEN 0 ELSE 1 END,
               1 - implied_home
        FROM betting_games
-       WHERE season_type = 'Regular Season'
+       WHERE season_type = 'Regular'
      )
      SELECT
        team_id,
@@ -130,7 +134,7 @@ export async function getBettingCalibration(): Promise<Row[]> {
        ROUND(AVG(CASE WHEN implied_home > 0.5 THEN implied_home ELSE 1 - implied_home END) * 100, 1)
          AS favorite_implied_pct
      FROM betting_games
-     WHERE season_type = 'Regular Season'
+     WHERE season_type = 'Regular'
      GROUP BY season_year
      ORDER BY season_year`,
   );
