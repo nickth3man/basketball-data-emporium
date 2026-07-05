@@ -1,0 +1,14 @@
+{
+  "id": "jersey.harden_hou_13_2020_21",
+  "datapoint_class": "jersey",
+  "entity": "James Harden HOU 2020-21 should remain #13",
+  "expected": { "abbreviation": "HOU", "start_year": 2019, "end_year": 2021, "jersey_num": "13" },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/HOU/numbers.html",
+  "assertion_mode": "query_fn",
+  "query_target": { "fn": "getPlayerProfile", "params": [201935], "extract": "jerseyHistory" },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "The display stint starts in 2019 because Houston's trim color changed that season; it includes Harden's partial 2020-21 Rockets season as #13.",
+  "skip_if_no_db": true
+}

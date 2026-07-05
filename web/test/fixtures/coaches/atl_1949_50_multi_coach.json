@@ -1,0 +1,29 @@
+{
+  "id": "coach_season.atl_1949_50_multi_coach",
+  "datapoint_class": "coach_season",
+  "entity": "1949-50 Atlanta Hawks multi-coach season",
+  "expected": [
+    {
+      "season_year": "1949-50",
+      "coach_name": "R. Auerbach",
+      "wins": "28",
+      "losses": "31",
+      "win_pct": 0.475
+    },
+    {
+      "season_year": "1949-50",
+      "coach_name": "R. Potter",
+      "wins": "1",
+      "losses": "4",
+      "win_pct": 0.2
+    }
+  ],
+  "bbr_source_url": "https://www.basketball-reference.com/teams/ATL/",
+  "assertion_mode": "query_fn",
+  "query_target": { "fn": "getTeamCoachHistory", "params": [1610612737] },
+  "match": "arrayContains",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "Covers historical multi-coach team-season output from fact_coach_season, with JSONL fallback preserving the same row shape.",
+  "skip_if_no_db": true
+}

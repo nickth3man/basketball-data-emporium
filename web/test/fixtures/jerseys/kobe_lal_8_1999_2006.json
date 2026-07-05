@@ -1,0 +1,14 @@
+{
+  "id": "jersey.kobe_lal_8_1999_2006",
+  "datapoint_class": "jersey",
+  "entity": "Kobe Bryant LAL 1999-2006 color-era split should remain #8",
+  "expected": { "abbreviation": "LAL", "start_year": 1999, "end_year": 2006, "jersey_num": "8" },
+  "bbr_source_url": "https://www.basketball-reference.com/teams/LAL/numbers.html",
+  "assertion_mode": "query_fn",
+  "query_target": { "fn": "getPlayerProfile", "params": [977], "extract": "jerseyHistory" },
+  "match": "containsObject",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "The profile intentionally splits jersey stints when team colors change; Kobe's post-1999 early Lakers stint must still show #8 until the 2006-07 switch to #24.",
+  "skip_if_no_db": true
+}
