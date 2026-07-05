@@ -24,7 +24,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
 from .logging_setup import setup_logging
-from .routes import meta, sessions
+from .routes import chat, meta, sessions
 
 # Vite dev server origin (see PLAN §6.1); the production-built frontend
 # statically serves from the same host so CORS only matters in dev.
@@ -63,6 +63,7 @@ app.add_middleware(
 # (`/health`, `/config`, `/sessions`, `/debug/artifacts/{id}`).
 app.include_router(meta.router, prefix="/api")
 app.include_router(sessions.router, prefix="/api")
+app.include_router(chat.router, prefix="/api")
 
 
 @app.get("/", tags=["meta"])

@@ -24,6 +24,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Chat
+         * @description Run one chat turn end-to-end and return the final answer.
+         *
+         *     The flow mirrors PLAN §7.7 (non-streaming subset) with explicit
+         *     not-answerable fallbacks so a bad plan / bad params / failed DB
+         *     call never surfaces as a 500 stack trace to the UI.
+         */
+        post: operations["chat_api_chat_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/config": {
         parameters: {
             query?: never;
@@ -183,6 +207,60 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * ChatRequest
+         * @description Body for ``POST /api/chat``.
+         *
+         *     Attributes
+         *     ----------
+         *     session_id
+         *         Optional. When omitted (or stale) a new session is created with
+         *         the first 40 characters of ``message`` as its title.
+         *     message
+         *         The user's question. Bounded 1..4000 characters by FastAPI.
+         */
+        ChatRequest: {
+            /** Message */
+            message: string;
+            /** Session Id */
+            session_id?: string | null;
+        };
+        /**
+         * ChatResponse
+         * @description Response for ``POST /api/chat``.
+         *
+         *     Mirrors the canonical turn response (PLAN §7.7): answer + citations +
+         *     provenance fields. ``sql`` is non-null only on the happy path
+         *     (``template_id`` resolved, query executed). ``not_answerable=True``
+         *     short-circuits the SQL + row_count fields.
+         */
+        ChatResponse: {
+            /** Answer */
+            answer: string;
+            /** Citations */
+            citations?: {
+                [key: string]: unknown;
+            }[];
+            /** Duration Ms */
+            duration_ms?: number | null;
+            /**
+             * Not Answerable
+             * @default false
+             */
+            not_answerable: boolean;
+            /** Not Answerable Note */
+            not_answerable_note?: string | null;
+            /** Reasoning Summary */
+            reasoning_summary?: string | null;
+            /** Row Count */
+            row_count?: number | null;
+            /** Session Id */
+            session_id: string;
+            /** Sql */
+            sql?: string | null;
+            /** Template Id */
+            template_id?: string | null;
+        };
         /**
          * ConfigResponse
          * @description Public (non-secret) runtime config surfaced at `GET /api/config`.
@@ -345,6 +423,39 @@ export interface operations {
                     "application/json": {
                         [key: string]: string;
                     };
+                };
+            };
+        };
+    };
+    chat_api_chat_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

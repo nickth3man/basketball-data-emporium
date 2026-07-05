@@ -1,6 +1,131 @@
 {
   "components": {
     "schemas": {
+      "ChatRequest": {
+        "description": "Body for ``POST /api/chat``.\n\nAttributes\n----------\nsession_id\n    Optional. When omitted (or stale) a new session is created with\n    the first 40 characters of ``message`` as its title.\nmessage\n    The user's question. Bounded 1..4000 characters by FastAPI.",
+        "properties": {
+          "message": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Message",
+            "type": "string"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "title": "ChatRequest",
+        "type": "object"
+      },
+      "ChatResponse": {
+        "description": "Response for ``POST /api/chat``.\n\nMirrors the canonical turn response (PLAN \u00a77.7): answer + citations +\nprovenance fields. ``sql`` is non-null only on the happy path\n(``template_id`` resolved, query executed). ``not_answerable=True``\nshort-circuits the SQL + row_count fields.",
+        "properties": {
+          "answer": {
+            "title": "Answer",
+            "type": "string"
+          },
+          "citations": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Citations",
+            "type": "array"
+          },
+          "duration_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Ms"
+          },
+          "not_answerable": {
+            "default": false,
+            "title": "Not Answerable",
+            "type": "boolean"
+          },
+          "not_answerable_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Not Answerable Note"
+          },
+          "reasoning_summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reasoning Summary"
+          },
+          "row_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Row Count"
+          },
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          },
+          "sql": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sql"
+          },
+          "template_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Template Id"
+          }
+        },
+        "required": [
+          "session_id",
+          "answer"
+        ],
+        "title": "ChatResponse",
+        "type": "object"
+      },
       "ConfigResponse": {
         "description": "Public (non-secret) runtime config surfaced at `GET /api/config`.",
         "properties": {
@@ -297,6 +422,48 @@
         "summary": "Root",
         "tags": [
           "meta"
+        ]
+      }
+    },
+    "/api/chat": {
+      "post": {
+        "description": "Run one chat turn end-to-end and return the final answer.\n\nThe flow mirrors PLAN \u00a77.7 (non-streaming subset) with explicit\nnot-answerable fallbacks so a bad plan / bad params / failed DB\ncall never surfaces as a 500 stack trace to the UI.",
+        "operationId": "chat_api_chat_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Chat",
+        "tags": [
+          "chat"
         ]
       }
     },
