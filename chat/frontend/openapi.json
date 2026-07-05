@@ -22,9 +22,7 @@
             "title": "Session Id"
           }
         },
-        "required": [
-          "message"
-        ],
+        "required": ["message"],
         "title": "ChatRequest",
         "type": "object"
       },
@@ -119,10 +117,7 @@
             "title": "Template Id"
           }
         },
-        "required": [
-          "session_id",
-          "answer"
-        ],
+        "required": ["session_id", "answer"],
         "title": "ChatResponse",
         "type": "object"
       },
@@ -137,10 +132,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "openrouter_model",
-          "latency_tiers"
-        ],
+        "required": ["openrouter_model", "latency_tiers"],
         "title": "ConfigResponse",
         "type": "object"
       },
@@ -188,10 +180,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "status",
-          "db"
-        ],
+        "required": ["status", "db"],
         "title": "HealthResponse",
         "type": "object"
       },
@@ -222,13 +211,7 @@
             "type": "integer"
           }
         },
-        "required": [
-          "session_id",
-          "messages",
-          "total",
-          "limit",
-          "offset"
-        ],
+        "required": ["session_id", "messages", "total", "limit", "offset"],
         "title": "HistoryPage",
         "type": "object"
       },
@@ -282,12 +265,7 @@
             "type": "array"
           }
         },
-        "required": [
-          "simple_seconds",
-          "medium_seconds",
-          "heavy_seconds",
-          "heavy_timeout_seconds"
-        ],
+        "required": ["simple_seconds", "medium_seconds", "heavy_seconds", "heavy_timeout_seconds"],
         "title": "LatencyTiers",
         "type": "object"
       },
@@ -308,11 +286,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "role",
-          "content",
-          "ts"
-        ],
+        "required": ["role", "content", "ts"],
         "title": "SessionMessage",
         "type": "object"
       },
@@ -343,11 +317,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "id",
-          "title",
-          "created_at"
-        ],
+        "required": ["id", "title", "created_at"],
         "title": "SessionMeta",
         "type": "object"
       },
@@ -383,11 +353,7 @@
             "type": "string"
           }
         },
-        "required": [
-          "loc",
-          "msg",
-          "type"
-        ],
+        "required": ["loc", "msg", "type"],
         "title": "ValidationError",
         "type": "object"
       }
@@ -420,9 +386,7 @@
           }
         },
         "summary": "Root",
-        "tags": [
-          "meta"
-        ]
+        "tags": ["meta"]
       }
     },
     "/api/chat": {
@@ -462,9 +426,7 @@
           }
         },
         "summary": "Chat",
-        "tags": [
-          "chat"
-        ]
+        "tags": ["chat"]
       }
     },
     "/api/config": {
@@ -484,9 +446,7 @@
           }
         },
         "summary": "Config",
-        "tags": [
-          "meta"
-        ]
+        "tags": ["meta"]
       }
     },
     "/api/debug/artifacts/{artifact_id}": {
@@ -531,9 +491,7 @@
           }
         },
         "summary": "Get Debug Artifact",
-        "tags": [
-          "sessions"
-        ]
+        "tags": ["sessions"]
       }
     },
     "/api/health": {
@@ -553,9 +511,7 @@
           }
         },
         "summary": "Health",
-        "tags": [
-          "meta"
-        ]
+        "tags": ["meta"]
       }
     },
     "/api/sessions": {
@@ -579,9 +535,7 @@
           }
         },
         "summary": "List Sessions",
-        "tags": [
-          "sessions"
-        ]
+        "tags": ["sessions"]
       },
       "post": {
         "description": "Create a new session with the given (or default) title.\n\nBody is optional so a bare ``POST /api/sessions`` (no payload) yields\nthe same default-title session. Returns ``201 Created`` with the\nfreshly minted `SessionMeta`.",
@@ -626,9 +580,7 @@
           }
         },
         "summary": "Create Session",
-        "tags": [
-          "sessions"
-        ]
+        "tags": ["sessions"]
       }
     },
     "/api/sessions/{session_id}": {
@@ -662,9 +614,7 @@
           }
         },
         "summary": "Delete Session",
-        "tags": [
-          "sessions"
-        ]
+        "tags": ["sessions"]
       },
       "get": {
         "description": "Return meta for one session.",
@@ -703,9 +653,7 @@
           }
         },
         "summary": "Get Session",
-        "tags": [
-          "sessions"
-        ]
+        "tags": ["sessions"]
       }
     },
     "/api/sessions/{session_id}/history": {
@@ -771,9 +719,7 @@
           }
         },
         "summary": "Get History",
-        "tags": [
-          "sessions"
-        ]
+        "tags": ["sessions"]
       }
     }
   }
