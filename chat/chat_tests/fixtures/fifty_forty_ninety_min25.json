@@ -1,0 +1,67 @@
+{
+  "id": "season_thresholds.fifty_forty_ninety.min25_regular",
+  "template_id": "season_thresholds.fifty_forty_ninety",
+  "question": "Which players shot 50-40-90 (FG% >= 50, 3P% >= 40, FT% >= 90) and averaged at least 25 PPG in a regular season?",
+  "params": {
+    "min_ppg": 25.0,
+    "fg_min": 0.50,
+    "fg3_min": 0.40,
+    "ft_min": 0.90,
+    "season_type": "Regular"
+  },
+  "expected": {
+    "expect_min_rows": 1,
+    "expect_contains_player": "Stephen Curry"
+  },
+  "expected_rows": [
+    {
+      "player_id": 201939,
+      "full_name": "Stephen Curry",
+      "season_year": "2015-16",
+      "fg_pct": 0.5037546933667084,
+      "fg3_pct": 0.45372460496614,
+      "ft_pct": 0.9075,
+      "avg_pts": 30.063291139240505
+    },
+    {
+      "player_id": 1449,
+      "full_name": "Larry Bird",
+      "season_year": "1987-88",
+      "fg_pct": 0.5269138755980861,
+      "fg3_pct": 0.41350210970464135,
+      "ft_pct": 0.9161147902869757,
+      "avg_pts": 29.93421052631579
+    },
+    {
+      "player_id": 201142,
+      "full_name": "Kevin Durant",
+      "season_year": "2012-13",
+      "fg_pct": 0.5101186322400558,
+      "fg3_pct": 0.4161676646706587,
+      "ft_pct": 0.9053333333333333,
+      "avg_pts": 28.14814814814815
+    },
+    {
+      "player_id": 1449,
+      "full_name": "Larry Bird",
+      "season_year": "1986-87",
+      "fg_pct": 0.5250501002004008,
+      "fg3_pct": 0.4,
+      "ft_pct": 0.9098901098901099,
+      "avg_pts": 28.054054054054053
+    },
+    {
+      "player_id": 202681,
+      "full_name": "Kyrie Irving",
+      "season_year": "2020-21",
+      "fg_pct": 0.505524861878453,
+      "fg3_pct": 0.4021164021164021,
+      "ft_pct": 0.9220183486238532,
+      "avg_pts": 26.87037037037037
+    }
+  ],
+  "bbr_source_url": "https://www.basketball-reference.com/players/c/curryst01.html",
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "PLAN §12 row 5: the 5 verified regular-season 50-40-90 clubs with >=25 PPG. Ordered by avg_pts DESC per the template's ORDER BY. Snapshot verified by querying mart_player_season + dim_player directly against the local warehouse."
+}
