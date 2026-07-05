@@ -1,0 +1,38 @@
+{
+  "id": "player_game_conditional.rare_stat_line.quad_double",
+  "template_id": "player_game_conditional.rare_stat_line",
+  "question": "Which players have recorded a regular-season quadruple-double (PTS, REB, AST, BLK all >= 10) since 1954?",
+  "params": {
+    "season_type": "Regular",
+    "min_stat": 10
+  },
+  "expected": {
+    "expect_min_rows": 1,
+    "expect_contains_player": "Nate Thurmond"
+  },
+  "expected_rows": [
+    {
+      "player_id": 600001,
+      "full_name": "Nate Thurmond",
+      "game_date": "1974-10-18",
+      "pts": 22,
+      "reb": 14,
+      "ast": 13,
+      "blk": 12,
+      "season_year": "1974-75"
+    },
+    {
+      "player_id": 764,
+      "full_name": "David Robinson",
+      "game_date": "1994-02-17",
+      "pts": 34,
+      "reb": 10,
+      "ast": 10,
+      "blk": 10,
+      "season_year": "1993-94"
+    }
+  ],
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "PLAN \u00a712 row 17. Canonical PTS/REB/AST/BLK quad-double definition (min_stat=10) returns two games in this warehouse. Alvin Robertson's 1986-02-18 quad-double uses STL instead of BLK and is not included by this strict definition. Olajuwon's famous 1990-03-10 line is not in this warehouse's box (likely a gaps in the historical backfill)."
+}

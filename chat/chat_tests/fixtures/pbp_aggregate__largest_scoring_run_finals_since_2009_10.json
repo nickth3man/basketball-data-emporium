@@ -1,0 +1,52 @@
+{
+  "id": "pbp_aggregate.largest_scoring_run.finals_since_2009_10",
+  "template_id": "pbp_aggregate.largest_scoring_run",
+  "question": "Largest scoring run in an NBA Finals game since 2009-10",
+  "params": {
+    "since_season": "2009-10",
+    "top_n": 5
+  },
+  "expected": {
+    "expect_min_rows": 1
+  },
+  "expected_rows": [
+    {
+      "game_id": "0041800402",
+      "season_year": "2018-19",
+      "scoring_team_id": 1610612744,
+      "run_points": 22,
+      "scoring_plays": 10
+    },
+    {
+      "game_id": "0042100406",
+      "season_year": "2021-22",
+      "scoring_team_id": 1610612744,
+      "run_points": 21,
+      "scoring_plays": 8
+    },
+    {
+      "game_id": "0041500402",
+      "season_year": "2015-16",
+      "scoring_team_id": 1610612744,
+      "run_points": 19,
+      "scoring_plays": 8
+    },
+    {
+      "game_id": "0041000402",
+      "season_year": "2010-11",
+      "scoring_team_id": 1610612742,
+      "run_points": 18,
+      "scoring_plays": 8
+    },
+    {
+      "game_id": "0041200405",
+      "season_year": "2012-13",
+      "scoring_team_id": 1610612759,
+      "run_points": 18,
+      "scoring_plays": 8
+    }
+  ],
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "PLAN §12 row 10. Top 5 scoring runs in NBA Finals games since 2009-10. team_id 1610612744 = GSW (Golden State Warriors); 1610612742 = DAL (Dallas Mavericks); 1610612759 = SAS (San Antonio Spurs). Verified by direct query against data/nba.duckdb using the gaps-and-islands algorithm documented in pbp_aggregate/largest_scoring_run.sql. Ordering between tied run_points is by scoring_plays DESC then season_year DESC per the SQL."
+}

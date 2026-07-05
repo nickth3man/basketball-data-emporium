@@ -1,0 +1,30 @@
+{
+  "id": "season_comparison.player_team_split.harden_2022_23",
+  "template_id": "season_comparison.player_team_split",
+  "question": "Compare James Harden's 2022-23 per-game averages between Philadelphia and Brooklyn after the trade.",
+  "params": {
+    "player_id": 201935,
+    "season_year": "2022-23",
+    "season_type": "Regular"
+  },
+  "expected": {
+    "expect_min_rows": 1,
+    "expect_only_team_abbr": "PHI",
+    "expect_not_answerable": true
+  },
+  "expected_rows": [
+    {
+      "player_id": 201935,
+      "full_name": "James Harden",
+      "team_id": 1610612755,
+      "team_abbreviation": "PHI",
+      "season_year": "2022-23",
+      "season_type": "Regular",
+      "gp": 58,
+      "avg_pts": 20.96551724137931
+    }
+  ],
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "PLAN \u00a712 row 4 \u2014 NOT ANSWERABLE WITH EVIDENCE. Verified the warehouse only exposes PHI rows for Harden 2022-23 (58 GP); no Brooklyn rows exist. The mid-season trade event isn't captured canonically, so a per-team split can't be answered. Module constants NOT_ANSWERABLE=True and ANSWER_POLICY='not_answerable' signal the composer to emit the PLAN \u00a710 transparent not-answerable path with this single-row evidence."
+}

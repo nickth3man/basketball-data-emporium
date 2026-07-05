@@ -1,0 +1,34 @@
+{
+  "id": "season_thresholds.rookie_vs_final.tim_duncan_regular",
+  "template_id": "season_thresholds.rookie_vs_final",
+  "question": "Tim Duncan rookie vs final regular season — points and rebounds per game",
+  "params": {
+    "player_id": 1495,
+    "season_type": "Regular"
+  },
+  "expected": {
+    "expect_min_rows": 2,
+    "expect_contains_player": "Tim Duncan"
+  },
+  "expected_rows": [
+    {
+      "player_id": 1495,
+      "full_name": "Tim Duncan",
+      "season_year": "2015-16",
+      "avg_pts": 8.557377049180328,
+      "avg_reb": 7.327868852459017,
+      "row_kind": "final"
+    },
+    {
+      "player_id": 1495,
+      "full_name": "Tim Duncan",
+      "season_year": "1997-98",
+      "avg_pts": 21.109756097560975,
+      "avg_reb": 11.914634146341463,
+      "row_kind": "rookie"
+    }
+  ],
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "PLAN §12 row 16. Tim Duncan's rookie 1997-98 and final 2015-16 regular-season PPG / RPG. avg_pts and avg_reb live on mart_player_season (verified — the mart does expose per-game averages despite the simplified plan summary in §11.1)."
+}

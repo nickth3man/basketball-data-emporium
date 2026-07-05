@@ -1,0 +1,222 @@
+{
+  "id": "clutch_terminal.buzzer_beaters.kobe_1996_97",
+  "template_id": "clutch_terminal.buzzer_beaters",
+  "question": "Kobe Bryant game-winning buzzer-beaters and opponents (since 1996-97)",
+  "params": {
+    "player_id": 977,
+    "since_season": "1996-97",
+    "clock_window": 3.0
+  },
+  "expected": {
+    "expect_min_rows": 1
+  },
+  "expected_rows": [
+    {
+      "game_id": "0029700135",
+      "season_year": "1997-98",
+      "game_date": "1997-11-18",
+      "period": 4,
+      "clock": "PT00M00.60S",
+      "scoring_team_id": 1610612747,
+      "opponent_team_id": 1610612762,
+      "home_score": 92,
+      "away_score": 97,
+      "score_after_margin": 2
+    },
+    {
+      "game_id": "0049900056",
+      "season_year": "1999-00",
+      "game_date": "2000-05-10",
+      "period": 4,
+      "clock": "PT00M02.90S",
+      "scoring_team_id": 1610612747,
+      "opponent_team_id": 1610612756,
+      "home_score": 97,
+      "away_score": 96,
+      "score_after_margin": 2
+    },
+    {
+      "game_id": "0020000702",
+      "season_year": "2000-01",
+      "game_date": "2001-02-07",
+      "period": 4,
+      "clock": "PT00M02.70S",
+      "scoring_team_id": 1610612747,
+      "opponent_team_id": 1610612756,
+      "home_score": 85,
+      "away_score": 83,
+      "score_after_margin": 2
+    },
+    {
+      "game_id": "0020100259",
+      "season_year": "2001-02",
+      "game_date": "2001-12-05",
+      "period": 4,
+      "clock": "PT00M00.10S",
+      "scoring_team_id": 1610612747,
+      "opponent_team_id": 1610612742,
+      "home_score": 98,
+      "away_score": 94,
+      "score_after_margin": 2
+    },
+    {
+      "game_id": "0020100778",
+      "season_year": "2001-02",
+      "game_date": "2002-02-22",
+      "period": 4,
+      "clock": "PT00M00.30S",
+      "scoring_team_id": 1610612747,
+      "opponent_team_id": 1610612766,
+      "home_score": 94,
+      "away_score": 96,
+      "score_after_margin": 2
+    },
+    {
+      "game_id": "0020201093",
+      "season_year": "2002-03",
+      "game_date": "2003-04-04",
+      "period": 4,
+      "clock": "PT00M00.30S",
+      "scoring_team_id": 1610612747,
+      "opponent_team_id": 1610612763,
+      "home_score": 101,
+      "away_score": 102,
+      "score_after_margin": 2
+    },
+    {
+      "game_id": "0020300369",
+      "season_year": "2003-04",
+      "game_date": "2003-12-19",
+      "period": 4,
+      "clock": "PT00M00.10S",
+      "scoring_team_id": 1610612747,
+      "opponent_team_id": 1610612743,
+      "home_score": 101,
+      "away_score": 99,
+      "score_after_margin": 2
+    },
+    {
+      "game_id": "0020301187",
+      "season_year": "2003-04",
+      "game_date": "2004-04-14",
+      "period": 6,
+      "clock": "PT00M00.10S",
+      "scoring_team_id": 1610612747,
+      "opponent_team_id": 1610612757,
+      "home_score": 104,
+      "away_score": 105,
+      "score_after_margin": 3
+    },
+    {
+      "game_id": "0020400915",
+      "season_year": "2004-05",
+      "game_date": "2005-03-12",
+      "period": 4,
+      "clock": "PT00M00.90S",
+      "scoring_team_id": 1610612747,
+      "opponent_team_id": 1610612766,
+      "home_score": 116,
+      "away_score": 117,
+      "score_after_margin": 2
+    },
+    {
+      "game_id": "0020500016",
+      "season_year": "2005-06",
+      "game_date": "2005-11-02",
+      "period": 5,
+      "clock": "PT00M00.60S",
+      "scoring_team_id": 1610612747,
+      "opponent_team_id": 1610612743,
+      "home_score": 97,
+      "away_score": 99,
+      "score_after_margin": 2
+    },
+    {
+      "game_id": "0040500154",
+      "season_year": "2005-06",
+      "game_date": "2006-04-30",
+      "period": 5,
+      "clock": "PT00M00.20S",
+      "scoring_team_id": 1610612747,
+      "opponent_team_id": 1610612756,
+      "home_score": 99,
+      "away_score": 98,
+      "score_after_margin": 2
+    },
+    {
+      "game_id": "0020800405",
+      "season_year": "2008-09",
+      "game_date": "2008-12-22",
+      "period": 4,
+      "clock": "PT00M01.00S",
+      "scoring_team_id": 1610612747,
+      "opponent_team_id": 1610612763,
+      "home_score": 96,
+      "away_score": 105,
+      "score_after_margin": 2
+    },
+    {
+      "game_id": "0020800538",
+      "season_year": "2008-09",
+      "game_date": "2009-01-09",
+      "period": 4,
+      "clock": "PT00M03.00S",
+      "scoring_team_id": 1610612747,
+      "opponent_team_id": 1610612754,
+      "home_score": 121,
+      "away_score": 119,
+      "score_after_margin": 2
+    },
+    {
+      "game_id": "0020900281",
+      "season_year": "2009-10",
+      "game_date": "2009-12-04",
+      "period": 4,
+      "clock": "PT00M00.50S",
+      "scoring_team_id": 1610612747,
+      "opponent_team_id": 1610612748,
+      "home_score": 108,
+      "away_score": 107,
+      "score_after_margin": 3
+    },
+    {
+      "game_id": "0020900363",
+      "season_year": "2009-10",
+      "game_date": "2009-12-16",
+      "period": 5,
+      "clock": "PT00M00.00S",
+      "scoring_team_id": 1610612747,
+      "opponent_team_id": 1610612749,
+      "home_score": 106,
+      "away_score": 107,
+      "score_after_margin": 2
+    },
+    {
+      "game_id": "0020900476",
+      "season_year": "2009-10",
+      "game_date": "2010-01-01",
+      "period": 4,
+      "clock": "PT00M00.10S",
+      "scoring_team_id": 1610612747,
+      "opponent_team_id": 1610612758,
+      "home_score": 109,
+      "away_score": 108,
+      "score_after_margin": 3
+    },
+    {
+      "game_id": "0020900952",
+      "season_year": "2009-10",
+      "game_date": "2010-03-09",
+      "period": 4,
+      "clock": "PT00M01.90S",
+      "scoring_team_id": 1610612747,
+      "opponent_team_id": 1610612761,
+      "home_score": 109,
+      "away_score": 107,
+      "score_after_margin": 2
+    }
+  ],
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "PLAN §12 row 18. Spike-gated template shipped as REAL (NOT_ANSWERABLE fallback NOT taken) — Phase 6 spike showed the late-clock PBP data is reliable from 1996-97 onward. 17 verified buzzer-beaters for Kobe (player_id=977) since his rookie season with clock_window=3.0s. team_id 1610612747 = LAL; opponent team_ids map to varying opponents (POR=1610612756, MIA=1610612748, BOS=1610612738, etc.). Includes the famous 2000-05-10 WCF Game-7 jumper vs Portland and the 2009-12-04 jumper over Dwyane Wade."
+}

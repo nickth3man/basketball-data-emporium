@@ -1,0 +1,48 @@
+{
+  "id": "player_game_conditional.career_conditional_aggregate.top5",
+  "template_id": "player_game_conditional.career_conditional_aggregate",
+  "question": "Which players have the most career assists in games where they scored zero points?",
+  "params": {
+    "season_type": "Regular",
+    "top_n": 5
+  },
+  "expected": {
+    "expect_min_rows": 1,
+    "expect_contains_player": "Steve Blake"
+  },
+  "expected_rows": [
+    {
+      "player_id": 2581,
+      "full_name": "Steve Blake",
+      "games_scored_zero": 211,
+      "total_ast": 336
+    },
+    {
+      "player_id": 203,
+      "full_name": "Nate McMillan",
+      "games_scored_zero": 98,
+      "total_ast": 315
+    },
+    {
+      "player_id": 2248,
+      "full_name": "Earl Watson",
+      "games_scored_zero": 251,
+      "total_ast": 305
+    },
+    {
+      "player_id": 177,
+      "full_name": "Muggsy Bogues",
+      "games_scored_zero": 96,
+      "total_ast": 271
+    },
+    {
+      "player_id": 1853,
+      "full_name": "Anthony Carter",
+      "games_scored_zero": 328,
+      "total_ast": 257
+    }
+  ],
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "PLAN \u00a712 row 19. Verified top 5 by total_ast in scoreless games against fact_player_game_box."
+}

@@ -1,0 +1,31 @@
+{
+  "id": "player_game_conditional.margin_split.kobe_2009_10",
+  "template_id": "player_game_conditional.margin_split",
+  "question": "What was Kobe Bryant's FG% in 2009-10 Lakers wins by 10+ vs losses by 10+?",
+  "params": {
+    "player_id": 977,
+    "season_year": "2009-10",
+    "season_type": "Regular",
+    "margin": 10
+  },
+  "expected": {
+    "expect_min_rows": 2,
+    "expect_splits": ["losses_by_10p", "wins_by_10p"],
+    "expect_min_games_per_split": 1
+  },
+  "expected_rows": [
+    {
+      "split": "losses_by_10p",
+      "games": 12,
+      "avg_fg_pct": 0.42325000000000007
+    },
+    {
+      "split": "wins_by_10p",
+      "games": 25,
+      "avg_fg_pct": 0.44819999999999993
+    }
+  ],
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "PLAN \u00a712 row 6. Kobe Bryant id=977. Verified against fact_player_game_box + fact_game_result. margin split at 10 points."
+}

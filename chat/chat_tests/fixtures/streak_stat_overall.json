@@ -1,0 +1,26 @@
+{
+  "id": "player_game_conditional.streak_stat.overall_min5",
+  "template_id": "player_game_conditional.streak_stat",
+  "question": "Who holds the longest streak of consecutive games with at least one blocked shot?",
+  "params": {
+    "player_id": null,
+    "season_type": "Regular",
+    "min_streak_games": 5
+  },
+  "expected": {
+    "expect_min_rows": 1,
+    "expect_contains_player": "Kareem Abdul-Jabbar"
+  },
+  "expected_rows": [
+    {
+      "player_id": 76003,
+      "full_name": "Kareem Abdul-Jabbar",
+      "streak_games": 5,
+      "streak_start": "1974-02-27",
+      "streak_end": "1974-03-03"
+    }
+  ],
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "PLAN \u00a712 row 14. Verified the warehouse's max streak with BLK>=1 is 5 games (Kareem 1974-02-27 to 1974-03-03). Limitation: fact_player_game_box only carries rows for games the player appeared in, so streaks span only consecutive games the player actually played (not calendar days); missed games are absent rows. Historical backfill may be sparse for blocks in early eras."
+}

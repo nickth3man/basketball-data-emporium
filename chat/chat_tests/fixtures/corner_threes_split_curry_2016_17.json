@@ -1,0 +1,30 @@
+{
+  "id": "shot_zones.corner_threes_split.curry_2016_17",
+  "template_id": "shot_zones.corner_threes_split",
+  "question": "Stephen Curry left- vs right-corner 3-point shooting in the 2016-17 regular season",
+  "params": {
+    "player_id": 201939,
+    "season_year": "2016-17",
+    "season_type": "Regular"
+  },
+  "expected": {
+    "expect_min_rows": 2
+  },
+  "expected_rows": [
+    {
+      "shot_zone": "Left Corner 3",
+      "attempts": 84,
+      "makes": 34,
+      "pct": 0.4048
+    },
+    {
+      "shot_zone": "Right Corner 3",
+      "attempts": 58,
+      "makes": 29,
+      "pct": 0.5
+    }
+  ],
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "PLAN §12 row 9. fact_shot.shot_zone_basic only carries 'Above the Break 3', 'Restricted Area', 'Mid-Range', 'In The Paint (Non-RA)', 'Backcourt' — corner-3 labels are absent. The template reconstructs corner-3 classification via shot_zone_basic = 'Above the Break 3' AND |loc_x| >= 220 (NBA Stats API convention). 84 left corner + 58 right corner = 142 corner-3 attempts in Curry's unanimous-MVP season."
+}

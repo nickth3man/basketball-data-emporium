@@ -1,0 +1,48 @@
+{
+  "id": "career_demographic.country_gp_leaders.min500_top5",
+  "template_id": "career_demographic.country_gp_leaders",
+  "question": "Which non-USA country has the most 500+ career-GP players, and who is the top scorer from each qualifying country?",
+  "params": {
+    "min_gp": 500,
+    "top_n": 5
+  },
+  "expected": {
+    "expect_min_rows": 1,
+    "expect_contains_player": "Steve Nash"
+  },
+  "expected_rows": [
+    {
+      "country": "Canada",
+      "player_count": 13,
+      "top_scorer_full_name": "Steve Nash",
+      "top_scorer_career_pts": 17387
+    },
+    {
+      "country": "France",
+      "player_count": 7,
+      "top_scorer_full_name": "Tony Parker",
+      "top_scorer_career_pts": 19473
+    },
+    {
+      "country": "Australia",
+      "player_count": 6,
+      "top_scorer_full_name": "Kyrie Irving",
+      "top_scorer_career_pts": 18433
+    },
+    {
+      "country": "Serbia",
+      "player_count": 5,
+      "top_scorer_full_name": "Nikola Jokic",
+      "top_scorer_career_pts": 18009
+    },
+    {
+      "country": "Slovenia",
+      "player_count": 5,
+      "top_scorer_full_name": "Luka Doncic",
+      "top_scorer_career_pts": 15021
+    }
+  ],
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "PLAN §12 row 20. Country values are stored as 'USA' (not 'United States') — verified via SELECT country, COUNT(*) FROM dim_player GROUP BY 1. Kyrie Irving is listed as Australian because he was born in Melbourne while his father Drederick played pro ball there. Canada leads with 13 players >=500 GP."
+}

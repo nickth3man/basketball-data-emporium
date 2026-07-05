@@ -1,0 +1,111 @@
+{
+  "id": "clutch_terminal.clutch_ts_leader.2023_playoffs",
+  "template_id": "clutch_terminal.clutch_ts_leader",
+  "question": "Highest TS% in 2023 playoff clutch (last 5 min, within 5 pts)",
+  "params": {
+    "season_year": "2022-23",
+    "season_type": "Playoffs",
+    "clutch_minutes": 5,
+    "clutch_margin": 5,
+    "min_attempts": 5,
+    "top_n": 10
+  },
+  "expected": {
+    "expect_min_rows": 1
+  },
+  "expected_rows": [
+    {
+      "player_id": 1628389,
+      "full_name": "Bam Adebayo",
+      "clutch_pts": 20,
+      "clutch_fga": 8,
+      "clutch_ftm": 6,
+      "clutch_fta": 6,
+      "clutch_ts_pct": 0.9398
+    },
+    {
+      "player_id": 1630559,
+      "full_name": "Austin Reaves",
+      "clutch_pts": 21,
+      "clutch_fga": 11,
+      "clutch_ftm": 1,
+      "clutch_fta": 1,
+      "clutch_ts_pct": 0.9178
+    },
+    {
+      "player_id": 1628973,
+      "full_name": "Jalen Brunson",
+      "clutch_pts": 19,
+      "clutch_fga": 11,
+      "clutch_ftm": 3,
+      "clutch_fta": 4,
+      "clutch_ts_pct": 0.7445
+    },
+    {
+      "player_id": 202691,
+      "full_name": "Klay Thompson",
+      "clutch_pts": 19,
+      "clutch_fga": 12,
+      "clutch_ftm": 2,
+      "clutch_fta": 2,
+      "clutch_ts_pct": 0.7376
+    },
+    {
+      "player_id": 202710,
+      "full_name": "Jimmy Butler III",
+      "clutch_pts": 61,
+      "clutch_fga": 32,
+      "clutch_ftm": 20,
+      "clutch_fta": 23,
+      "clutch_ts_pct": 0.7241
+    },
+    {
+      "player_id": 1627749,
+      "full_name": "Dejounte Murray",
+      "clutch_pts": 7,
+      "clutch_fga": 5,
+      "clutch_ftm": 0,
+      "clutch_fta": 0,
+      "clutch_ts_pct": 0.7
+    },
+    {
+      "player_id": 1628404,
+      "full_name": "Josh Hart",
+      "clutch_pts": 13,
+      "clutch_fga": 8,
+      "clutch_ftm": 2,
+      "clutch_fta": 3,
+      "clutch_ts_pct": 0.6974
+    },
+    {
+      "player_id": 1629027,
+      "full_name": "Trae Young",
+      "clutch_pts": 21,
+      "clutch_fga": 13,
+      "clutch_ftm": 5,
+      "clutch_fta": 5,
+      "clutch_ts_pct": 0.6908
+    },
+    {
+      "player_id": 1626156,
+      "full_name": "D'Angelo Russell",
+      "clutch_pts": 11,
+      "clutch_fga": 8,
+      "clutch_ftm": 0,
+      "clutch_fta": 0,
+      "clutch_ts_pct": 0.6875
+    },
+    {
+      "player_id": 203935,
+      "full_name": "Marcus Smart",
+      "clutch_pts": 22,
+      "clutch_fga": 13,
+      "clutch_ftm": 6,
+      "clutch_fta": 7,
+      "clutch_ts_pct": 0.6841
+    }
+  ],
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "PLAN §12 row 8. The 2023 playoffs are tagged season_year='2022-23' (NBA convention: the postseason belongs to the season that started the previous fall). Clutch = last 5 minutes of Q4 + OT with |score_home - score_away| <= 5. min_attempts=5 filters single-shot noise. Verified by direct query against data/nba.duckdb. TS% = (FGM*shot_value + FTM) / (2 * (FGA + 0.44*FTA))."
+}

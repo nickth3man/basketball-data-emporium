@@ -1,0 +1,25 @@
+{
+  "id": "team_coach.franchise_final_season_ortg.seattle_2007_08",
+  "template_id": "team_coach.franchise_final_season_ortg",
+  "question": "Who was the Seattle SuperSonics' head coach and team offensive rating in their final season (2007-08)?",
+  "params": {
+    "team_id": 1610612760,
+    "final_season": "2007-08"
+  },
+  "expected": {
+    "expect_min_rows": 1,
+    "expect_contains_coach": "P.J. Carlesimo",
+    "expect_team_off_rating_positive": true
+  },
+  "expected_rows": [
+    {
+      "coach_name": "P.J. Carlesimo",
+      "season_year": "2007-08",
+      "team_off_rating": 96.65,
+      "team_abbreviation": "SEA"
+    }
+  ],
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "PLAN \u00a712 row 2. Verified via fact_coach_season (P.J. Carlesimo, 20-62) + fact_player_game_advanced (AVG off_rating = 96.65 over Regular player-games). Team abbreviation 'SEA' from dim_team_era (the Seattle/Seattle SuperSonics era valid 1996-2008)."
+}

@@ -1,0 +1,34 @@
+{
+  "id": "season_comparison.per100_player_compare.trae_vs_luka_2021_22",
+  "template_id": "season_comparison.per100_player_compare",
+  "question": "Compare Trae Young vs Luka Doncic points per 100 possessions in 2021-22.",
+  "params": {
+    "player_a_id": 1629027,
+    "player_b_id": 1629029,
+    "season_year": "2021-22"
+  },
+  "expected": {
+    "expect_min_rows": 2,
+    "expect_per_100_pts_positive": true,
+    "expect_contains_player": "Trae Young"
+  },
+  "expected_rows": [
+    {
+      "player_id": 1629029,
+      "full_name": "Luka Doncic",
+      "per_100_pts": 40.4,
+      "per_100_ast": 12.4,
+      "games": 65
+    },
+    {
+      "player_id": 1629027,
+      "full_name": "Trae Young",
+      "per_100_pts": 39.9,
+      "per_100_ast": 13.7,
+      "games": 76
+    }
+  ],
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "PLAN \u00a712 row 7. Source-backed against src_stg_bref_per_100_poss (BBR's per_100_poss player-season table). The plan listed src_bref_per_100_poss; the canonical table in this warehouse is named src_stg_bref_per_100_poss and is marked canonical_source in meta_table_fate. fact_player_game_advanced.poss is only populated for the 2025-26 season in this build, so per-100 cannot be computed on the fly from the canonical advanced box for historical seasons."
+}

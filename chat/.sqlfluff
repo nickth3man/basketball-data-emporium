@@ -1,7 +1,12 @@
 [sqlfluff]
 dialect = duckdb
 templater = placeholder
-exclude_rules = L016,L031,L034
+# Keep a readable, meaningful rule subset (PLAN §7.4): capitalisation + core
+# structure. Exclude noisy layout/qualification rules that false-positive on
+# templated DuckDB SQL ($param placeholders, single-table CTE refs, etc.).
+# NOTE: never run `sqlfluff fix` — it does not understand DuckDB $placeholders
+# and will corrupt the SQL (qualifying $param with table aliases).
+exclude_rules = L016,L031,L034,LT02,LT12,RF02,RF03,RF04,AM05,ST09
 
 [sqlfluff:templater:placeholder]
 param_style = dollar
@@ -14,5 +19,9 @@ param_style = dollar
 [sqlfluff:rules]
 indent_unit = space
 tab_space_size = 2
-capitalisation.keywords = upper
-capitalisation.literals = lower
+
+[sqlfluff:rules:capitalisation.keywords]
+capitalisation_type = upper
+
+[sqlfluff:rules:capitalisation.literals]
+capitalisation_type = lower

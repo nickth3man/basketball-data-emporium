@@ -1,0 +1,30 @@
+{
+  "id": "season_comparison.league_pace_era.1998_99_vs_2022_23",
+  "template_id": "season_comparison.league_pace_era",
+  "question": "How much has league average pace changed between 1998-99 and 2022-23?",
+  "params": {
+    "season_a": "1998-99",
+    "season_b": "2022-23",
+    "season_type": "Regular"
+  },
+  "expected": {
+    "expect_min_rows": 2,
+    "expect_seasons": ["1998-99", "2022-23"],
+    "expect_avg_pace_strictly_increasing": true
+  },
+  "expected_rows": [
+    {
+      "season_year": "1998-99",
+      "avg_pace": 95.584,
+      "sample_games": 14922
+    },
+    {
+      "season_year": "2022-23",
+      "avg_pace": 102.65,
+      "sample_games": 26011
+    }
+  ],
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "PLAN \u00a712 row 15. Average of player-game pace from fact_player_game_advanced. Caveat: this is a player-game average (not a true team-game league aggregate), so a small bias toward starters/rotation is possible, but the season-over-season delta is reliable. The 2022-23 league is roughly +7 pace vs 1998-99 in this proxy."
+}

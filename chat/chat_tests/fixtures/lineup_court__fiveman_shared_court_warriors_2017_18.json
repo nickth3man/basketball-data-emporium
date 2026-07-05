@@ -1,0 +1,53 @@
+{
+  "id": "lineup_court.fiveman_shared_court.warriors_2017_18",
+  "template_id": "lineup_court.fiveman_shared_court",
+  "question": "2017-18 Warriors 5-man lineup (Curry / Thompson / Iguodala / Durant / Green) net rating + minutes",
+  "params": {
+    "player_ids": [201939, 202691, 2738, 201142, 203110],
+    "season_year": "2017-18",
+    "player_count": 5
+  },
+  "expected": {
+    "expect_min_rows": 1
+  },
+  "expected_rows": [
+    {
+      "group_id": "1610612744-0041700311-2017-18",
+      "total_gp": 1,
+      "total_min": 180.0,
+      "avg_net_rating": 13.06,
+      "total_plus_minus": 48.0
+    },
+    {
+      "group_id": "1610612744-0041700235-2017-18",
+      "total_gp": 1,
+      "total_min": 176.0,
+      "avg_net_rating": 18.9,
+      "total_plus_minus": 68.0
+    },
+    {
+      "group_id": "1610612744-0041700312-2017-18",
+      "total_gp": 1,
+      "total_min": 169.0,
+      "avg_net_rating": -29.44,
+      "total_plus_minus": -118.0
+    },
+    {
+      "group_id": "1610612744-0041700234-2017-18",
+      "total_gp": 1,
+      "total_min": 169.0,
+      "avg_net_rating": 31.48,
+      "total_plus_minus": 116.0
+    },
+    {
+      "group_id": "1610612744-0041700313-2017-18",
+      "total_gp": 1,
+      "total_min": 167.0,
+      "avg_net_rating": 33.24,
+      "total_plus_minus": 124.0
+    }
+  ],
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "PLAN §12 row 11. Spike-gated template shipped as REAL (NOT_ANSWERABLE fallback NOT taken). Player IDs: Curry=201939, Thompson=202691, Iguodala=2738, Durant=201142, Draymond Green=203110. 5 games where the lineup unit played exactly that 5-man group, totaling 861 minutes and a minutes-weighted net rating of +13.44. Per-game stats from src_agg_lineup_efficiency. Verified by direct query against data/nba.duckdb."
+}

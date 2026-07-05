@@ -1,0 +1,27 @@
+{
+  "id": "player_game_conditional.milestone_age.youngest_regular",
+  "template_id": "player_game_conditional.milestone_age",
+  "question": "Who is the youngest player to record a regular-season triple-double, and how old were they in days?",
+  "params": {
+    "season_type": "Regular",
+    "top_n": 1
+  },
+  "expected": {
+    "expect_min_rows": 1,
+    "expect_top_player": "Josh Giddey"
+  },
+  "expected_rows": [
+    {
+      "player_id": 1630581,
+      "full_name": "Josh Giddey",
+      "game_date": "2022-01-02",
+      "age_in_days": 7024,
+      "pts": 17,
+      "reb": 13,
+      "ast": 14
+    }
+  ],
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "PLAN \u00a712 row 13. Josh Giddey (born 2002-10-10) at age 7024 days vs OKC on 2022-01-02. Verified against fact_player_game_box joined to dim_player.birth_date."
+}

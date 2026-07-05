@@ -30,6 +30,7 @@ Public surface (re-exported from this module):
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import re
 import threading
@@ -41,6 +42,7 @@ from pydantic_ai import Agent, RunContext
 from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.models.openrouter import OpenRouterModel
 from pydantic_ai.providers.openrouter import OpenRouterProvider
+from pydantic_core import PydanticUndefined
 
 from .config import get_settings
 from .db import DuckDBSingleton, get_db
@@ -247,6 +249,13 @@ def _summarize_params(model_cls: type[BaseModel]) -> list[dict[str, Any]]:
     Used by the `list_templates` tool to show the agent what each
     template expects without forcing a `get_template_detail` round-trip
     per candidate. Returns `[]` if the model has no fields.
+
+    NOTE: Pydantic v2 represents "no default" (required field) as the
+    `PydanticUndefined` sentinel, NOT `None`. We must exclude it — if a
+    `PydanticUndefined` value leaks into the tool-return dict, Pydantic AI
+    cannot JSON-serialize the tool result and the whole turn crashes with
+    `PydanticSerializationError: Unable to serialize unknown type:
+    PydanticUndefinedType`.
     """
     out: list[dict[str, Any]] = []
     try:
@@ -256,8 +265,11 @@ def _summarize_params(model_cls: type[BaseModel]) -> list[dict[str, Any]]:
     for name, f in fields.items():
         type_name = getattr(f.annotation, "__name__", str(f.annotation))
         entry: dict[str, Any] = {"name": name, "type": type_name}
-        if f.default is not None:
+        if f.default is not PydanticUndefined and f.default is not None:
             entry["default"] = f.default
+        elif f.default_factory is not None and f.default_factory is not PydanticUndefined:
+            with contextlib.suppress(Exception):
+                entry["default"] = f.default_factory()
         if f.description:
             entry["description"] = f.description
         out.append(entry)

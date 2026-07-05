@@ -1,0 +1,35 @@
+{
+  "id": "career_demographic.hs_draftee_career_ws.top3",
+  "template_id": "career_demographic.hs_draftee_career_ws",
+  "question": "Top 3 career win shares among high-school-drafted players, with drafting teams",
+  "params": {
+    "top_n": 3
+  },
+  "expected": {
+    "expect_min_rows": 3,
+    "expect_contains_player": "LeBron James"
+  },
+  "expected_rows": [
+    {
+      "player_id": 2544,
+      "full_name": "LeBron James",
+      "drafting_team": "CLE",
+      "career_ws": 276.9
+    },
+    {
+      "player_id": 708,
+      "full_name": "Kevin Garnett",
+      "drafting_team": "MIN",
+      "career_ws": 191.5
+    },
+    {
+      "player_id": 977,
+      "full_name": "Kobe Bryant",
+      "drafting_team": "CHH",
+      "career_ws": 172.9
+    }
+  ],
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "PLAN §12 row 1. Source-backed template — win shares come from src_agg_player_season_advanced (NOT the plan-named src_bref_advanced, which does not exist). Career WS = SUM(ws) over Regular season_type. Top 3 are LeBron, KG, Kobe. LeBron was drafted by Cleveland out of high school."
+}

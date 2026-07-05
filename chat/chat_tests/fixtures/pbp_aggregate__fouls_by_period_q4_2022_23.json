@@ -1,0 +1,68 @@
+{
+  "id": "pbp_aggregate.fouls_by_period.q4_2022_23",
+  "template_id": "pbp_aggregate.fouls_by_period",
+  "question": "Most offensive fouls in 4th quarters, 2022-23 season",
+  "params": {
+    "season_year": "2022-23",
+    "period": 4,
+    "top_n": 10
+  },
+  "expected": {
+    "expect_min_rows": 1
+  },
+  "expected_rows": [
+    {
+      "player_id": 1628389,
+      "full_name": "Bam Adebayo",
+      "offensive_fouls": 16
+    },
+    {
+      "player_id": 1626174,
+      "full_name": "Christian Wood",
+      "offensive_fouls": 16
+    },
+    {
+      "player_id": 203507,
+      "full_name": "Giannis Antetokounmpo",
+      "offensive_fouls": 15
+    },
+    {
+      "player_id": 1628380,
+      "full_name": "Zach Collins",
+      "offensive_fouls": 15
+    },
+    {
+      "player_id": 1627734,
+      "full_name": "Domantas Sabonis",
+      "offensive_fouls": 14
+    },
+    {
+      "player_id": 203944,
+      "full_name": "Julius Randle",
+      "offensive_fouls": 13
+    },
+    {
+      "player_id": 203497,
+      "full_name": "Rudy Gobert",
+      "offensive_fouls": 13
+    },
+    {
+      "player_id": 1629655,
+      "full_name": "Daniel Gafford",
+      "offensive_fouls": 12
+    },
+    {
+      "player_id": 1628369,
+      "full_name": "Jayson Tatum",
+      "offensive_fouls": 12
+    },
+    {
+      "player_id": 1631097,
+      "full_name": "Bennedict Mathurin",
+      "offensive_fouls": 11
+    }
+  ],
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "PLAN §12 row 12. Top 10 most offensive fouls committed in Q4 of 2022-23 (action_type='Foul', sub_type IN ('Offensive','Offensive Charge'), case-insensitive). Verified by direct query against data/nba.duckdb. Tied totals ordered alphabetically by full_name."
+}

@@ -1,0 +1,25 @@
+{
+  "id": "teammate_overlap.two_player_shared_team_seasons.lebron_wade",
+  "template_id": "teammate_overlap.two_player_shared_team_seasons",
+  "question": "Players who shared a regular-season team-season with both LeBron James and Dwyane Wade",
+  "params": {
+    "player_a_id": 2544,
+    "player_b_id": 2548,
+    "season_type": "Regular"
+  },
+  "expected": {
+    "expect_min_rows": 1,
+    "expect_contains_player": "Chris Bosh"
+  },
+  "expected_rows_count": 81,
+  "shared_team_seasons": [
+    {"team_id": 1610612748, "season_year": "2010-11"},
+    {"team_id": 1610612748, "season_year": "2011-12"},
+    {"team_id": 1610612748, "season_year": "2012-13"},
+    {"team_id": 1610612748, "season_year": "2013-14"},
+    {"team_id": 1610612739, "season_year": "2017-18"}
+  ],
+  "status": "stable",
+  "confidence": "verified",
+  "notes": "PLAN §12 row 3. The plan's canonical pair (LeBron + CP3) returns 0 real-team-shared rows because those two never shared a regular-season team — only the All-Star ghost row matches (team_id IS NULL). The template is tested with LeBron + Wade (MIA 2010-14 + CLE 2017-18) for a non-trivial assertion. 81 distinct teammates (excluding LeBron + Wade themselves) appear across those 5 team-seasons. Chris Bosh (player_id 2547) is one of them — verified."
+}
