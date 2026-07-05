@@ -1,0 +1,75 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "description": "One line of chat/logs/model/<date>/<session_id>.jsonl. Emitted by chat_server.pipeline._write_model_log.",
+  "properties": {
+    "error": {
+      "description": "Present iff the turn errored (f'{type}: {exc}').",
+      "type": "string"
+    },
+    "template_id": {
+      "description": "Resolved template id (dotted), or null on clarification / not-answerable / agent-failure paths.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "ts": {
+      "description": "ISO-8601 UTC timestamp set at write time.",
+      "format": "date-time",
+      "type": "string"
+    },
+    "turn_id": {
+      "description": "Per-turn opaque id (secrets.token_urlsafe(8)).",
+      "minLength": 1,
+      "type": "string"
+    },
+    "usage": {
+      "additionalProperties": true,
+      "description": "Pydantic AI RunUsage serialised via dataclasses.asdict. All sub-keys are integers.",
+      "properties": {
+        "cache_audio_read_tokens": {
+          "type": "integer"
+        },
+        "cache_read_tokens": {
+          "type": "integer"
+        },
+        "cache_write_tokens": {
+          "type": "integer"
+        },
+        "details": {
+          "type": "object"
+        },
+        "input_audio_tokens": {
+          "type": "integer"
+        },
+        "input_tokens": {
+          "type": "integer"
+        },
+        "output_audio_tokens": {
+          "type": "integer"
+        },
+        "output_tokens": {
+          "type": "integer"
+        },
+        "requests": {
+          "type": "integer"
+        },
+        "tool_calls": {
+          "type": "integer"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "turn_id",
+    "ts",
+    "template_id"
+  ],
+  "title": "ModelLogEntry",
+  "type": "object"
+}

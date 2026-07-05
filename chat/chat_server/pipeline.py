@@ -38,6 +38,7 @@ Design notes
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import datetime as _dt
 import json
 import logging
@@ -48,6 +49,7 @@ from dataclasses import asdict as _dc_asdict
 from pathlib import Path
 from typing import Any
 
+from . import otel
 from .agent import get_agent, make_deps  # noqa: F401 — re-exported by tests via pipeline
 from .composer import compose, compose_not_answerable
 from .config import get_settings
@@ -125,17 +127,24 @@ async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
     _safe_append_user(store, session_id, message)
 
     # --- agent call ----------------------------------------------------
-    try:
-        agent = get_agent()
-        deps = await make_deps()
-        result = await agent.run(message, deps=deps)
-        plan = result.output
-        usage_obj = result.usage  # RunUsage dataclass
-    except Exception as exc:  # noqa: BLE001
-        log.exception("agent.run failed; sid=%s turn_id=%s", session_id, turn_id)
-        yield ChatError(code=_ERR_AGENT_FAILED, message=f"agent failed: {type(exc).__name__}")
-        _write_model_log(settings, session_id, turn_id, template_id=None, usage=None, error=exc)
-        return
+    # Optional OTel span around the LLM call (PLAN §4.1#9 / §15 Phase 7).
+    # No-op when OTel is disabled (the default); event sequence unchanged.
+    with otel.span("agent.run", attributes={"session_id": session_id}) as agent_span:
+        try:
+            agent = get_agent()
+            deps = await make_deps()
+            result = await agent.run(message, deps=deps)
+            plan = result.output
+            usage_obj = result.usage  # RunUsage dataclass
+            if agent_span is not None:
+                # Never crash on a bad attribute value.
+                with contextlib.suppress(Exception):
+                    agent_span.set_attribute("template_id", plan.template_id or "")
+        except Exception as exc:  # noqa: BLE001
+            log.exception("agent.run failed; sid=%s turn_id=%s", session_id, turn_id)
+            yield ChatError(code=_ERR_AGENT_FAILED, message=f"agent failed: {type(exc).__name__}")
+            _write_model_log(settings, session_id, turn_id, template_id=None, usage=None, error=exc)
+            return
 
     # --- branch 1: clarification ---------------------------------------
     if plan.clarification is not None:
@@ -265,71 +274,83 @@ async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
 
     db = get_db()
     timeout_seconds = template.timeout_seconds
-    try:
-        query_result: QueryResult = await asyncio.wait_for(
-            db.execute(template.sql, validated_params, limit=template.default_limit),
-            timeout=timeout_seconds,
-        )
-    except TimeoutError:
-        log.warning(
-            "pipeline: query timeout sid=%s template=%s timeout=%ds",
-            session_id,
-            template_id,
-            timeout_seconds,
-        )
-        yield ChatError(
-            code=_ERR_QUERY_TIMEOUT,
-            message=(
-                f"Query exceeded the template's {timeout_seconds}s timeout. "
-                "Try a narrower question or a different season/filter."
-            ),
-        )
-        _write_query_log(
-            settings,
-            session_id,
-            turn_id,
-            template_id=template_id,
-            sql=template.sql,
-            params=validated_params,
-            result=None,
-            error=TimeoutError(f"timeout after {timeout_seconds}s"),
-        )
-        _write_model_log(
-            settings,
-            session_id,
-            turn_id,
-            template_id=template_id,
-            usage=usage_obj,
-            error=TimeoutError("query timeout"),
-        )
-        return
-    except Exception as exc:  # noqa: BLE001
-        log.exception(
-            "pipeline: db.execute failed sid=%s template=%s err=%s",
-            session_id,
-            template_id,
-            exc,
-        )
-        yield ChatError(code=_ERR_DB_FAILED, message=f"db execute failed: {type(exc).__name__}")
-        _write_query_log(
-            settings,
-            session_id,
-            turn_id,
-            template_id=template_id,
-            sql=template.sql,
-            params=validated_params,
-            result=None,
-            error=exc,
-        )
-        _write_model_log(
-            settings,
-            session_id,
-            turn_id,
-            template_id=template_id,
-            usage=usage_obj,
-            error=exc,
-        )
-        return
+    # Optional OTel span around the DB execution (PLAN §4.1#9 / §15 Phase 7).
+    # The span stays open through the try/except so a timeout / exception
+    # still records its end time correctly. No-op when OTel is off.
+    with otel.span(
+        "db.execute",
+        attributes={"template_id": template_id, "timeout_seconds": timeout_seconds},
+    ) as db_span:
+        try:
+            query_result: QueryResult = await asyncio.wait_for(
+                db.execute(template.sql, validated_params, limit=template.default_limit),
+                timeout=timeout_seconds,
+            )
+            if db_span is not None:
+                # Never crash on a bad attribute value.
+                with contextlib.suppress(Exception):
+                    db_span.set_attribute("row_count", query_result.row_count)
+                    db_span.set_attribute("duration_ms", query_result.duration_ms)
+        except TimeoutError:
+            log.warning(
+                "pipeline: query timeout sid=%s template=%s timeout=%ds",
+                session_id,
+                template_id,
+                timeout_seconds,
+            )
+            yield ChatError(
+                code=_ERR_QUERY_TIMEOUT,
+                message=(
+                    f"Query exceeded the template's {timeout_seconds}s timeout. "
+                    "Try a narrower question or a different season/filter."
+                ),
+            )
+            _write_query_log(
+                settings,
+                session_id,
+                turn_id,
+                template_id=template_id,
+                sql=template.sql,
+                params=validated_params,
+                result=None,
+                error=TimeoutError(f"timeout after {timeout_seconds}s"),
+            )
+            _write_model_log(
+                settings,
+                session_id,
+                turn_id,
+                template_id=template_id,
+                usage=usage_obj,
+                error=TimeoutError("query timeout"),
+            )
+            return
+        except Exception as exc:  # noqa: BLE001
+            log.exception(
+                "pipeline: db.execute failed sid=%s template=%s err=%s",
+                session_id,
+                template_id,
+                exc,
+            )
+            yield ChatError(code=_ERR_DB_FAILED, message=f"db execute failed: {type(exc).__name__}")
+            _write_query_log(
+                settings,
+                session_id,
+                turn_id,
+                template_id=template_id,
+                sql=template.sql,
+                params=validated_params,
+                result=None,
+                error=exc,
+            )
+            _write_model_log(
+                settings,
+                session_id,
+                turn_id,
+                template_id=template_id,
+                usage=usage_obj,
+                error=exc,
+            )
+            return
 
     # 3e. emit query_finished
     yield QueryFinished(

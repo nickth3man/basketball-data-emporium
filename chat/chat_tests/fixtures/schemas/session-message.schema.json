@@ -1,0 +1,25 @@
+{
+  "description": "One visible message in a session.\n\nRole is a free-form string at the storage layer; the route layer\nenforces the ``\"user\" | \"assistant\"`` subset at write time (Phase 4\nSSE pipeline). Keeping the model open at the store keeps this module\nindependent of that pipeline.",
+  "properties": {
+    "content": {
+      "title": "Content",
+      "type": "string"
+    },
+    "role": {
+      "title": "Role",
+      "type": "string"
+    },
+    "ts": {
+      "format": "date-time",
+      "title": "Ts",
+      "type": "string"
+    }
+  },
+  "required": [
+    "role",
+    "content",
+    "ts"
+  ],
+  "title": "SessionMessage",
+  "type": "object"
+}

@@ -15,6 +15,7 @@ add the chat agent and SSE.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -23,8 +24,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
+from .log_retention import sweep_all
 from .logging_setup import setup_logging
 from .routes import chat, meta, sessions
+
+log = logging.getLogger(__name__)
 
 # Vite dev server origin (see PLAN §6.1); the production-built frontend
 # statically serves from the same host so CORS only matters in dev.
@@ -43,8 +47,22 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     registry, and (Phase 3) construct the Pydantic AI agent. Teardown
     handlers (closing the pool, flushing logs) will be added when the
     corresponding resources land.
+
+    Phase 7: run the 7-day log-retention sweep immediately after logging
+    is configured. The sweep is best-effort and never raises (PLAN §7.10)
+    so a read-only disk or a locked file cannot prevent startup.
     """
     setup_logging()
+    # 7-day rolling retention (PLAN §7.10). sweep_all swallows errors
+    # internally and returns a {subdir: count} map we surface as one
+    # log line — the per-file IO errors it sees are already logged at
+    # WARNING inside sweep_logs.
+    try:
+        result = sweep_all()
+        total = sum(result.values())
+        log.info("log retention sweep removed %d files: %s", total, result)
+    except Exception:  # noqa: BLE001 - belt-and-braces: startup must never fail
+        log.exception("log retention sweep failed; continuing startup")
     yield
 
 

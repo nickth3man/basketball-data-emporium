@@ -29,6 +29,15 @@ dev = [
     "jsonschema>=4",
 ]
 
+[project.optional-dependencies]
+# Phase 7: optional OpenTelemetry span hooks. The base install does NOT
+# pull these in — `chat_server.otel` is off by default and only imports
+# `opentelemetry` inside its `_ENABLED` guard (PLAN §4.1#9 / §15 Phase 7).
+otel = [
+    "opentelemetry-api>=1.27",
+    "opentelemetry-sdk>=1.27",
+]
+
 [tool.ruff]
 line-length = 100
 target-version = "py312"
