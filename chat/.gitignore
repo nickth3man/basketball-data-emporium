@@ -1,0 +1,25 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.ty_cache/
+.coverage
+htmlcov/
+
+# Runtime data (gitignored — never commit sessions or logs)
+data/
+logs/
+
+# Node / frontend
+frontend/node_modules/
+frontend/dist/
+frontend/*.local
+
+# Env
+.env
+
+# Editor
+.vscode/
+.idea/

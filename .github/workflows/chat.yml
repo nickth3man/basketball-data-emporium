@@ -1,0 +1,146 @@
+name: Chat
+
+# CI for the chat/ project (basketball-data-emporium chatbot).
+# Phase 0 scope: lint + format + type + test + sqlfluff + deptry on the backend,
+# and lint + type + format + vitest on the frontend. Playwright / axe-core /
+# openapi+sse drift guards (PLAN §14.4) land in later phases.
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "chat/**"
+      - ".github/workflows/chat.yml"
+  pull_request:
+    paths:
+      - "chat/**"
+      - ".github/workflows/chat.yml"
+
+# Note on the warehouse: `data/nba.duckdb` (~21.5 GB) is gitignored and not
+# provisioned in CI. Backend tests that depend on it MUST skip gracefully when
+# the file is absent (handled at the pytest-collection layer; see comments
+# inside the `backend` job's test step).
+
+jobs:
+  backend:
+    name: Backend (Python)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: chat
+    env:
+      # CI never has the warehouse — tell the test layer to skip DB-backed
+      # suites gracefully rather than fail. The Phase 1+ conftest.py is
+      # expected to honor one of the following:
+      #   (a) an existence check on $CHAT_DUCKDB_PATH / ../data/nba.duckdb, or
+      #   (b) an explicit CHAT_SKIP_DB_TESTS=1 (used as a hard skip in CI).
+      # Phase 0 has no `chat_tests/` directory yet — the step is guarded so
+      # it cleanly no-ops until tests are added.
+      CHAT_SKIP_DB_TESTS: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: latest
+          working-directory: chat
+
+      - name: Install dependencies
+        run: uv sync --dev
+
+      - name: Ruff lint
+        run: uv run ruff check chat_server
+
+      - name: Ruff format check
+        run: uv run ruff format --check chat_server
+
+      - name: Type check (ty)
+        run: uv run ty check chat_server
+
+      - name: Deptry (unused / missing deps)
+        run: uv run deptry chat
+
+      - name: SQLFluff lint (templates)
+        # Templates live in chat_server/templates/. Skip cleanly when the
+        # directory does not exist (Phase 0: the package is a skeleton).
+        run: |
+          if [ -d chat_server/templates ]; then
+            uv run sqlfluff lint --dialect duckdb chat_server/templates
+          else
+            echo "chat_server/templates/ not present yet — skipping sqlfluff (expected for Phase 0)."
+          fi
+
+      - name: Run tests (pytest)
+        # The test suite is expected to skip DB-backed tests when the
+        # warehouse is absent (CI never has it). If `chat_tests/` does not
+        # yet exist (Phase 0), skip the step entirely.
+        run: |
+          if [ -d chat_tests ]; then
+            uv run pytest -q --tb=short
+          else
+            echo "chat_tests/ not present yet — skipping pytest (expected for Phase 0)."
+          fi
+
+  frontend:
+    name: Frontend (TypeScript)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: chat/frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Phase 0 assumes `chat/frontend/package.json` exists with npm-style
+      # scripts: typecheck, lint, format:check, test. After Phase 5 wires
+      # Playwright + axe, add them in a new step gated on a job-level env
+      # var (the running app isn't available in CI for these gates).
+
+      - name: Install dependencies
+        # `npm ci` requires a committed lockfile; fall back to `npm install`
+        # until the frontend fixer ships `package-lock.json` / `pnpm-lock.yaml`.
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Typecheck (tsc --noEmit)
+        run: npm run typecheck
+        continue-on-error: false
+
+      - name: Lint (eslint)
+        run: npm run lint
+
+      - name: Format check (prettier)
+        run: npm run format:check
+
+      - name: Unit tests (vitest)
+        run: npx vitest run
+
+  drift:
+    name: Drift guards (openapi + SSE schema)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Skip — Phase 0 placeholder
+        run: |
+          echo "Drift-guard job is a Phase 0 placeholder."
+          echo "TODO Phase 4: openapi + SSE schema drift guards (PLAN §9, §14.4)."
+          echo "When implemented, this job should:"
+          echo "  - regenerate frontend/openapi.json from the FastAPI app and assert"
+          echo "    'git diff --exit-code frontend/openapi.json'"
+          echo "  - regenerate frontend/src/generated/sse-events.schema.json and"
+          echo "    assert 'git diff --exit-code'"
+          echo "  - run check-jsonschema against the JSONL log fixture corpus."

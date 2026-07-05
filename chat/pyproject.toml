@@ -1,0 +1,60 @@
+[project]
+name = "chat-server"
+version = "0.1.0"
+description = "Basketball data chatbot API"
+requires-python = ">=3.12,<3.14"
+readme = "PLAN.md"
+dependencies = [
+    "fastapi>=0.135,<1.0",
+    "uvicorn[standard]>=0.34",
+    "pydantic>=2.10,<3.0",
+    "pydantic-ai-slim[openrouter]>=2.5,<3.0",
+    "duckdb>=1.2,<2.0",
+    "sqlglot>=25,<26",
+    "sqlfluff>=3.2,<4.0",
+    "httpx>=0.28",
+    "loggingredactor>=0.0.7",
+    "pydantic-settings>=2.10",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.9",
+    "ty>=0.0.1a5",
+    "pytest>=8",
+    "pytest-asyncio>=0.25",
+    "pytest-cov>=6",
+    "deptry>=0.20",
+    "check-jsonschema>=0.30",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "N"]
+
+[tool.ruff.lint.per-file-ignores]
+"chat_tests/**" = ["S101"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["chat_tests"]
+
+[tool.ty.src]
+include = ["chat_server"]
+
+[tool.ty.environment]
+python-version = "3.12"
+
+[tool.deptry]
+# Phase 0 minimal; tighten in later phases.
+ignore_missing = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["chat_server"]
