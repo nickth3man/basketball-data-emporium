@@ -1,15 +1,29 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+/*
+ * highlight.js theme for the SqlPanel (PLAN §8.3, §5.2). github-light is a
+ * well-balanced light theme that matches the rest of the chat shell.
+ * Loaded once at app entry so the SQL panel renders with highlighting
+ * even when SqlPanel is mounted lazily.
+ */
+@import "highlight.js/styles/github.css";
 
 @theme inline {
   --color-background: oklch(1 0 0);
   --color-foreground: oklch(0.145 0 0);
   --color-card: oklch(1 0 0);
   --color-card-foreground: oklch(0.145 0 0);
-  --color-primary: oklch(0.65 0.2 42); /* orange-ish NBA accent */
+  --color-primary: oklch(0.65 0 2); /* orange-ish NBA accent */
   --color-primary-foreground: oklch(0.98 0 0);
   --color-muted: oklch(0.97 0 0);
-  --color-muted-foreground: oklch(0.556 0 0);
+  /*
+   * muted-foreground: target ≥4.5:1 contrast on --color-muted
+   * (#f5f5f5). The previous oklch(0.556 0 0) (#737373) measured 4.34:1
+   * and failed axe color-contrast on small uppercase tracking-wide text
+   * (e.g. EvidenceCard header). oklch(0.45 0 0) ≈ #5e5e5e clears the
+   * threshold with room to spare (measured ~5.8:1).
+   */
+  --color-muted-foreground: oklch(0.45 0 0);
   --color-border: oklch(0.922 0 0);
   --radius: 0.5rem;
 }
@@ -25,4 +39,15 @@ body {
   font-family: ui-sans-serif, system-ui, sans-serif;
   background: var(--color-background);
   color: var(--color-foreground);
+}
+
+/*
+ * highlight.js github theme provides the .hljs-* classes; we constrain
+ * the panel's font + sizing so the snippet doesn't overflow the bubble
+ * at narrow widths. Tokens are inherited from the theme; we only set
+ * the layout-level properties here.
+ */
+.hljs {
+  background: transparent;
+  padding: 0;
 }
