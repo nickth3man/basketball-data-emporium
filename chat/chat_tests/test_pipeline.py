@@ -265,7 +265,7 @@ def test_pipeline_timeout_emits_error(monkeypatch, tmp_path):
 
     async def _fake_make_deps() -> AgentDeps:
         # No DB is ever touched because we override ``get_db`` below.
-        return AgentDeps(registry={}, schema_context=SchemaContext(), db=None)  # type: ignore[arg-type]
+        return AgentDeps(registry={}, schema_context=SchemaContext(), db=None)  # ty: ignore[invalid-argument-type]
 
     monkeypatch.setattr(pipeline_module, "make_deps", _fake_make_deps)
     monkeypatch.setattr(config_module.get_settings(), "chat_log_dir", str(tmp_path))

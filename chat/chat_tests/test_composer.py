@@ -35,7 +35,9 @@ def _template(
         title=title,
         description="test",
         sql="SELECT 1",
-        params_model=type("Params", (), {}),
+        # Stand-in class — composer never instantiates it; ``type(..., ...)``
+        # is the lightest construction without pulling a real `BaseModel`.
+        params_model=type("Params", (), {}),  # ty: ignore[invalid-argument-type]
         allowed_tables=allowed_tables or {"mart_player_season", "dim_player"},
         result_schema={},
         answer_policy=answer_policy,

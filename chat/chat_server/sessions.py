@@ -212,8 +212,14 @@ class SessionStore:
             meta = meta.model_copy(update={"message_count": 0})
             self._write_meta(meta)
 
-    def list(self) -> list[SessionMeta]:
-        """Return every session by reading all sibling ``*.meta.json`` files."""
+    def list_all(self) -> list[SessionMeta]:
+        """Return every session by reading all sibling ``*.meta.json`` files.
+
+        Named ``list_all`` (not ``list``) to avoid shadowing the builtin
+        ``list`` on the class body — that shadow made ty reject
+        ``list[SessionMeta]`` annotations elsewhere in this module
+        ("Invalid subscript of object of type `def list(self) -> Unknown`").
+        """
         with self._lock:
             results: list[SessionMeta] = []
             for meta_path in sorted(self._root.glob("*.meta.json")):

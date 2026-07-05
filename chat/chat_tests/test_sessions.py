@@ -158,7 +158,7 @@ def test_store_list_includes_all_created(temp_store):
     a = temp_store.create(title="A")
     b = temp_store.create(title="B")
 
-    items = temp_store.list()
+    items = temp_store.list_all()
     titles = {m.title for m in items}
     ids = {m.id for m in items}
     assert {"A", "B"}.issubset(titles)

@@ -94,7 +94,7 @@ def _noop_deps() -> AgentDeps:
     return AgentDeps(
         registry={},
         schema_context=SchemaContext(),
-        db=None,  # type: ignore[arg-type] - tests bypass tool calls
+        db=None,  # ty: ignore[invalid-argument-type] - tests bypass tool calls
     )
 
 
@@ -260,7 +260,12 @@ def test_lookup_player_finds_curry():
         ]
 
     names = [h["full_name"] for h in hits]
-    assert any("Stephen Curry" in n for n in names), f"expected Curry in {names}"
+    # `full_name` comes back from a `dict[str, Unknown]` row mapping, so
+    # narrow to str before substring check (ty reports the row value as
+    # `Unknown | int | str` — `in` requires a real str haystack).
+    assert any(isinstance(n, str) and "Stephen Curry" in n for n in names), (
+        f"expected Curry in {names}"
+    )
 
 
 # --- chat route end-to-end (TestModel-backed) ---------------------------

@@ -26,6 +26,7 @@ import logging
 import os
 import time
 from pathlib import Path
+from typing import cast
 
 import jsonschema
 import pytest
@@ -316,8 +317,13 @@ def test_redaction_audit_redacts_args_when_present() -> None:
         exc_info=None,
     )
     filt.filter(record)
-    assert "sk-or-argsecret" not in (record.args[0] if record.args else "")
-    assert record.args[0] == "sk-or-[REDACTED]"
+    # `logging.LogRecord.args` is typed `Mapping[str, object] | None` in
+    # typeshed, but at runtime it accepts tuples too — the test uses a
+    # tuple here, so narrow via cast.
+    casted_args = cast("tuple[str, ...] | None", record.args)
+    first_arg = casted_args[0] if casted_args else ""
+    assert "sk-or-argsecret" not in first_arg
+    assert first_arg == "sk-or-[REDACTED]"
 
     # Dict args: Python's logging layer accepts a dict wrapped in a
     # single-element tuple (the dict arrives at LogRecord as args[0]).

@@ -41,6 +41,7 @@ actually rendered).
 
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from fastapi import APIRouter, HTTPException
@@ -280,11 +281,37 @@ async def chat(req: ChatRequest) -> ChatResponse:
         )
 
     # --- 7. Execute against the warehouse --------------------------------
+    # Enforce the template's per-query timeout (PLAN §7.7 step 10 / §16).
+    # Without this a heavy template (pbp/clutch/lineup, TIMEOUT_SECONDS=300)
+    # could hold the process-wide DB lock and starve every other turn (C1).
     try:
-        query_result = await get_db().execute(
-            template.sql,
-            validated_params,
-            limit=template.default_limit,
+        query_result = await asyncio.wait_for(
+            get_db().execute(
+                template.sql,
+                validated_params,
+                limit=template.default_limit,
+            ),
+            timeout=template.timeout_seconds,
+        )
+    except TimeoutError:
+        log.warning(
+            "DB execute timed out; sid=%s template=%s timeout=%ss",
+            sid,
+            plan.template_id,
+            template.timeout_seconds,
+        )
+        note = f"Query exceeded the {template.timeout_seconds}s timeout for this template."
+        composed = compose_not_answerable(note, attempted_sql=template.sql)
+        store.append_message(sid, "assistant", composed.answer)
+        return ChatResponse(
+            session_id=sid,
+            answer=composed.answer,
+            citations=[],
+            not_answerable=True,
+            not_answerable_note=composed.not_answerable_note,
+            template_id=plan.template_id,
+            sql=template.sql,
+            reasoning_summary=composed.reasoning_summary,
         )
     except Exception as exc:
         log.exception("DB execute failed; sid=%s template=%s err=%s", sid, plan.template_id, exc)

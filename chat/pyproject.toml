@@ -11,7 +11,9 @@ dependencies = [
     "pydantic-ai-slim[openrouter]>=2.5,<3.0",
     "duckdb>=1.2,<2.0",
     "sqlglot>=25,<26",
-    "sqlfluff>=3.2,<4.0",
+    # `sqlfluff` is moved to the `dev` dependency group below — it's a
+    # linting CLI (`sqlfluff lint --dialect duckdb`), not imported by
+    # the app package (PLAN §7.4 / §14.1).
     "httpx>=0.28",
     "loggingredactor>=0.0.7",
     "pydantic-settings>=2.10",
@@ -27,6 +29,9 @@ dev = [
     "deptry>=0.20",
     "check-jsonschema>=0.30",
     "jsonschema>=4",
+    # SQLFluff CLI lint (PLAN §7.4 / §14.1). Lives in the dev group so
+    # `pip install chat-server` doesn't pull in the linter.
+    "sqlfluff>=3.2,<4.0",
 ]
 
 [project.optional-dependencies]
@@ -35,7 +40,6 @@ dev = [
 # `opentelemetry` inside its `_ENABLED` guard (PLAN §4.1#9 / §15 Phase 7).
 otel = [
     "opentelemetry-api>=1.27",
-    "opentelemetry-sdk>=1.27",
 ]
 
 [tool.ruff]
@@ -53,14 +57,33 @@ asyncio_mode = "auto"
 testpaths = ["chat_tests"]
 
 [tool.ty.src]
-include = ["chat_server"]
+# Phase 8: include the test package so `ty check chat_server chat_tests`
+# exercises every annotated source file (PLAN §14.1 + §15 Phase 8 exit).
+include = ["chat_server", "chat_tests"]
 
 [tool.ty.environment]
 python-version = "3.12"
 
 [tool.deptry]
-# Phase 0 minimal; tighten in later phases.
-ignore_missing = []
+# Phase 8 hardening (PLAN §15 Phase 8 exit / §14.1).
+#
+# - `known_first_party` tells deptry `chat_server` is a first-party
+#   module so the DEP003 transitive-dep warnings for it stop firing.
+# - `extend_exclude` skips the `chat_tests/` tree — tests legitimately
+#   import dev deps (`pytest`, `pytest-asyncio`, `jsonschema`) that
+#   would otherwise flag as DEP004 misplaced-dev-dep.
+# - `per_rule_ignores` silences the remaining legitimate misses:
+#   * `pydantic_core` (DEP003) — pulled transitively by `pydantic`,
+#     we use `PydanticUndefined` directly.
+#   * `opentelemetry-api` (DEP001) — Phase 7 OTel hook in
+#     `chat_server/otel.py` imports it lazily under a runtime flag
+#     and is gated behind `[project.optional-dependencies].otel`.
+# - `package_module_name_map` maps `opentelemetry-api` (which has no
+#   top-level module by the same name) to its actual import name.
+known_first_party = ["chat_server"]
+extend_exclude = ["chat_tests"]
+per_rule_ignores = {"DEP001" = ["opentelemetry-api"], "DEP003" = ["pydantic_core"]}
+package_module_name_map = {"opentelemetry-api" = "opentelemetry"}
 
 [build-system]
 requires = ["hatchling"]

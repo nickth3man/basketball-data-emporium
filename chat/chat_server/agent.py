@@ -35,11 +35,12 @@ import logging
 import re
 import threading
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.exceptions import ModelRetry
+from pydantic_ai.models import Model
 from pydantic_ai.models.openrouter import OpenRouterModel
 from pydantic_ai.providers.openrouter import OpenRouterProvider
 from pydantic_core import PydanticUndefined
@@ -184,7 +185,7 @@ _agent: Agent[AgentDeps, QueryPlan] | None = None
 _agent_lock = threading.Lock()
 
 
-def get_agent(model: OpenRouterModel | None = None) -> Agent[AgentDeps, QueryPlan]:
+def get_agent(model: Model | None = None) -> Agent[AgentDeps, QueryPlan]:
     """Return the lazy singleton `Agent`.
 
     Parameters
@@ -205,17 +206,26 @@ def get_agent(model: OpenRouterModel | None = None) -> Agent[AgentDeps, QueryPla
 
 
 def _build_agent(
-    model: OpenRouterModel | None = None,
+    model: Model | None = None,
 ) -> Agent[AgentDeps, QueryPlan]:
     """Build a fresh agent (called by `get_agent` on first invocation)."""
     m = model if model is not None else _build_model()
-    agent = Agent(
-        m,
-        output_type=QueryPlan,
-        deps_type=AgentDeps,
-        retries={"output": 3, "tools": 2},
-        system_prompt=(),
+    # The `Agent` constructor's overloads don't propagate the `output_type=`
+    # generic argument (pydantic-ai typing limitation). Construct as
+    # `Agent[AgentDeps, str]` per ty's inference, then `cast` to the
+    # intended `Agent[AgentDeps, QueryPlan]` — runtime behaviour is
+    # unchanged (PLAN §7.5: `output_type=QueryPlan`).
+    raw: Agent[AgentDeps, QueryPlan] = cast(
+        "Agent[AgentDeps, QueryPlan]",
+        Agent(
+            m,
+            output_type=QueryPlan,
+            deps_type=AgentDeps,
+            retries={"output": 3, "tools": 2},
+            system_prompt=(),
+        ),
     )
+    agent = raw
 
     @agent.system_prompt
     def _system_prompt(ctx: RunContext[AgentDeps]) -> str:
@@ -554,7 +564,7 @@ async def run_agent(
     user_prompt: str,
     *,
     deps: AgentDeps | None = None,
-    model: OpenRouterModel | None = None,
+    model: Model | None = None,
 ) -> QueryPlan:
     """Run the agent on `user_prompt` and return the typed `QueryPlan`.
 

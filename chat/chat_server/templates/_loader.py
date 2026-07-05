@@ -14,6 +14,9 @@ from __future__ import annotations
 import importlib.util
 import sys
 from pathlib import Path
+from typing import Any
+
+from pydantic import BaseModel
 
 from chat_server.validation import validate_template_sql
 
@@ -56,8 +59,15 @@ def _load_metadata_module(capability: str, stem: str, py_path: Path):
     return module
 
 
-def _read_required_constant(module, name: str, py_path: Path) -> object:
-    """Return a required constant from `module`, raising a helpful error if missing."""
+def _read_required_constant(module: Any, name: str, py_path: Path) -> Any:
+    """Return a required constant from `module`, raising a helpful error if missing.
+
+    Returns ``Any`` (the caller annotates the result with the concrete
+    type the metadata module is contracted to provide — `str`, `int`,
+    `list[str]`, `type[BaseModel]`, etc.). This avoids a mismatch where
+    a narrower return annotation here would be a lie (we genuinely don't
+    know what kind of value each required constant holds).
+    """
     if not hasattr(module, name):
         raise RuntimeError(
             f"{py_path}: missing required constant {name!r}; "
@@ -70,24 +80,28 @@ def _register_template(capability: str, sql_path: Path, py_path: Path) -> Templa
     """Build a `Template` from the SQL + sibling Python module, validate it, register it."""
     module = _load_metadata_module(capability, sql_path.stem, py_path)
 
-    template_id = _read_required_constant(module, "TEMPLATE_ID", py_path)
-    title = _read_required_constant(module, "TITLE", py_path)
-    description = _read_required_constant(module, "DESCRIPTION", py_path)
-    allowed_tables = _read_required_constant(module, "ALLOWED_TABLES", py_path)
-    params_model = _read_required_constant(module, "Params", py_path)
-    result_schema = _read_required_constant(module, "RESULT_SCHEMA", py_path)
-    answer_policy = _read_required_constant(module, "ANSWER_POLICY", py_path)
-    default_limit = _read_required_constant(module, "DEFAULT_LIMIT", py_path)
-    examples = _read_required_constant(module, "EXAMPLES", py_path)
-    tests = _read_required_constant(module, "TESTS", py_path)
+    # Explicit annotations narrow `getattr(...)`-typed values from `object`
+    # to the concrete shapes the `Template` dataclass expects; without
+    # these, ty reports "Invalid subscript of object of type `set[_T@set]`"
+    # / "found `object`" downstream.
+    template_id: str = _read_required_constant(module, "TEMPLATE_ID", py_path)
+    title: str = _read_required_constant(module, "TITLE", py_path)
+    description: str = _read_required_constant(module, "DESCRIPTION", py_path)
+    allowed_tables_raw: list[str] = _read_required_constant(module, "ALLOWED_TABLES", py_path)
+    params_model: type[BaseModel] = _read_required_constant(module, "Params", py_path)
+    result_schema_raw: dict[str, type] = _read_required_constant(module, "RESULT_SCHEMA", py_path)
+    answer_policy: str = _read_required_constant(module, "ANSWER_POLICY", py_path)
+    default_limit: int = _read_required_constant(module, "DEFAULT_LIMIT", py_path)
+    examples_raw: list[str] = _read_required_constant(module, "EXAMPLES", py_path)
+    tests_raw: list[dict[str, Any]] = _read_required_constant(module, "TESTS", py_path)
 
     # Optional fields with sane defaults (PLAN §13: heavy templates set 300).
-    timeout_seconds = getattr(module, "TIMEOUT_SECONDS", 30)
+    timeout_seconds: int = getattr(module, "TIMEOUT_SECONDS", 30)
 
     sql_text = sql_path.read_text(encoding="utf-8")
 
     # Validate the SQL against the allowlist before exposing the template.
-    report = validate_template_sql(sql_text, set(allowed_tables))
+    report = validate_template_sql(sql_text, set(allowed_tables_raw))
     if not report.valid:
         raise RuntimeError(
             f"template {template_id!r} failed validate_template_sql: {report.errors}; "
@@ -95,18 +109,18 @@ def _register_template(capability: str, sql_path: Path, py_path: Path) -> Templa
         )
 
     template = Template(
-        template_id=str(template_id),
-        title=str(title),
-        description=str(description),
+        template_id=template_id,
+        title=title,
+        description=description,
         sql=sql_text,
         params_model=params_model,
-        allowed_tables=set(allowed_tables),
-        result_schema=dict(result_schema),
-        answer_policy=str(answer_policy),
-        default_limit=int(default_limit),
-        timeout_seconds=int(timeout_seconds),
-        examples=list(examples),
-        tests=list(tests),
+        allowed_tables=set(allowed_tables_raw),
+        result_schema=dict(result_schema_raw),
+        answer_policy=answer_policy,
+        default_limit=default_limit,
+        timeout_seconds=timeout_seconds,
+        examples=list(examples_raw),
+        tests=list(tests_raw),
         capability=capability,
     )
 

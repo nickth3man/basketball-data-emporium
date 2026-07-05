@@ -22,12 +22,21 @@ from __future__ import annotations
 
 import datetime as _dt
 import json
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 from jsonschema import Draft7Validator
 from pydantic import ValidationError
+
+if TYPE_CHECKING:
+    # `jsonschema` ships no `.pyi` stub, so ty treats `Draft7Validator`
+    # as `type[@Todo]` and rejects its use in annotations. Type it as
+    # `Any` at type-check time (the runtime import above is unchanged).
+    _Draft7Validator: Any = Draft7Validator
+else:  # pragma: no cover - type-checker only
+    _Draft7Validator = Draft7Validator
 
 from chat_server.events import (
     AnswerDelta,
@@ -193,7 +202,10 @@ def test_each_event_round_trips_with_default_event_field(factory) -> None:
 def test_to_sse_dict_format() -> None:
     """`to_sse_dict` yields `{event, data}` with the right names per model."""
     for param in ALL_EVENTS:
-        factory = param.values[0]  # each parametrize entry is a 1-tuple
+        # `param.values[0]` is the `_sample_*` factory; pytest types it as
+        # `object` (the parametrize generic isn't preserved). The runtime
+        # type is a no-arg callable returning a `BaseModel`.
+        factory = cast("Callable[[], Any]", param.values[0])
         original = factory()
         wire = to_sse_dict(original)
         assert set(wire.keys()) == {"event", "data"}
@@ -286,19 +298,20 @@ def test_exported_schema_is_stable_and_committed(tmp_path: Path) -> None:
 
 
 @pytest.fixture(scope="module")
-def _validator() -> Draft7Validator:
+def _validator() -> Any:
     """Build a draft-07 validator from `export_json_schema()`.
 
     Pydantic v2 emits JSON Schema draft-07-compatible output (`type`,
     `properties`, `required`, `$ref`/`$defs`, `oneOf`, `discriminator`).
     The `Draft7Validator` is what `check-jsonschema` wraps under the hood
-    for the JSONL log fixture corpus (PLAN §14.1).
+    for the JSONL log fixture corpus (PLAN §14.1). Annotated as `Any`
+    because `jsonschema` ships no `.pyi` (see import-block note).
     """
-    return Draft7Validator(export_json_schema())
+    return _Draft7Validator(export_json_schema())
 
 
 @pytest.mark.parametrize("factory", ALL_EVENTS)
-def test_sample_payloads_validate_against_schema(factory, _validator: Draft7Validator) -> None:
+def test_sample_payloads_validate_against_schema(factory, _validator: Any) -> None:
     """Every sample payload passes `Draft7Validator` against the exported schema."""
     payload = _dump_json(factory())
     errors = sorted(_validator.iter_errors(payload), key=lambda e: list(e.path))

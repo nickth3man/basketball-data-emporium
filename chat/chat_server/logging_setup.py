@@ -110,7 +110,11 @@ class JsonlFormatter(logging.Formatter):
             "message": record.getMessage(),
         }
         if record.exc_info:
-            payload["exc_info"] = self.formatException(record.exc_info)
+            # Redact any sk-or-... that may appear in the traceback (e.g. an
+            # httpx/OpenRouter SDK exception whose repr includes the Authorization
+            # header). RedactingFilter only scrubs record.msg/args, not the
+            # formatted exception, so do it here (H3).
+            payload["exc_info"] = _redact_string(self.formatException(record.exc_info))
         return json.dumps(payload, ensure_ascii=False, default=str)
 
 

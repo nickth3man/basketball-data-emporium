@@ -178,6 +178,12 @@ def validate_template_sql(sql: str, allowed_tables: set[str]) -> ValidationRepor
             cte_aliases.add(alias)
     for tbl in ast.find_all(exp.Table):
         name = tbl.name
+        # Step 5a: reject catalog/schema-qualified references outright (H1).
+        # Our templates never qualify; a qualified name is a defense-in-depth red flag.
+        if tbl.db or tbl.catalog:
+            errors.append(
+                f"catalog/schema-qualified table reference not allowed: {tbl.sql(dialect='duckdb')}"
+            )
         if name in cte_aliases:
             continue
         tables_referenced.add(name)
@@ -185,6 +191,46 @@ def validate_template_sql(sql: str, allowed_tables: set[str]) -> ValidationRepor
             errors.append(
                 f"table '{name}' is not in the template's allowed set ({sorted(allowed_tables)})"
             )
+
+    # Step 5b: reject dangerous table-valued functions (C2). TVFs like
+    # `read_csv_auto`, `read_parquet`, `pragma_*`, `duckdb_*` parse as
+    # `exp.Func`/`exp.Anonymous` — NOT `exp.Table` — so the allowlist walk
+    # above would miss them, allowing a template to read arbitrary files
+    # exposed to the DuckDB process. Deny by name regardless of position.
+    _dangerous_tvfs = {
+        "read_csv_auto",
+        "read_csv",
+        "read_parquet",
+        "read_json",
+        "read_json_auto",
+        "read_blob",
+        "read_blob_auto",
+        "pragma_storage_info",
+        "pragma_database_list",
+        "pragma_show",
+        "duckdb_tables",
+        "duckdb_columns",
+        "duckdb_indexes",
+        "duckdb_constraints",
+        "duckdb_schemas",
+        "duckdb_views",
+        "duckdb_settings",
+        "duckdb_databases",
+        "duckdb_dependencies",
+        "duckdb_functions",
+        "duckdb_types",
+    }
+    for func in ast.find_all(exp.Func):
+        try:
+            fname = func.sql_name().lower()
+        except (AttributeError, ValueError):
+            fname = ""
+        if fname in _dangerous_tvfs:
+            errors.append(f"table-valued function not allowed: {fname}(...)")
+    # `read_csv_auto` and similar unmodeled DuckDB functions parse as Anonymous.
+    for anon in ast.find_all(exp.Anonymous):
+        if anon.name and anon.name.lower() in _dangerous_tvfs:
+            errors.append(f"table-valued function not allowed: {anon.name.lower()}(...)")
 
     return ValidationReport(
         valid=not errors,

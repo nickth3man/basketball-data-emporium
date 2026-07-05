@@ -92,7 +92,7 @@ def list_sessions() -> list[SessionMeta]:
     kept here so the OpenAPI snapshot exposes the shape to the frontend
     codegen.
     """
-    return get_store().list()
+    return get_store().list_all()
 
 
 @router.get("/sessions/{session_id}/history", response_model=HistoryPage)
