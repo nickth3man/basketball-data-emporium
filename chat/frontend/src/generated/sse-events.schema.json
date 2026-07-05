@@ -1,0 +1,433 @@
+{
+  "$defs": {
+    "AnswerDelta": {
+      "description": "One chunk of the streaming answer.\n\nPhase 4 splits the composed answer by sentences / fixed windows\n(not token-level \u2014 see `chat_server.pipeline._stream_answer_chunks`).",
+      "properties": {
+        "delta": {
+          "title": "Delta",
+          "type": "string"
+        },
+        "event": {
+          "const": "answer_delta",
+          "default": "answer_delta",
+          "title": "Event",
+          "type": "string"
+        }
+      },
+      "required": [
+        "delta"
+      ],
+      "title": "AnswerDelta",
+      "type": "object"
+    },
+    "AnswerFinished": {
+      "description": "The full composed answer, sent once after all deltas.\n\nThe frontend reducer appends deltas to the live bubble and uses\nthis event to finalise any UI bookkeeping (cursor, scroll lock).",
+      "properties": {
+        "answer": {
+          "title": "Answer",
+          "type": "string"
+        },
+        "event": {
+          "const": "answer_finished",
+          "default": "answer_finished",
+          "title": "Event",
+          "type": "string"
+        }
+      },
+      "required": [
+        "answer"
+      ],
+      "title": "AnswerFinished",
+      "type": "object"
+    },
+    "ChatError": {
+      "description": "A non-recoverable turn-level error.\n\nCodes are short, machine-friendly tokens the UI can switch on. The\n``message`` field is safe to render \u2014 any `sk-or-...` / CoT content\nis redacted before it gets here (PLAN \u00a77.10).",
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "event": {
+          "const": "error",
+          "default": "error",
+          "title": "Event",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "title": "ChatError",
+      "type": "object"
+    },
+    "Citation": {
+      "description": "One provenance citation attached to a composed answer.\n\nThe composer's internal ``Citation`` dataclass (chat_server.composer)\nhas identical field names; the Pydantic form is what crosses the SSE\nboundary so `to_sse_dict` can dump it without manual translation.",
+      "properties": {
+        "event": {
+          "const": "citation",
+          "default": "citation",
+          "title": "Event",
+          "type": "string"
+        },
+        "gap_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gap Key"
+        },
+        "metric_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Metric Key"
+        },
+        "table_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Table Name"
+        }
+      },
+      "title": "Citation",
+      "type": "object"
+    },
+    "ClarificationNeeded": {
+      "description": "The agent cannot act without more input; surface to the user.",
+      "properties": {
+        "event": {
+          "const": "clarification_needed",
+          "default": "clarification_needed",
+          "title": "Event",
+          "type": "string"
+        },
+        "options": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Options"
+        },
+        "question": {
+          "title": "Question",
+          "type": "string"
+        }
+      },
+      "required": [
+        "question"
+      ],
+      "title": "ClarificationNeeded",
+      "type": "object"
+    },
+    "ColumnSpec": {
+      "description": "One column in a `table_ready` preview.\n\n``dtype`` is best-effort (None when unknown) so the React table\nbuilder can fall back to string formatting.",
+      "properties": {
+        "dtype": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dtype"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "ColumnSpec",
+      "type": "object"
+    },
+    "IntentClassified": {
+      "description": "The agent committed to a template. ``confidence`` is 1.0 in Phase 4.\n\nPydantic AI's structured-output path doesn't surface a probability;\nwe emit 1.0 as a stable contract so the frontend reducer can rely on\nthe field type. A future enhancement can read the model's tool-call\nranking to populate this with a real number.",
+      "properties": {
+        "confidence": {
+          "title": "Confidence",
+          "type": "number"
+        },
+        "event": {
+          "const": "intent_classified",
+          "default": "intent_classified",
+          "title": "Event",
+          "type": "string"
+        },
+        "template_id": {
+          "title": "Template Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "template_id",
+        "confidence"
+      ],
+      "title": "IntentClassified",
+      "type": "object"
+    },
+    "QueryFinished": {
+      "description": "The query returned. ``columns`` is the DuckDB column-name list.",
+      "properties": {
+        "columns": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Columns",
+          "type": "array"
+        },
+        "duration_ms": {
+          "title": "Duration Ms",
+          "type": "number"
+        },
+        "event": {
+          "const": "query_finished",
+          "default": "query_finished",
+          "title": "Event",
+          "type": "string"
+        },
+        "query_id": {
+          "title": "Query Id",
+          "type": "string"
+        },
+        "row_count": {
+          "title": "Row Count",
+          "type": "integer"
+        },
+        "truncated": {
+          "title": "Truncated",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "query_id",
+        "duration_ms",
+        "row_count",
+        "columns",
+        "truncated"
+      ],
+      "title": "QueryFinished",
+      "type": "object"
+    },
+    "QueryStarted": {
+      "description": "A validated SQL query is about to run.",
+      "properties": {
+        "event": {
+          "const": "query_started",
+          "default": "query_started",
+          "title": "Event",
+          "type": "string"
+        },
+        "query_id": {
+          "title": "Query Id",
+          "type": "string"
+        },
+        "sql": {
+          "title": "Sql",
+          "type": "string"
+        },
+        "template_id": {
+          "title": "Template Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "query_id",
+        "template_id",
+        "sql"
+      ],
+      "title": "QueryStarted",
+      "type": "object"
+    },
+    "Reasoning": {
+      "description": "Structured reasoning summary for the UI's collapsible panel.\n\nNEVER includes the model's chain-of-thought \u2014 only the pipeline's\nown description of what happened (PLAN \u00a77.7 step 8 + \u00a716).",
+      "properties": {
+        "event": {
+          "const": "reasoning",
+          "default": "reasoning",
+          "title": "Event",
+          "type": "string"
+        },
+        "execution_plan": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Execution Plan"
+        },
+        "summary": {
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "summary"
+      ],
+      "title": "Reasoning",
+      "type": "object"
+    },
+    "TableReady": {
+      "description": "Result rows ready for the evidence table.\n\n``row_count`` is the FULL result row count (so the UI can show\n\"showing N of M\"); ``rows`` is capped to a preview window (200 by\ndefault, see ``chat_server.pipeline._TABLE_PREVIEW_ROWS``) and\n``truncated`` is True iff the preview window is shorter than the\nfull result.",
+      "properties": {
+        "columns": {
+          "items": {
+            "$ref": "#/$defs/ColumnSpec"
+          },
+          "title": "Columns",
+          "type": "array"
+        },
+        "event": {
+          "const": "table_ready",
+          "default": "table_ready",
+          "title": "Event",
+          "type": "string"
+        },
+        "row_count": {
+          "title": "Row Count",
+          "type": "integer"
+        },
+        "rows": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Rows",
+          "type": "array"
+        },
+        "truncated": {
+          "title": "Truncated",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "columns",
+        "rows",
+        "row_count",
+        "truncated"
+      ],
+      "title": "TableReady",
+      "type": "object"
+    },
+    "TurnStarted": {
+      "description": "The first event on every turn. Carries the ids + timestamp.",
+      "properties": {
+        "event": {
+          "const": "turn_started",
+          "default": "turn_started",
+          "title": "Event",
+          "type": "string"
+        },
+        "session_id": {
+          "title": "Session Id",
+          "type": "string"
+        },
+        "ts": {
+          "format": "date-time",
+          "title": "Ts",
+          "type": "string"
+        },
+        "turn_id": {
+          "title": "Turn Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "session_id",
+        "turn_id",
+        "ts"
+      ],
+      "title": "TurnStarted",
+      "type": "object"
+    }
+  },
+  "discriminator": {
+    "mapping": {
+      "answer_delta": "#/$defs/AnswerDelta",
+      "answer_finished": "#/$defs/AnswerFinished",
+      "citation": "#/$defs/Citation",
+      "clarification_needed": "#/$defs/ClarificationNeeded",
+      "error": "#/$defs/ChatError",
+      "intent_classified": "#/$defs/IntentClassified",
+      "query_finished": "#/$defs/QueryFinished",
+      "query_started": "#/$defs/QueryStarted",
+      "reasoning": "#/$defs/Reasoning",
+      "table_ready": "#/$defs/TableReady",
+      "turn_started": "#/$defs/TurnStarted"
+    },
+    "propertyName": "event"
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/TurnStarted"
+    },
+    {
+      "$ref": "#/$defs/IntentClassified"
+    },
+    {
+      "$ref": "#/$defs/ClarificationNeeded"
+    },
+    {
+      "$ref": "#/$defs/QueryStarted"
+    },
+    {
+      "$ref": "#/$defs/QueryFinished"
+    },
+    {
+      "$ref": "#/$defs/TableReady"
+    },
+    {
+      "$ref": "#/$defs/Reasoning"
+    },
+    {
+      "$ref": "#/$defs/Citation"
+    },
+    {
+      "$ref": "#/$defs/AnswerDelta"
+    },
+    {
+      "$ref": "#/$defs/AnswerFinished"
+    },
+    {
+      "$ref": "#/$defs/ChatError"
+    }
+  ]
+}

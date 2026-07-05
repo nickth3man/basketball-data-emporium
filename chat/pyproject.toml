@@ -26,6 +26,7 @@ dev = [
     "pytest-cov>=6",
     "deptry>=0.20",
     "check-jsonschema>=0.30",
+    "jsonschema>=4",
 ]
 
 [tool.ruff]

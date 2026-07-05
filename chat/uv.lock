@@ -134,6 +134,7 @@ dependencies = [
 dev = [
     { name = "check-jsonschema" },
     { name = "deptry" },
+    { name = "jsonschema" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
@@ -159,6 +160,7 @@ requires-dist = [
 dev = [
     { name = "check-jsonschema", specifier = ">=0.30" },
     { name = "deptry", specifier = ">=0.20" },
+    { name = "jsonschema", specifier = ">=4" },
     { name = "pytest", specifier = ">=8" },
     { name = "pytest-asyncio", specifier = ">=0.25" },
     { name = "pytest-cov", specifier = ">=6" },

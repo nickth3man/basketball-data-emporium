@@ -130,17 +130,59 @@ jobs:
         run: npx vitest run
 
   drift:
+    # Phase 4 (PLAN §9, §14.4): regenerate the two committed snapshots
+    # (OpenAPI + SSE event JSON schema) and assert `git diff --exit-code`
+    # over each. The Pydantic / FastAPI code is the source of truth; the
+    # committed JSON files are the contract the frontend types live off.
+    # A drift here means the PR didn't re-run the export scripts after
+    # touching `chat_server/events.py`, `chat_server/routes/**`, etc.
     name: Drift guards (openapi + SSE schema)
     runs-on: ubuntu-latest
+    needs: [backend, frontend]
     steps:
       - uses: actions/checkout@v4
-      - name: Skip — Phase 0 placeholder
+
+      # `git diff --exit-code` needs a working tree; give checkout a
+      # HEAD so the diffs compare against the last commit.
+      - name: Configure git identity
         run: |
-          echo "Drift-guard job is a Phase 0 placeholder."
-          echo "TODO Phase 4: openapi + SSE schema drift guards (PLAN §9, §14.4)."
-          echo "When implemented, this job should:"
-          echo "  - regenerate frontend/openapi.json from the FastAPI app and assert"
-          echo "    'git diff --exit-code frontend/openapi.json'"
-          echo "  - regenerate frontend/src/generated/sse-events.schema.json and"
-          echo "    assert 'git diff --exit-code'"
-          echo "  - run check-jsonschema against the JSONL log fixture corpus."
+          git config user.email "ci@example.invalid"
+          git config user.name "chat-ci"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: latest
+          working-directory: chat
+
+      - name: Install backend dependencies
+        run: uv sync --dev
+        working-directory: chat
+
+      # Guard #1 — REST contract (PLAN §9.1, §14.4)
+      - name: openapi drift (PLAN §9.1)
+        working-directory: chat
+        run: |
+          set -euo pipefail
+          uv run python scripts/export_openapi.py
+          # The export script writes `frontend/openapi.json`. Fail if the
+          # regenerated file differs from the committed snapshot.
+          git diff --exit-code -- frontend/openapi.json
+
+      # Guard #2 — SSE wire format (PLAN §9.2, §14.4)
+      - name: SSE schema drift (PLAN §9.2)
+        working-directory: chat
+        run: |
+          set -euo pipefail
+          uv run python scripts/export_sse_schema.py
+          # The export script writes
+          # `frontend/src/generated/sse-events.schema.json`. Fail if the
+          # regenerated file differs from the committed snapshot.
+          git diff --exit-code -- frontend/src/generated/sse-events.schema.json
+          # Guard #3 (vitest-side) lives in the `frontend` job; this
+          # CI job covers only the byte-identical snapshots.

@@ -17,7 +17,8 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "gen:types": "openapi-typescript ./openapi.json -o src/generated/api.d.ts"
+    "gen:types": "openapi-typescript ./openapi.json -o src/generated/api.d.ts",
+    "gen:sse-schema": "cd .. && uv run python scripts/export_sse_schema.py"
   },
   "dependencies": {
     "@tanstack/react-table": "^8",
