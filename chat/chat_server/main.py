@@ -9,7 +9,8 @@ Or as a script:
     uv run python -m chat_server.main
 
 Phase 0 serves only the meta routes (`/api/health`, `/api/config`). Phase 1
-adds the data layer; subsequent phases add sessions, the chat agent, and SSE.
+adds the data layer; Phase 2 adds sessions + logging; subsequent phases
+add the chat agent and SSE.
 """
 
 from __future__ import annotations
@@ -22,7 +23,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
-from .routes import meta
+from .logging_setup import setup_logging
+from .routes import meta, sessions
 
 # Vite dev server origin (see PLAN §6.1); the production-built frontend
 # statically serves from the same host so CORS only matters in dev.
@@ -34,11 +36,15 @@ APP_TITLE = "Basketball Data Chatbot API"
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-    """Application lifespan — Phase 0 has nothing to initialize.
+    """Application lifespan.
 
-    Phase 1+ will open the DuckDB pool, warm the template registry, and
-    construct the Pydantic AI agent here.
+    Phase 2: configure the JSONL + redacting root logger once on startup.
+    Phase 1+ will additionally open the DuckDB pool, warm the template
+    registry, and (Phase 3) construct the Pydantic AI agent. Teardown
+    handlers (closing the pool, flushing logs) will be added when the
+    corresponding resources land.
     """
+    setup_logging()
     yield
 
 
@@ -52,9 +58,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Meta routes (see PLAN §7.9) — mounted under `/api` so the paths in
-# `routes/meta.py` are bare (`/health`, `/config`).
+# Meta routes (PLAN §7.9) and session routes (PLAN §7.9 / §7.10) —
+# mounted under `/api` so the paths in each route module are bare
+# (`/health`, `/config`, `/sessions`, `/debug/artifacts/{id}`).
 app.include_router(meta.router, prefix="/api")
+app.include_router(sessions.router, prefix="/api")
 
 
 @app.get("/", tags=["meta"])

@@ -9,6 +9,7 @@ without secrets configured):
     CHAT_LOG_DIR         — default "./logs"
     CHAT_PORT            — default 8787
     CHAT_QUERY_TIMEOUT   — default 300 (seconds)
+    CHAT_DATA_DIR        — default "./data" (visible session store root)
 """
 
 from __future__ import annotations
@@ -38,6 +39,8 @@ class Settings(BaseSettings):
     chat_log_dir: str = Field(default="./logs")
     chat_port: int = Field(default=8787, ge=1, le=65535)
     query_timeout_seconds: int = Field(default=300, ge=1)
+    # Visible session storage root (PLAN §6). Holds chat/data/sessions/.
+    chat_data_dir: str = Field(default="./data")
 
 
 @lru_cache(maxsize=1)
