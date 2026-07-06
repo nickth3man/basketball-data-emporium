@@ -1,0 +1,249 @@
+# Semantic catalog model: player_season
+#
+# PLAN §1 Phase 2 Lane A: fully grounded against the live warehouse.
+# Every base_table column referenced in `dimensions` and `measures` below
+# was confirmed against the live warehouse via:
+#
+#   duckdb ../data/nba.duckdb -readonly -list -c \
+#     "SELECT column_name, data_type FROM information_schema.columns
+#      WHERE table_name = 'mart_player_season' ORDER BY ordinal_position"
+#   duckdb ../data/nba.duckdb -readonly -list -c \
+#     "SELECT DISTINCT season_type FROM mart_player_season ORDER BY 1"
+#
+# Confirmed schema (selected):
+#   player_id BIGINT, team_id BIGINT, team_abbreviation VARCHAR,
+#   season_year VARCHAR (e.g. "1996-97"),
+#   season_type VARCHAR in {'Regular', 'Playoffs', 'Cup'},
+#   gp BIGINT,
+#   total_min/avg_min DOUBLE, total_pts HUGEINT, avg_pts DOUBLE,
+#   total_reb/avg_reb, total_ast/avg_ast, total_stl/avg_stl,
+#   total_blk/avg_blk, total_tov/avg_tov (HUGEINT/DOUBLE),
+#   total_fgm/total_fga HUGEINT, fg_pct DOUBLE,
+#   total_fg3m/total_fg3a HUGEINT, fg3_pct DOUBLE,
+#   total_ftm/total_fta HUGEINT, ft_pct DOUBLE,
+#   avg_off_rating/avg_def_rating/avg_net_rating DOUBLE,
+#   avg_ts_pct/avg_usg_pct/avg_pie DOUBLE,
+#   canonical_source VARCHAR (provenance; e.g. 'fact_player_season_box').
+#
+# Conventions (matching player_career.yml):
+# - All `expr` strings are written against the `ps.` alias declared in
+#   `base_table`.
+# - `additivity` follows the Cube.js recipes referenced in PLAN §6:
+#   `sum` for additive totals (gp, total_pts, total_reb, ...),
+#   `non_additive` for per-row averages and rates (avg_pts, fg_pct,
+#   avg_off_rating, ...) where re-summing across grains double-counts,
+#   `count_distinct` for player counts.
+# - Grain is one row per (player, team, season_year, season_type); a
+#   player traded mid-season yields multiple rows in the same season_year
+#   (one per team). Aggregating `total_*` across teams double-counts for
+#   a per-player, per-season rollup -- fold with player_career for true
+#   season totals.
+
+model: player_season
+
+description: >
+  One row per (player, team, season_year, season_type). Per-season
+  totals, per-game averages, and selected advanced metrics for an NBA
+  player. Use for questions like "best PPG season ever", "how many
+  points did player X score in 2015-16", "who led the league in
+  rebounds in 1994-95", or year-by-season leaderboards filtered by
+  season_type (Regular / Playoffs / Cup).
+
+grain: one row per (player_id, team_id, season_year, season_type)
+
+base_table:
+  name: mart_player_season
+  alias: ps
+
+dimensions:
+  - name: player_id
+    expr: ps.player_id
+    description: Canonical player_id; joins to player_career.player_id and dim_player.player_id.
+
+  - name: team_id
+    expr: ps.team_id
+    description: Team id for this (player, season) row; a traded player has multiple team_ids in one season_year.
+
+  - name: team_abbreviation
+    expr: ps.team_abbreviation
+    description: Team abbreviation for display (e.g. "LAL"); matches team_id at the time of the season.
+
+  - name: season_year
+    expr: ps.season_year
+    description: Season year string in BBR style (e.g. "1996-97").
+
+  - name: season_type
+    expr: ps.season_type
+    description: One of 'Regular', 'Playoffs', 'Cup' (NBA In-Season Tournament, 2023-24+).
+
+  - name: canonical_source
+    expr: ps.canonical_source
+    description: Provenance string (e.g. 'fact_player_season_box'); inherited gaps apply.
+
+measures:
+  - name: games_played
+    expr: SUM(ps.gp)
+    description: Games played across the (player, team, season_year, season_type) selection.
+    additivity: sum
+
+  - name: total_minutes
+    expr: SUM(ps.total_min)
+    description: Total minutes played.
+    additivity: sum
+
+  - name: minutes_per_game
+    expr: AVG(ps.avg_min)
+    description: Average minutes per game (mean across rows in scope).
+    additivity: non_additive
+
+  - name: total_points
+    expr: SUM(ps.total_pts)
+    description: Total points scored.
+    additivity: sum
+
+  - name: points_per_game
+    expr: AVG(ps.avg_pts)
+    description: Points per game (mean of the per-row avg_pts).
+    additivity: non_additive
+
+  - name: total_rebounds
+    expr: SUM(ps.total_reb)
+    description: Total rebounds (offensive + defensive).
+    additivity: sum
+
+  - name: rebounds_per_game
+    expr: AVG(ps.avg_reb)
+    description: Rebounds per game.
+    additivity: non_additive
+
+  - name: total_assists
+    expr: SUM(ps.total_ast)
+    description: Total assists.
+    additivity: sum
+
+  - name: assists_per_game
+    expr: AVG(ps.avg_ast)
+    description: Assists per game.
+    additivity: non_additive
+
+  - name: total_steals
+    expr: SUM(ps.total_stl)
+    description: Total steals.
+    additivity: sum
+
+  - name: steals_per_game
+    expr: AVG(ps.avg_stl)
+    description: Steals per game.
+    additivity: non_additive
+
+  - name: total_blocks
+    expr: SUM(ps.total_blk)
+    description: Total blocks.
+    additivity: sum
+
+  - name: blocks_per_game
+    expr: AVG(ps.avg_blk)
+    description: Blocks per game.
+    additivity: non_additive
+
+  - name: total_turnovers
+    expr: SUM(ps.total_tov)
+    description: Total turnovers.
+    additivity: sum
+
+  - name: turnovers_per_game
+    expr: AVG(ps.avg_tov)
+    description: Turnovers per game.
+    additivity: non_additive
+
+  - name: field_goal_pct
+    expr: AVG(ps.fg_pct)
+    description: Field-goal percentage (already a season ratio in source).
+    additivity: non_additive
+
+  - name: three_point_pct
+    expr: AVG(ps.fg3_pct)
+    description: Three-point percentage.
+    additivity: non_additive
+
+  - name: free_throw_pct
+    expr: AVG(ps.ft_pct)
+    description: Free-throw percentage.
+    additivity: non_additive
+
+  - name: avg_off_rating
+    expr: AVG(ps.avg_off_rating)
+    description: Average offensive rating (points produced per 100 possessions).
+    additivity: non_additive
+
+  - name: avg_def_rating
+    expr: AVG(ps.avg_def_rating)
+    description: Average defensive rating (points allowed per 100 possessions).
+    additivity: non_additive
+
+  - name: avg_net_rating
+    expr: AVG(ps.avg_net_rating)
+    description: Average net rating (off_rating - def_rating).
+    additivity: non_additive
+
+  - name: avg_ts_pct
+    expr: AVG(ps.avg_ts_pct)
+    description: Average true-shooting percentage.
+    additivity: non_additive
+
+  - name: avg_usg_pct
+    expr: AVG(ps.avg_usg_pct)
+    description: Average usage percentage.
+    additivity: non_additive
+
+  - name: avg_pie
+    expr: AVG(ps.avg_pie)
+    description: Average Player Impact Estimate (PIE).
+    additivity: non_additive
+
+  - name: distinct_players
+    expr: COUNT(DISTINCT ps.player_id)
+    description: Distinct player count in scope.
+    additivity: count_distinct
+
+joins:
+  - name: career_rollup
+    model: player_career
+    type: many_to_one
+    left_on: ps.player_id
+    right_on: pc.player_id
+    description: >
+      Roll a per-season row up to the player's career aggregate in
+      player_career (many season rows -> one career row per player).
+      Use for "career totals across these seasons" queries.
+
+caveats:
+  - >
+    Season_type distinguishes Regular / Playoffs / Cup (NBA In-Season
+    Tournament, 2023-24+). Queries that aggregate across season_types
+    silently blend regular-season and postseason; filter explicitly or
+    pick one season_type when the question is about a single competition.
+  - >
+    Grain is (player, team, season_year, season_type), so a player
+    traded mid-season has multiple rows for one season_year (one per
+    team). SUM(total_pts) across teams double-counts a per-player,
+    per-season rollup -- use the player_career join to fold to one
+    career row, or SUM(DISTINCT ON player_id) via windowing.
+  - >
+    Source row provenance is the canonical_source column
+    ('fact_player_season_box'); any gap registered against that fact
+    table in meta_known_gap (e.g. exhibition-game phantom ids) carries
+    through here. See AGENTS.md §"Ingestion" and meta_known_gap
+    `bbr_duplicate_identity_phantom_ids`.
+
+synonyms:
+  - season stats
+  - year-by-year
+  - season totals
+  - per-season stats
+
+example_questions:
+  - What were Michael Jordan's stats in the 1995-96 season?
+  - Who had the highest points-per-game season ever?
+  - Show LeBron James's rebounds per game by season.
+  - List the top 10 scorers in the 2023-24 regular season.

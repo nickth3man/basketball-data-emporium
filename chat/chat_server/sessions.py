@@ -12,15 +12,18 @@ PLAN §6, §7.10.
 
 from __future__ import annotations
 
+import contextlib
 import datetime as _dt
 import json
+import os
 import secrets
 import threading
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
+from .clarify import ClarificationState
 from .config import get_settings
 
 
@@ -101,6 +104,34 @@ class SessionStore:
 
     def _meta_path(self, session_id: str) -> Path:
         return self._root / f"{session_id}.meta.json"
+
+    def _model_history_path(self, session_id: str) -> Path:
+        """Path for the Pydantic AI ``ModelMessage`` history snapshot.
+
+        Sibling to ``<session_id>.jsonl`` (visible messages) and
+        ``<session_id>.meta.json`` (session metadata); the ``.model.``
+        infix disambiguates from both. Each turn's snapshot is the full
+        serialized history (``result.all_messages_json()``); it is
+        written atomically so a partial write never leaves a torn file.
+        """
+        return self._root / f"{session_id}.model.jsonl"
+
+    def _clarify_path(self, session_id: str) -> Path:
+        """Path for the pending-clarification state (Stage 3.6).
+
+        Sibling to ``<session_id>.jsonl`` (visible messages) and
+        ``<session_id>.meta.json`` (session metadata); the
+        ``.clarify.`` infix disambiguates from the model-history
+        snapshot (``<session_id>.model.jsonl``) and keeps the three
+        artifacts distinct on disk.
+
+        Holds a single ``ClarificationState`` JSON document — there is
+        at most one pending clarification per session at any time, so a
+        single-object file (not a JSONL stream) is the natural shape.
+        Written atomically via the ``.tmp`` + ``os.replace`` pattern
+        shared with the model-history store.
+        """
+        return self._root / f"{session_id}.clarify.json"
 
     # -- low-level meta helpers (caller holds the lock) ---------------------
 
@@ -229,6 +260,171 @@ class SessionStore:
                 except Exception:  # noqa: BLE001 - skip corrupt entries
                     continue
         return results
+
+    # -- model-history store (parallel to the visible JSONL store) -------
+    # The visible-JSONL contract above is UNCHANGED. These methods are a
+    # sibling store for Pydantic AI's ``ModelMessage`` history (the full
+    # agent transcript, tool calls and all), one atomic overwrite per
+    # turn. The filename ``<id>.model.jsonl`` is deliberately distinct
+    # from ``<id>.jsonl`` (visible) and ``<id>.meta.json`` (metadata) so
+    # the three siblings can coexist without collision.
+    #
+    # IO contract: both methods MAY raise. Callers in ``pipeline.py`` /
+    # ``routes/chat.py`` wrap them in try/except because a missing or
+    # unreadable history file is the expected path on a fresh session
+    # (``load_model_history`` returns ``[]`` for absent) and a failed
+    # write must not break the turn (mirrors the visible store's
+    # robustness pattern at the caller layer — see
+    # ``_safe_append_user`` in pipeline.py).
+
+    def append_model_history(self, session_id: str, messages_json: bytes) -> None:
+        """Atomically overwrite the model-history snapshot for one session.
+
+        ``messages_json`` is the full ``result.all_messages_json()`` payload
+        (bytes). One write per turn — the Pydantic AI history is a
+        coherent list that must round-trip intact, so we never append
+        per-message (an append would interleave turns and break
+        ``ModelMessagesTypeAdapter.validate_python``).
+
+        Atomicity: write to a sibling ``.tmp`` file then ``os.replace``
+        into place. ``os.replace`` is atomic on POSIX and Windows, so a
+        concurrent reader never sees a torn file.
+        """
+        path = self._model_history_path(session_id)
+        tmp = path.parent / f".{path.name}.tmp"
+        try:
+            tmp.write_bytes(messages_json)
+            os.replace(tmp, path)
+        finally:
+            # Best-effort cleanup if the replace didn't run (write failed
+            # before rename, or os.replace itself blew up).
+            with contextlib.suppress(Exception):
+                tmp.unlink()
+
+    def load_model_history(self, session_id: str) -> list[Any]:
+        """Load the raw parsed history list for one session.
+
+        Returns ``[]`` when no snapshot file exists yet (fresh session,
+        or a turn whose post-call persistence hasn't completed yet).
+        Returns the raw ``json.loads`` output — the caller is responsible
+        for validating each item via
+        ``pydantic_ai.messages.ModelMessagesTypeAdapter.validate_python``
+        before handing the list to ``agent.run(message_history=...)``.
+
+        Raises on a present-but-corrupt file (``json.JSONDecodeError``,
+        OSError). The caller is expected to wrap this in try/except and
+        degrade to an empty history list rather than crash the turn.
+        """
+        path = self._model_history_path(session_id)
+        if not path.exists() or path.stat().st_size == 0:
+            return []
+        raw = path.read_bytes()
+        payload: Any = json.loads(raw.decode("utf-8"))
+        if not isinstance(payload, list):
+            # A previous turn wrote something other than a list — treat
+            # as corrupt; the caller will catch the validation error.
+            raise ValueError(f"model history at {path} is not a JSON array")
+        return payload
+
+    # -- pending-clarification store (Stage 3.6) ------------------------
+    # Companion to the model-history store above. The visible-JSONL
+    # contract and the 3.5 model-history methods are UNCHANGED. These
+    # three methods manage a side-channel for the clarification
+    # follow-up state machine: a single ``ClarificationState`` document
+    # per session, written atomically and read with strict "never
+    # raise" semantics so the pipeline / route can treat ``None`` as
+    # "no pending clarification" without a try/except ladder.
+    #
+    # IO contract:
+    # * ``get_pending_clarification`` NEVER raises (returns ``None`` on
+    #   any failure path: absent file, JSON decode error, validation
+    #   error, OSError, stale timestamp).
+    # * ``set_pending_clarification`` / ``clear_pending_clarification``
+    #   MAY raise (disk full, permissions, etc.) — callers in
+    #   ``pipeline.py`` / ``routes/chat.py`` wrap them in try/except
+    #   because a failed side-channel write must not break the turn
+    #   (mirrors the robustness pattern of the visible store at the
+    #   caller layer).
+
+    def set_pending_clarification(
+        self,
+        session_id: str,
+        state: ClarificationState,
+    ) -> None:
+        """Atomically overwrite the pending-clarification file for ``session_id``.
+
+        Mirrors the atomic-write shape of
+        :meth:`append_model_history`: serialize the state, write to a
+        sibling ``.tmp``, then ``os.replace`` into place. A failed
+        write is best-effort cleaned up via the ``finally`` block so
+        no half-written ``.tmp`` lingers across turns.
+        """
+        path = self._clarify_path(session_id)
+        tmp = path.parent / f".{path.name}.tmp"
+        try:
+            tmp.write_text(state.model_dump_json(), encoding="utf-8")
+            os.replace(tmp, path)
+        finally:
+            # Best-effort cleanup if the replace didn't run (write failed
+            # before rename, or os.replace itself blew up).
+            with contextlib.suppress(Exception):
+                tmp.unlink()
+
+    def get_pending_clarification(self, session_id: str) -> ClarificationState | None:
+        """Return the pending clarification for ``session_id``, or ``None``.
+
+        "None" covers four distinct conditions:
+
+        1. The file does not exist (no clarification was ever set, or
+           the previous one was cleared).
+        2. The file exists but cannot be read (``OSError`` — disk
+           vanished, permissions, etc.). Treated as "no pending" so
+           the turn continues without enrichment.
+        3. The file exists but its contents are corrupt (JSON decode
+           failure or a Pydantic ``ValidationError`` against
+           :class:`ClarificationState`). Best-effort cleared so the
+           corruption does not recur on every subsequent turn.
+        4. The file is structurally valid but stale per
+           :meth:`ClarificationState.is_stale`. Best-effort cleared so
+           the user is not trapped in a stale clarify loop.
+
+        ``get_pending_clarification`` NEVER raises — every failure
+        path collapses to ``None``.
+        """
+        path = self._clarify_path(session_id)
+        try:
+            if not path.exists() or path.stat().st_size == 0:
+                return None
+            raw = path.read_text(encoding="utf-8")
+            state = ClarificationState.model_validate_json(raw)
+        except (FileNotFoundError, json.JSONDecodeError, ValidationError, OSError):
+            # Best-effort: clear the corrupt/unreadable file so we
+            # don't keep tripping on it. Failures here are swallowed —
+            # we're already in a degraded path and the caller only
+            # cares about returning ``None``.
+            with contextlib.suppress(Exception):
+                path.unlink()
+            return None
+        if state.is_stale():
+            # Stale pending clarification: discard and clear the file
+            # so the next turn starts fresh. Mirrors the corrupt-file
+            # best-effort cleanup above.
+            with contextlib.suppress(Exception):
+                path.unlink()
+            return None
+        return state
+
+    def clear_pending_clarification(self, session_id: str) -> None:
+        """Remove the pending-clarification file for ``session_id``.
+
+        Idempotent: calling when no file exists is a no-op. Best-effort
+        cleanup — a failed ``unlink`` (file already gone, permissions,
+        etc.) is swallowed so the caller can fire this safely on every
+        non-clarify plan outcome.
+        """
+        path = self._clarify_path(session_id)
+        with contextlib.suppress(Exception):
+            path.unlink()
 
 
 _store: SessionStore | None = None

@@ -1,0 +1,24 @@
+The SQL below failed to dry-run. Fix it. Return ONLY the corrected SQL; no explanation, no markdown, no code fences.
+
+Question:
+{{question}}
+
+Schema (curated catalog models available for this turn):
+{{schema}}
+
+Error:
+{{error}}
+
+Fix-it rules:
+1. Re-read the question and confirm the corrected SQL still answers the same intent.
+2. Verify every referenced table and column exists in {{schema}}; never invent names.
+3. Check join keys and grain: each join must reference a documented `left_on` / `right_on` from the catalog, and the resulting row grain must match the question.
+4. Replace any fabricated or hallucinated identifier with the canonical name from {{schema}} (use the player / team / season resolution tools as needed).
+5. Preserve the original intent (same metrics, same filters, same ordering); only change what is required to make it run.
+6. Honor additivity: if the failure is a fan/chasm-trap or a non-additive sum, switch to the catalog's declared non-additive path.
+7. If the SQL is unfixable from {{schema}} alone, say so in one line (e.g. "not answerable: <reason>") instead of guessing new tables.
+
+Failed SQL (for reference):
+```sql
+{{broken_sql}}
+```

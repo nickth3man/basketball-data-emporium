@@ -1,0 +1,142 @@
+# Semantic catalog model: player_career
+#
+# PLAN §1 Phase 1: this is the ONE fully-grounded reference model. Every
+# base_table column referenced in `dimensions` and `measures` below was
+# confirmed against the live warehouse via:
+#
+#   duckdb ../data/nba.duckdb -readonly -list -c \
+#     "SELECT column_name, data_type FROM information_schema.columns
+#      WHERE table_name = 'mart_player_career' ORDER BY ordinal_position"
+#   duckdb ../data/nba.duckdb -readonly -list -c \
+#     "SELECT column_name, data_type FROM information_schema.columns
+#      WHERE table_name = 'mart_player_season' ORDER BY ordinal_position"
+#   duckdb ../data/nba.duckdb -readonly -list -c \
+#     "SELECT column_name, data_type FROM information_schema.columns
+#      WHERE table_name = 'dim_player' ORDER BY ordinal_position"
+#
+# Conventions:
+# - All `expr` strings are written against the `pc.` alias declared in
+#   `base_table`.measure / dimension rows below.
+# - `additivity` follows the Cube.js recipes referenced in PLAN §6:
+#   `sum` for additive measures, `non_additive` for per-row averages
+#   (career_ppg etc.) where re-summing across grains double-counts.
+# - The join to `player_season` substitutes for a dedicated player
+#   dimension model that does not yet exist in the catalog. See caveat.
+
+model: player_career
+
+description: >
+  Career totals and per-game averages for a single NBA player. One row per
+  player_id across all seasons and all teams they appeared for. Use this
+  model for questions like "what are LeBron's career averages", "who has
+  the most career points", or "career stats for player X".
+
+grain: one row per player
+
+base_table:
+  name: mart_player_career
+  alias: pc
+
+dimensions:
+  - name: player_id
+    expr: pc.player_id
+    description: Canonical player_id; joins to dim_player.player_id.
+
+  - name: first_season
+    expr: pc.first_season
+    description: First season_year string the player appears in (e.g. "1996-97").
+
+  - name: last_season
+    expr: pc.last_season
+    description: Last season_year string the player appears in (e.g. "2009-10").
+
+  - name: seasons_played
+    expr: pc.seasons_played
+    description: Number of distinct seasons the player appeared in.
+
+measures:
+  - name: games_played
+    expr: SUM(pc.career_gp)
+    description: Total career games played across all seasons and teams.
+    additivity: sum
+
+  - name: total_minutes
+    expr: SUM(pc.career_min)
+    description: Total career minutes played.
+    additivity: sum
+
+  - name: total_points
+    expr: SUM(pc.career_pts)
+    description: Total career points scored.
+    additivity: sum
+
+  - name: points_per_game
+    expr: AVG(pc.career_ppg)
+    description: Career points per game (mean across seasons).
+    additivity: non_additive
+
+  - name: rebounds_per_game
+    expr: AVG(pc.career_rpg)
+    description: Career rebounds per game.
+    additivity: non_additive
+
+  - name: assists_per_game
+    expr: AVG(pc.career_apg)
+    description: Career assists per game.
+    additivity: non_additive
+
+  - name: steals_per_game
+    expr: AVG(pc.career_spg)
+    description: Career steals per game.
+    additivity: non_additive
+
+  - name: blocks_per_game
+    expr: AVG(pc.career_bpg)
+    description: Career blocks per game.
+    additivity: non_additive
+
+  - name: career_fg_pct
+    expr: AVG(pc.career_fg_pct)
+    description: Career field-goal percentage (already season-averaged in source).
+    additivity: non_additive
+
+  - name: distinct_players
+    expr: COUNT(DISTINCT pc.player_id)
+    description: Distinct player count (use in aggregates across the catalog).
+    additivity: count_distinct
+
+joins:
+  - name: season_breakdown
+    model: player_season
+    type: one_to_many
+    left_on: pc.player_id
+    right_on: ps.player_id
+    description: >
+      Drill from a career row down to the player's per-season rows in
+      player_season (one player_career row -> many player_season rows).
+
+caveats:
+  - >
+    Regular-season only by default -- career_ppg and friends aggregate the
+    mart_player_career rollup which excludes playoffs unless the underlying
+    mart_player_season rollup was built with season_type='Playoffs' included.
+  - >
+    Phantom / exhibition person ids from NBA preseason games abroad may
+    inflate career_gp for duplicate players; see AGENTS.md §"Ingestion"
+    and meta_known_gap `bbr_duplicate_identity_phantom_ids`.
+  - >
+    player_season join is a placeholder for a dedicated player dimension
+    model; it lets you drill career -> seasons without a separate
+    "player" model existing in the catalog yet.
+
+synonyms:
+  - career stats
+  - career totals
+  - career averages
+  - player profile
+
+example_questions:
+  - What are LeBron James's career averages?
+  - Who has the most career points?
+  - Show Tracy McGrady's career totals.
+  - Career points per game for Michael Jordan.

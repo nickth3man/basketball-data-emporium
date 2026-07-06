@@ -1,0 +1,165 @@
+# Semantic catalog model: shots
+#
+# PLAN §1 Phase 2 Lane A: fully grounded against the live warehouse.
+# Base table + every referenced column confirmed via:
+#
+#   duckdb ../data/nba.duckdb -readonly -list -c \
+#     "SELECT column_name, data_type FROM information_schema.columns
+#      WHERE table_name = 'mart_shot_zones' ORDER BY ordinal_position"
+#   duckdb ../data/nba.duckdb -readonly -list -c \
+#     "SELECT DISTINCT shot_zone_basic, shot_zone_area, shot_zone_range
+#      FROM mart_shot_zones ORDER BY shot_zone_basic, shot_zone_area, shot_zone_range"
+#   duckdb ../data/nba.duckdb -readonly -list -c \
+#     "SELECT target_column, source_table, source_column
+#      FROM meta_column_lineage WHERE target_table = 'mart_shot_zones'"
+#
+# Confirmed column shape (mart_shot_zones):
+#   player_id BIGINT, season_year VARCHAR,
+#   shot_zone_basic VARCHAR, shot_zone_area VARCHAR, shot_zone_range VARCHAR,
+#   attempts BIGINT, makes HUGEINT, fg_pct DOUBLE, avg_distance DOUBLE.
+#
+# Confirmed shot_zone_basic labels (NBA Stats standard):
+#   "Above the Break 3", "Backcourt", "In The Paint (Non-RA)",
+#   "Mid-Range", "Restricted Area".
+# Confirmed shot_zone_area labels: "Center(C)", "Left Side(L)", "Right Side(R)".
+# Confirmed shot_zone_range labels: "8-16 ft.", "16-24 ft.", "24+ ft.",
+#   "Back Court Shot", "Less Than 8 ft.".
+#
+# Additivity note: fg_pct is intentionally expressed as
+#   CAST(SUM(sz.makes) AS DOUBLE) / NULLIF(SUM(sz.attempts), 0)
+# rather than AVG(sz.fg_pct). Averaging pre-computed per-row percentages
+# double-counts high-volume zones; recomputing from makes/attempts is the
+# correct rolling-up behavior across any grain. Labeled `non_additive`
+# because the ratio does not sum across grains (re-summing two ratios is
+# meaningless even if both numerators/denominators were available).
+#
+# Conventions:
+# - All `expr` strings are written against the `sz.` alias declared in
+#   `base_table`.
+# - Join to `player_career` (the only fully-shipped player model) for
+#   career context. Lane A is concurrently grounding player_season, so no
+#   join to it from here.
+
+model: shots
+
+description: >
+  Shot distribution and accuracy per (player, season, shot_zone). One row
+  per (player, season_year, shot_zone_basic, shot_zone_area,
+  shot_zone_range). Use this model for questions like "where does player
+  X shoot from", "FG% by zone", or "how often does player Y pull up from
+  three".
+
+grain: one row per (player_id, season_year, shot_zone_basic, shot_zone_area, shot_zone_range)
+
+base_table:
+  name: mart_shot_zones
+  alias: sz
+
+dimensions:
+  - name: player_id
+    expr: sz.player_id
+    description: Canonical player_id of the shooter; joins to player_career.player_id.
+
+  - name: season_year
+    expr: sz.season_year
+    description: Season year string (e.g. "2015-16"). One row per season per player per zone.
+
+  - name: shot_zone_basic
+    expr: sz.shot_zone_basic
+    description: >
+      Coarse shot-zone bucket. Confirmed labels in this mart:
+      "Above the Break 3", "Backcourt", "In The Paint (Non-RA)",
+      "Mid-Range", "Restricted Area". NBA Stats standard — NOT the
+      Basketball-Reference bucket set.
+
+  - name: shot_zone_area
+    expr: sz.shot_zone_area
+    description: >
+      Court-side bucket. Confirmed labels: "Center(C)", "Left Side(L)",
+      "Right Side(R)". Combine with shot_zone_basic to express
+      "Left Corner 3" (Above the Break 3 + Left Side) etc.
+
+  - name: shot_zone_range
+    expr: sz.shot_zone_range
+    description: >
+      Distance bucket. Confirmed labels: "Less Than 8 ft.", "8-16 ft.",
+      "16-24 ft.", "24+ ft.", "Back Court Shot".
+
+measures:
+  - name: attempts
+    expr: SUM(sz.attempts)
+    description: Total shot attempts from the zone slice.
+    additivity: sum
+
+  - name: makes
+    expr: SUM(sz.makes)
+    description: Total made shots from the zone slice.
+    additivity: sum
+
+  - name: fg_pct
+    expr: CAST(SUM(sz.makes) AS DOUBLE) / NULLIF(SUM(sz.attempts), 0)
+    description: >
+      Field-goal percentage from the slice. Computed as makes / attempts
+      so it rolls up correctly across any grain (e.g. summing across all
+      zones for a player). NEVER average the per-row fg_pct column;
+      that double-counts high-volume zones.
+    additivity: non_additive
+
+  - name: avg_distance
+    expr: AVG(sz.avg_distance)
+    description: >
+      Mean shot distance in feet across the slice. Non_additive because
+      the per-row average is already a mean; re-summing two means is
+      not a distance.
+    additivity: non_additive
+
+  - name: distinct_players
+    expr: COUNT(DISTINCT sz.player_id)
+    description: Distinct shooter count (use in aggregates across the catalog).
+    additivity: count_distinct
+
+joins:
+  - name: player_career_lookup
+    model: player_career
+    type: many_to_one
+    left_on: sz.player_id
+    right_on: pc.player_id
+    description: >
+      Look up career totals / averages for the shooter from the fully
+      shipped player_career model.
+
+caveats:
+  - >
+    Regular-season shots only. mart_shot_zones has no season_type column;
+    playoff shots are not split out. (NBA Stats' ShotDetail endpoint
+    carries a Season_Type segment but it is not surfaced into this mart.)
+  - >
+    Zone labels follow the NBA Stats / stats.nba.com taxonomy (5 basic
+    buckets, 3 court sides, 5 distance ranges). Basketball-Reference uses
+    a different bucket set; do NOT assume BBR zone names map 1:1.
+  - >
+    Corner-3 distinction: there is NO dedicated "Corner 3" basic zone in
+    this mart — corner 3s live under "Above the Break 3" filtered to
+    Left Side(L) or Right Side(R). Use shot_zone_basic + shot_zone_area
+    together to recover corner-3 attempts.
+  - >
+    Per-zone row grain — exact (x, y) shot location is NOT in this mart.
+    That data lives in fact_shot and would be served by a separate,
+    per-shot business model not yet present in the catalog.
+  - >
+    fg_pct is expressed as SUM(makes)/SUM(attempts) — non_additive. Do
+    not re-cast it as AVG(sz.fg_pct); averaging pre-computed per-row
+    percentages double-counts high-volume zones and yields a wrong
+    career / season number.
+
+synonyms:
+  - shot chart
+  - shooting zones
+  - shot splits
+  - shot distribution
+
+example_questions:
+  - Stephen Curry's FG% from above the break 3 in 2015-16.
+  - Where does Giannis take most of his shots?
+  - Restricted Area FG% leaders in 2020-21.
+  - Three-point attempt rate from each zone for player X.

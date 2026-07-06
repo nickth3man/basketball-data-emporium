@@ -1,0 +1,240 @@
+# Semantic catalog model: team_season
+#
+# PLAN §1 Phase 2 Lane A: fully grounded against the live warehouse.
+# Every base_table column referenced in `dimensions` and `measures` below
+# was confirmed against the live warehouse via:
+#
+#   duckdb ../data/nba.duckdb -readonly -list -c \
+#     "SELECT table_name FROM information_schema.tables
+#      WHERE table_schema = 'main' AND table_name LIKE '%team%' ORDER BY 1"
+#   duckdb ../data/nba.duckdb -readonly -list -c \
+#     "SELECT column_name, data_type FROM information_schema.columns
+#      WHERE table_name = 'src_fact_bref_team_season_summary'
+#      ORDER BY ordinal_position"
+#   duckdb ../data/nba.duckdb -readonly -list -c \
+#     "SELECT season, season_end_year, COUNT(*),
+#             SUM(CASE WHEN playoffs THEN 1 ELSE 0 END)
+#      FROM src_fact_bref_team_season_summary GROUP BY 1,2 ORDER BY 1"
+#
+# Confirmed schema (selected):
+#   team_id BIGINT, season INTEGER (start year, e.g. 2025),
+#   season_end_year INTEGER, league VARCHAR, lg VARCHAR,
+#   team VARCHAR (full name), abbreviation VARCHAR,
+#   source_team_abbrev VARCHAR, playoffs BOOLEAN, is_playoffs BOOLEAN
+#     (note: the table has TWO duplicate playoff-flag columns -- identical
+#     truth values; we expose is_playoffs as the canonical flag),
+#   age INTEGER,
+#   w INTEGER, l INTEGER, pw INTEGER, pl INTEGER,
+#   mov DOUBLE, sos DOUBLE, srs DOUBLE,
+#   o_rtg DOUBLE, d_rtg DOUBLE, n_rtg DOUBLE, pace DOUBLE,
+#   f_tr DOUBLE, x3p_ar DOUBLE, ts_percent DOUBLE,
+#   e_fg_percent DOUBLE, tov_percent DOUBLE,
+#   orb_percent DOUBLE, ft_fga DOUBLE,
+#   opp_e_fg_percent DOUBLE, opp_tov_percent DOUBLE,
+#   drb_percent DOUBLE, opp_ft_fga DOUBLE,
+#   arena VARCHAR, attend DOUBLE, attend_g DOUBLE.
+#
+# IMPORTANT schema mismatch:
+#   chat_server.schema_context.ALLOWED_TABLES_FOR_AGENT lists
+#   'src_bref_team_summaries' -- that table does NOT exist in the
+#   warehouse. The real table backing this model is
+#   'src_fact_bref_team_season_summary'. A future Phase 3 step must
+#   reconcile schema_context.py (rename the allowlist entry and its
+#   _TABLE_PURPOSES row). The catalog loader does NOT enforce the
+#   allowlist; only the chat_tests/test_semantic_catalog.py grounding
+#   check (information_schema.tables existence) runs at test time.
+#
+# Conventions (matching player_career.yml):
+# - All `expr` strings are written against the `ts.` alias declared in
+#   `base_table`.
+# - `additivity` follows the Cube.js recipes referenced in PLAN §6:
+#   `sum` for additive season totals (w, l, pw, pl, attend, attend_g);
+#   `non_additive` for ratings and rates (o_rtg, d_rtg, n_rtg, pace,
+#   mov, srs, sos, percentages) which are already per-team averages and
+#   must NOT be re-summed across rows.
+# - There is no VARCHAR `season_year` column; the season is the INTEGER
+#   `season` (start year). Playoffs rows are flagged via `is_playoffs`
+#   and live alongside regular-season rows for the same (team, season).
+
+model: team_season
+
+description: >
+  Team-level season aggregates from Basketball-Reference team season
+  summaries (one row per team, season, and playoffs/regular split).
+  Use for questions like "what was the best record in 2015-16",
+  "Lakers wins by season", "Warriors offensive rating in 2016-17",
+  or "team pace trends in the 2020s".
+
+grain: one row per (team_id, season, is_playoffs)
+
+base_table:
+  name: src_fact_bref_team_season_summary
+  alias: ts
+
+dimensions:
+  - name: team_id
+    expr: ts.team_id
+    description: Canonical team_id; teams that relocated (e.g. SuperSonics->Thunder) carry distinct team_ids over time.
+
+  - name: season
+    expr: ts.season
+    description: Season start year as INTEGER (e.g. 2025 for the 2025-26 season).
+
+  - name: season_end_year
+    expr: ts.season_end_year
+    description: Season end year as INTEGER (e.g. 2026 for the 2025-26 season).
+
+  - name: is_playoffs
+    expr: ts.is_playoffs
+    description: TRUE for playoff-tournament rows, FALSE for regular-season rows. Same as ts.playoffs (duplicate column).
+
+  - name: league
+    expr: ts.league
+    description: League string (e.g. 'NBA'); non-NBA rows are filtered out by the upstream mart.
+
+  - name: team_name
+    expr: ts.team
+    description: Full Basketball-Reference team name (e.g. 'Atlanta Hawks').
+
+  - name: abbreviation
+    expr: ts.abbreviation
+    description: Basketball-Reference team abbreviation (e.g. 'ATL'); may differ from canonical team_abbreviation in dim_team.
+
+  - name: arena
+    expr: ts.arena
+    description: Home arena for this (team, season) row.
+
+measures:
+  - name: wins
+    expr: SUM(ts.w)
+    description: Wins for the (team, season, is_playoffs) row.
+    additivity: sum
+
+  - name: losses
+    expr: SUM(ts.l)
+    description: Losses for the (team, season, is_playoffs) row.
+    additivity: sum
+
+  - name: games
+    expr: SUM(ts.w + ts.l)
+    description: Games played (wins + losses) for the row.
+    additivity: sum
+
+  - name: expected_wins
+    expr: SUM(ts.pw)
+    description: Pythagorean expected wins (p-w).
+    additivity: sum
+
+  - name: expected_losses
+    expr: SUM(ts.pl)
+    description: Pythagorean expected losses (p-l).
+    additivity: sum
+
+  - name: win_pct
+    expr: SUM(ts.w) / NULLIF(SUM(ts.w + ts.l), 0)
+    description: Win percentage (w / (w + l)); NULL when no games. non_additive to discourage re-averaging.
+    additivity: non_additive
+
+  - name: offensive_rating
+    expr: AVG(ts.o_rtg)
+    description: Offensive rating (points scored per 100 possessions); AVG across rows in scope.
+    additivity: non_additive
+
+  - name: defensive_rating
+    expr: AVG(ts.d_rtg)
+    description: Defensive rating (points allowed per 100 possessions).
+    additivity: non_additive
+
+  - name: net_rating
+    expr: AVG(ts.n_rtg)
+    description: Net rating (o_rtg - d_rtg).
+    additivity: non_additive
+
+  - name: pace
+    expr: AVG(ts.pace)
+    description: Possessions per 48 minutes (team pace).
+    additivity: non_additive
+
+  - name: margin_of_victory
+    expr: AVG(ts.mov)
+    description: Average margin of victory (points per game).
+    additivity: non_additive
+
+  - name: simple_rating_system
+    expr: AVG(ts.srs)
+    description: Simple Rating System (MOV + strength of schedule).
+    additivity: non_additive
+
+  - name: strength_of_schedule
+    expr: AVG(ts.sos)
+    description: Strength of schedule.
+    additivity: non_additive
+
+  - name: true_shooting_pct
+    expr: AVG(ts.ts_percent)
+    description: Team true-shooting percentage.
+    additivity: non_additive
+
+  - name: effective_fg_pct
+    expr: AVG(ts.e_fg_percent)
+    description: Team effective field-goal percentage.
+    additivity: non_additive
+
+  - name: total_attendance
+    expr: SUM(ts.attend)
+    description: Total home attendance for the season.
+    additivity: sum
+
+  - name: avg_attendance_per_game
+    expr: AVG(ts.attend_g)
+    description: Average attendance per home game.
+    additivity: non_additive
+
+  - name: distinct_teams
+    expr: COUNT(DISTINCT ts.team_id)
+    description: Distinct team count in scope.
+    additivity: count_distinct
+
+joins: []
+
+caveats:
+  - >
+    ALLOWLIST MISMATCH (Phase 3 follow-up): this model's base_table is
+    src_fact_bref_team_season_summary, but
+    chat_server.schema_context.ALLOWED_TABLES_FOR_AGENT lists
+    'src_bref_team_summaries' (no 'fact_', no '_season_' segment) --
+    that name does NOT exist in the warehouse. The real, allowlisted
+    equivalent must be reconciled in a later phase (rename the entry
+    in schema_context.py and update _TABLE_PURPOSES). Until then the
+    chat agent's prompt text will not advertise this table.
+  - >
+    Source-backed table in the src_* layer (Basketball-Reference
+    fact_bref_team_season_summary source CSV). It does not yet have a
+    mart_* rollup, so it lives outside the standard allowlist -- any
+    query must include it explicitly or be issued through a
+    source-backed template.
+  - >
+    Grain is (team, season, is_playoffs): for each (team, season) the
+    table has BOTH a regular-season row (is_playoffs=false) and a
+    playoffs-tournament row (is_playoffs=true). Aggregating wins or
+    offensive_rating across the table without filtering is_playoffs
+    blends regular-season and postseason; filter to one value when the
+    question is about one competition.
+  - >
+    Relocated franchises (e.g. Seattle SuperSonics -> Oklahoma City
+    Thunder, Charlotte Bobcats -> Charlotte Hornets) carry distinct
+    team_ids across the relocation boundary; SUMming wins across a
+    whole franchise history requires joining through dim_team / a
+    future team-dimension business model.
+
+synonyms:
+  - team record
+  - season record
+  - team stats
+  - team season summary
+
+example_questions:
+  - What was the Warriors record in 2015-16?
+  - Lakers wins by season.
+  - Team pace leaders in the 2020s.
+  - Which team had the best offensive rating in 2022-23?

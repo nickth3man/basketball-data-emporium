@@ -17,6 +17,11 @@ dependencies = [
     "httpx>=0.28",
     "loggingredactor>=0.0.7",
     "pydantic-settings>=2.10",
+    # PyYAML is a direct dep of `chat_server.semantic_catalog` (PLAN
+    # §1 Phase 1) -- declared explicitly even though it currently
+    # arrives transitively, so the catalog loader does not silently
+    # break if a transitive consumer drops it.
+    "pyyaml>=6,<7",
 ]
 
 [dependency-groups]

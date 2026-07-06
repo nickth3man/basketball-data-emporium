@@ -1,0 +1,239 @@
+# Semantic catalog model: awards
+#
+# PLAN Section 1 Phase 2 Lane A: grounded against the live warehouse via:
+#
+#   duckdb ../data/nba.duckdb -readonly -list -c \
+#     "SELECT column_name, data_type FROM information_schema.columns
+#      WHERE table_name = 'fact_award' ORDER BY ordinal_position"
+#   duckdb ../data/nba.duckdb -readonly -list -c \
+#     "SELECT award_type, COUNT(*) FROM fact_award GROUP BY 1 ORDER BY 2 DESC"
+#
+# Every base_table column referenced in `dimensions` and `measures`
+# below was confirmed in those queries. `fact_award` is in the agent's
+# allowlist (`ALLOWED_TABLES_FOR_AGENT`) per chat_server/schema_context.py
+# and is the canonical awards / honors table for the NBA.
+#
+# Conventions:
+# - All `expr` strings are written against the `aw.` alias declared in
+#   `base_table`.
+# - `additivity` follows the Cube.js recipes referenced in PLAN Section 6:
+#   `sum` for additive counts of award rows / trophies / team-tier
+#   selections (every measure here is a CASE expression that counts
+#   rows matching an award-type and tier filter), `count_distinct`
+#   for distinct-player counts usable in cross-grain aggregates.
+# - The join to `player_career` is the only cross-model reference.
+#   Other Lane-A fixers are concurrently grounding player_season /
+#   team_season / standings / shots / head_to_head, so this file does
+#   NOT declare joins to any of them. Re-evaluate once those models
+#   ship if richer award-vs-player-side joins are needed (e.g. per-
+#   season stats at the time of the award).
+
+model: awards
+
+description: >
+  Player awards and honors (MVP, All-NBA, DPOY, ROY, MIP, SMOY,
+  All-Star, All-Defense, All-Rookie, Clutch Player of the Year).
+  One row per (player, award_type, season), including both winners
+  and vote-share rows. Use for "who won MVP in year X", "every
+  All-NBA First Team guard since 2010", or "most All-Star selections
+  ever".
+
+grain: one row per (player_id, award_type, season)
+
+base_table:
+  name: fact_award
+  alias: aw
+
+dimensions:
+  - name: player_id
+    expr: aw.player_id
+    description: Canonical player_id (BIGINT); joins to player_career and dim_player.
+
+  - name: award_type
+    expr: aw.award_type
+    description: Award identifier -- canonical values seen in warehouse include "All-Star", "nba mvp", "All-NBA", "nba mip", "nba dpoy", "All-Defense", "All-Rookie", "nba smoy", "nba roy", and "nba clutch_poy".
+
+  - name: description
+    expr: aw.description
+    description: Free-text award descriptor; for vote-share awards distinguishes the winner ("nba mvp winner") from vote-getters ("nba mvp (received votes)").
+
+  - name: season
+    expr: aw.season
+    description: Season label string (e.g. "2019-20"). Warehouse range is 1950 through 2026.
+
+  - name: all_nba_team_number
+    expr: aw.all_nba_team_number
+    description: Team tier (1/2/3) for tiered awards -- All-NBA First/Second/Third, All-Defense First/Second, All-Rookie First/Second. NULL for un-tiered awards (MVP, DPOY, ROY, MIP, SMOY, All-Star).
+
+  - name: subtype1
+    expr: aw.subtype1
+    description: Free-text award subtype 1 (vote-share metadata for clutch_poy, dpoy, mip, mvp, roy, smoy); NULL for tiered / All-Star awards.
+
+  - name: subtype2
+    expr: aw.subtype2
+    description: Free-text award subtype 2 (vote-share metadata; same coverage as subtype1).
+
+  - name: subtype3
+    expr: aw.subtype3
+    description: Free-text award subtype 3 (vote-share metadata; very sparse, mostly NULL).
+
+  - name: month
+    expr: aw.month
+    description: Calendar month the award was conferred; mostly NULL for season-level awards.
+
+  - name: week
+    expr: aw.week
+    description: Calendar week the award was conferred; mostly NULL for season-level awards.
+
+  - name: conference
+    expr: aw.conference
+    description: Conference code; currently NULL across the warehouse (do not filter on it).
+
+  - name: canonical_source
+    expr: aw.canonical_source
+    description: Provenance tag for the canonical source system (warehouse-managed).
+
+measures:
+  - name: award_count
+    expr: COUNT(*)
+    description: Total award rows in the grain (use to rank by selection count, e.g. All-Star game appearances).
+    additivity: sum
+
+  - name: distinct_award_types
+    expr: COUNT(DISTINCT aw.award_type)
+    description: Distinct award types per grouping (e.g. unique honors held by a player).
+    additivity: count_distinct
+
+  - name: distinct_winners
+    expr: COUNT(DISTINCT aw.player_id)
+    description: Distinct players per grouping (e.g. unique MVPs per decade); usable in cross-grain aggregates.
+    additivity: count_distinct
+
+  - name: mvp_wins
+    expr: SUM(CASE WHEN aw.award_type = 'nba mvp' AND aw.description = 'nba mvp winner' THEN 1 ELSE 0 END)
+    description: Count of NBA MVP trophies (filters out vote-share rows).
+    additivity: sum
+
+  - name: mvp_votes
+    expr: SUM(CASE WHEN aw.award_type = 'nba mvp' THEN 1 ELSE 0 END)
+    description: MVP-related rows including vote-share entries.
+    additivity: sum
+
+  - name: dpoy_wins
+    expr: SUM(CASE WHEN aw.award_type = 'nba dpoy' AND aw.description = 'nba dpoy winner' THEN 1 ELSE 0 END)
+    description: Count of Defensive Player of the Year trophies.
+    additivity: sum
+
+  - name: roy_wins
+    expr: SUM(CASE WHEN aw.award_type = 'nba roy' AND aw.description = 'nba roy winner' THEN 1 ELSE 0 END)
+    description: Count of Rookie of the Year trophies.
+    additivity: sum
+
+  - name: mip_wins
+    expr: SUM(CASE WHEN aw.award_type = 'nba mip' AND aw.description = 'nba mip winner' THEN 1 ELSE 0 END)
+    description: Count of Most Improved Player trophies.
+    additivity: sum
+
+  - name: smoy_wins
+    expr: SUM(CASE WHEN aw.award_type = 'nba smoy' AND aw.description = 'nba smoy winner' THEN 1 ELSE 0 END)
+    description: Count of Sixth Man of the Year trophies.
+    additivity: sum
+
+  - name: all_star_selections
+    expr: SUM(CASE WHEN aw.award_type = 'All-Star' THEN 1 ELSE 0 END)
+    description: All-Star game selections (one row per game appearance -- not per season).
+    additivity: sum
+
+  - name: all_nba_selections
+    expr: SUM(CASE WHEN aw.award_type = 'All-NBA' THEN 1 ELSE 0 END)
+    description: Total All-NBA team selections across all tiers.
+    additivity: sum
+
+  - name: all_nba_first_team
+    expr: SUM(CASE WHEN aw.award_type = 'All-NBA' AND aw.all_nba_team_number = 1 THEN 1 ELSE 0 END)
+    description: All-NBA First Team selections.
+    additivity: sum
+
+  - name: all_nba_second_team
+    expr: SUM(CASE WHEN aw.award_type = 'All-NBA' AND aw.all_nba_team_number = 2 THEN 1 ELSE 0 END)
+    description: All-NBA Second Team selections.
+    additivity: sum
+
+  - name: all_nba_third_team
+    expr: SUM(CASE WHEN aw.award_type = 'All-NBA' AND aw.all_nba_team_number = 3 THEN 1 ELSE 0 END)
+    description: All-NBA Third Team selections.
+    additivity: sum
+
+  - name: all_defense_selections
+    expr: SUM(CASE WHEN aw.award_type = 'All-Defense' THEN 1 ELSE 0 END)
+    description: Total All-Defensive team selections.
+    additivity: sum
+
+  - name: all_defense_first_team
+    expr: SUM(CASE WHEN aw.award_type = 'All-Defense' AND aw.all_nba_team_number = 1 THEN 1 ELSE 0 END)
+    description: All-Defensive First Team selections.
+    additivity: sum
+
+  - name: all_rookie_selections
+    expr: SUM(CASE WHEN aw.award_type = 'All-Rookie' THEN 1 ELSE 0 END)
+    description: Total All-Rookie team selections.
+    additivity: sum
+
+joins:
+  - name: player_career_lookup
+    model: player_career
+    type: many_to_one
+    left_on: aw.player_id
+    right_on: pc.player_id
+    description: >
+      Look up career totals / averages for the award winner. Each
+      award row joins to one player_career row (many awards per
+      player roll up to one career row); useful for "most-career-
+      points-per-MVP-winner" style cross-model questions.
+
+caveats:
+  - >
+    `description` distinguishes winners ("nba mvp winner",
+    "nba dpoy winner", ...) from vote-share rows ("nba mvp
+    (received votes)", "nba dpoy (received votes)", ...). Aggregates
+    over MVP / DPOY / ROY / MIP / SMOY must filter on description
+    to count trophies rather than ballots -- the mvp_wins / dpoy_wins
+    / roy_wins / mip_wins / smoy_wins measures encode that filter.
+  - >
+    All-NBA team tiers (1 / 2 / 3) live in `all_nba_team_number`;
+    the same column also encodes All-Defense First/Second and
+    All-Rookie First/Second tiers. Always filter on award_type
+    first to avoid miscounting across award families (e.g. an
+    All-Defense First Team selection has all_nba_team_number=1 too).
+  - >
+    All-Star rows are per-GAME, not per-SEASON: a player voted into
+    multiple All-Star games in a single season produces multiple
+    rows. Use distinct_award_types or a season-level filter if
+    per-season selection counts are required.
+  - >
+    Pre-1996 awards and 1950s rosters may be incomplete per
+    meta_known_gap `missing_1950_roy_groza` and friends; the season
+    range currently in the warehouse is 1950 through 2026 (1189
+    distinct players, 7239 rows total).
+  - >
+    `conference` is NULL across the entire warehouse for fact_award
+    (0 non-NULL rows); do not filter on it. `subtype1` / `subtype2`
+    / `subtype3` carry data only for vote-share awards (clutch_poy,
+    dpoy, mip, mvp, roy, smoy); they are NULL for tiered awards
+    and All-Star.
+  - >
+    Awards are NBA league-level only. ABA / BAA pre-merger awards
+    are not in fact_award; if a question crosses leagues, refuse
+    rather than guess.
+
+synonyms:
+  - honors
+  - accolades
+  - trophies
+  - award winners
+
+example_questions:
+  - Who won MVP in 2019-20?
+  - Most All-Star selections ever?
+  - All-NBA First Team guards since 2010?
+  - How many DPOYs has Bam Adebayo won?

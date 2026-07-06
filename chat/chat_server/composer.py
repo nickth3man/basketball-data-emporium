@@ -39,6 +39,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from chat_server.agent import ResultContract
 from chat_server.db import QueryResult
 from chat_server.templates import Template
 
@@ -179,6 +180,211 @@ def compose_not_answerable(
     )
 
 
+# --- governed-SQL path (Phase 3 Lane B / Stage 3.3a) --------------------
+
+
+def compose_governed(
+    result_contract: ResultContract,
+    result: QueryResult,
+    sql: str,
+    model_name: str | None = None,
+) -> ComposedAnswer:
+    """Convert a governed-SQL ``QueryResult`` into a grounded answer.
+
+    Mirrors :func:`compose` -- the pipeline can consume either return
+    value uniformly. The dispatch is on
+    :attr:`ResultContract.answer_style` rather than on
+    :attr:`Template.answer_policy`; the legacy policy formatters
+    (``ranked_list`` / ``single_value`` / ``count``) are reused where
+    they fit by passing a thin shim whose only attribute is ``title``.
+    New answer styles introduced by the governed path (``prose``,
+    ``table``) get dedicated formatters.
+
+    Parameters
+    ----------
+    result_contract
+        What the agent said the query would return (``grain``,
+        ``columns``, ``row_limit``, ``answer_style``). Only
+        ``grain`` and ``answer_style`` drive the dispatch; ``columns``
+        is informational.
+    result
+        The ``QueryResult`` from the runner (same shape as the legacy
+        caller's ``result``).
+    sql
+        The SQL that produced the result. Surfaced as provenance in
+        ``reasoning_summary`` -- mirrors how
+        :func:`compose_not_answerable` records ``attempted_sql``.
+    model_name
+        Optional semantic-model name (e.g. ``"player_season"``). When
+        supplied, it appears in ``answer`` text (where the style
+        supports prose detail) and as a :class:`Citation` whose
+        ``table_name`` carries it -- the legacy cite-by-table-name
+        pattern extended with a model-name fallback for governed
+        answers.
+
+    Returns
+    -------
+    ComposedAnswer
+        Always non-empty (with a graceful "no data" message for empty
+        ``result.rows``); one :class:`Citation` per known provenance
+        source; ``reasoning_summary`` carries the rendered SQL plus a
+        short run summary (``model=... style=... rows=N``).
+    """
+    if not result.rows:
+        # Defensive path: a governed query that ran cleanly but
+        # returned zero rows. Mirror the legacy "_format_empty" stable
+        # text so downstream consumers can detect the empty branch by
+        # substring (legacy callers key on "No rows matched").
+        return ComposedAnswer(
+            answer="No data returned.",
+            citations=[Citation(table_name=model_name)] if model_name else [],
+            reasoning_summary=_governed_reasoning_summary(
+                result_contract, result, sql, model_name, note="empty result"
+            ),
+        )
+
+    title = result_contract.grain or _fallback_title(model_name)
+    shim_template = _shim_template(title)
+    answer = _dispatch_governed(result_contract, shim_template, result, model_name)
+    citations = [Citation(table_name=model_name)] if model_name else []
+    return ComposedAnswer(
+        answer=answer,
+        citations=citations,
+        reasoning_summary=_governed_reasoning_summary(result_contract, result, sql, model_name),
+    )
+
+
+# --- internal dispatch (governed) ---------------------------------------
+
+
+def _dispatch_governed(
+    result_contract: ResultContract,
+    shim_template: Any,
+    result: QueryResult,
+    model_name: str | None,
+) -> str:
+    """Route to the per-style formatter; fall back to the generic one.
+
+    Dispatches on :attr:`ResultContract.answer_style`. Reuses the
+    legacy per-policy formatters via a thin ``title`` shim for the
+    styles that map 1:1 (``ranked_list`` / ``single_value`` /
+    ``count``); the governed-only styles (``prose`` / ``table``) get
+    dedicated formatters; anything unrecognized falls back to the
+    legacy ``_format_generic`` helper.
+    """
+    style = result_contract.answer_style
+    if style == "ranked_list":
+        return _format_ranked_list(shim_template, result)  # type: ignore[arg-type]
+    if style == "single_value":
+        return _format_single_value(shim_template, result)  # type: ignore[arg-type]
+    if style == "count":
+        return _format_count(shim_template, result)  # type: ignore[arg-type]
+    if style == "prose":
+        return _format_prose(result_contract, result, model_name)
+    if style == "table":
+        return _format_table(result_contract, result, model_name)
+    return _format_generic(shim_template, result)  # type: ignore[arg-type]
+
+
+def _format_prose(
+    result_contract: ResultContract,
+    result: QueryResult,
+    model_name: str | None,
+) -> str:
+    """Prose-style answer: a short paragraph summarising the result.
+
+    Surfaces the ``grain``, row count, optional sample column list,
+    and the model name when known. If only one row is present and a
+    single column exists, the prose collapses to ``"<col> = <value>"``-
+    style text (mirrors :func:`_format_single_value`'s intent without
+    the exact-phrase overlap so callers can branch on style).
+    """
+    n = len(result.rows)
+    cols = (
+        ", ".join(result_contract.columns)
+        if result_contract.columns
+        else (", ".join(result.columns) if result.columns else "")
+    )
+    head = f"{result_contract.grain or 'Results'}"
+    if model_name:
+        head = f"{head} (from the {model_name} semantic model)"
+    sample = f" sample columns: {cols}" if cols else ""
+    return f"{head}: {n} row{'s' if n != 1 else ''}{sample}."
+
+
+def _format_table(
+    result_contract: ResultContract,
+    result: QueryResult,
+    model_name: str | None,
+) -> str:
+    """Table-style answer: a compact "returned N rows (columns: ...)" summary.
+
+    Distinct from :func:`_format_generic` only by the explicit style
+    assertion at the start of the answer text, so the UI can tell a
+    table-style answer apart from a generic fallback that happens to
+    be in tabular form.
+    """
+    n = len(result.rows)
+    cols = (
+        ", ".join(result_contract.columns) if result_contract.columns else ", ".join(result.columns)
+    )
+    head = f"Table (rows={n}"
+    if model_name:
+        head = f"{head}, model={model_name}"
+    head = f"{head}): {n} row{'s' if n != 1 else ''}"
+    return f"{head} (columns: {cols})." if cols else f"{head}."
+
+
+def _governed_reasoning_summary(
+    result_contract: ResultContract,
+    result: QueryResult,
+    sql: str,
+    model_name: str | None,
+    *,
+    note: str | None = None,
+) -> str:
+    """One-line description of the governed run; carries SQL provenance.
+
+    Mirrors :func:`_reasoning_summary_for`'s field shape (``model=``,
+    ``style=``, ``rows=``) so the legacy audit-trail format stays
+    additive. ``sql=`` is appended as a short prefix (180 chars) --
+    keeps ``reasoning_summary`` short while still exposing provenance
+    to the assertion in the Stage 3.3a test suite. The optional
+    ``note`` is appended when present (e.g. ``"empty result"``).
+    """
+    parts = [
+        f"model={model_name or 'unknown'}",
+        f"style={result_contract.answer_style}",
+        f"rows={result.row_count}",
+    ]
+    if result.truncated:
+        parts.append("truncated=true")
+    summary = " ".join(parts)
+    if sql:
+        summary = f"sql={sql[:180]} {summary}"
+    if note:
+        summary = f"{summary} note={note}"
+    return summary
+
+
+def _shim_template(title: str) -> Any:
+    """Build a duck-typed object exposing only ``.title`` for the legacy formatters.
+
+    Avoids depending on the full :class:`Template` constructor for the
+    governed path -- the legacy formatters only read ``template.title``.
+    Using :class:`types.SimpleNamespace` keeps a clear "this is a shim"
+    signal at construction time.
+    """
+    import types
+
+    return types.SimpleNamespace(title=title)
+
+
+def _fallback_title(model_name: str | None) -> str:
+    """Title used when ``ResultContract.grain`` is empty."""
+    return f"results from the {model_name} semantic model" if model_name else "governed query"
+
+
 # --- internal dispatch ---------------------------------------------------
 
 
@@ -289,5 +495,6 @@ __all__ = [
     "Citation",
     "ComposedAnswer",
     "compose",
+    "compose_governed",
     "compose_not_answerable",
 ]

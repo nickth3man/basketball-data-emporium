@@ -10,6 +10,7 @@ without secrets configured):
     CHAT_PORT            — default 8787
     CHAT_QUERY_TIMEOUT   — default 300 (seconds)
     CHAT_DATA_DIR        — default "./data" (visible session store root)
+    CHAT_GOVERNED_SQL_MODE — default "false"; "1"/"true" enables governed SQL (Phase 3.7)
 """
 
 from __future__ import annotations
@@ -41,6 +42,12 @@ class Settings(BaseSettings):
     query_timeout_seconds: int = Field(default=300, ge=1)
     # Visible session storage root (PLAN §6). Holds chat/data/sessions/.
     chat_data_dir: str = Field(default="./data")
+    # Phase 3.7 cutover flag. When True, the agent's system prompt switches
+    # to the governed-SQL variant (SYSTEM_PROMPT_TEMPLATE_GOVERNED) and the
+    # catalog tools (list_models / get_model_detail) become the primary path.
+    # Default OFF so legacy template-only behaviour is unchanged until an
+    # operator opts in via CHAT_GOVERNED_SQL_MODE=1.
+    chat_governed_sql_mode: bool = Field(default=False)
 
 
 @lru_cache(maxsize=1)

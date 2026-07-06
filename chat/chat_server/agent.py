@@ -22,7 +22,7 @@ text comes from `ctx.deps.schema_context` at run time. Pros:
 
 Public surface (re-exported from this module):
 * `QueryPlan` — the typed output model.
-* `AgentDeps` — the deps dataclass (registry + schema_context + db).
+* `AgentDeps` — the deps dataclass (registry + schema_context + db + catalog).
 * `get_agent(model=None)` — lazy singleton with optional model override
   (used by tests to inject `TestModel` and avoid live OpenRouter calls).
 * `make_deps()` — async helper that builds the default `AgentDeps`.
@@ -35,11 +35,13 @@ import logging
 import re
 import threading
 from dataclasses import dataclass
-from typing import Any, cast
+from enum import StrEnum
+from typing import Any, Literal, cast
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.exceptions import ModelRetry
+from pydantic_ai.messages import ToolCallPart, ToolReturnPart
 from pydantic_ai.models import Model
 from pydantic_ai.models.openrouter import OpenRouterModel
 from pydantic_ai.providers.openrouter import OpenRouterProvider
@@ -48,6 +50,7 @@ from pydantic_core import PydanticUndefined
 from .config import get_settings
 from .db import DuckDBSingleton, get_db
 from .schema_context import SchemaContext, get_schema_context
+from .semantic_catalog import SemanticCatalog, load_catalog
 from .templates import (
     TemplateNotFound,
     get_registry,
@@ -63,50 +66,121 @@ logger = logging.getLogger(__name__)
 # -- Output model -----------------------------------------------------------
 
 
-class QueryPlan(BaseModel):
-    """Typed output the agent must produce on every turn (PLAN §7.5).
+class AnswerMode(StrEnum):
+    """How the agent intends to handle this turn.
 
-    The agent picks a registered template + extracts typed parameters,
-    or sets one of `clarification` / `not_answerable_note`. Exactly one
-    of `template_id`, `clarification`, or `not_answerable_note` should
-    be set in a well-formed plan; the composer (Phase 4) is responsible
-    for rejecting ambiguous plans.
+    TEMPLATE is the legacy compatibility mode: the plan carries
+    ``template_id`` + ``params`` and the existing template execution
+    path runs. Kept so the 50 sample conversations and the fixture
+    regression suite keep passing while the governed-SQL path rolls out.
 
-    Attributes
-    ----------
-    template_id
-        Template id that exists in the registry, e.g.
-        ``'season_thresholds.fifty_forty_ninety'``.
-    params
-        Parameter dict validated against the template's `Params` model
-        at render time (not by Pydantic AI — the agent's structured
-        output is just `dict[str, Any]`).
-    clarification
-        Set when the user's question is too ambiguous to act on; this
-        string is the question to ask back.
-    not_answerable_note
-        Set when no template fits; explains why (with attempted SQL or
-        evidence) so the user sees the reason rather than a silent miss.
+    EXECUTE_SQL is the governed path: the plan carries ``sql`` +
+    ``result_contract``; the server validates, dry-runs, and executes
+    read-only. CLARIFY and NOT_ANSWERABLE short-circuit execution.
     """
 
+    TEMPLATE = "template"
+    EXECUTE_SQL = "execute_sql"
+    CLARIFY = "clarify"
+    NOT_ANSWERABLE = "not_answerable"
+
+
+class Clarification(BaseModel):
+    """A structured disambiguation question (governed path).
+
+    The free-text legacy form (a bare ``str``) is still accepted on
+    ``QueryPlan.clarification`` for backward compatibility; new code
+    constructs this structured form so the clarification-state layer
+    can route the user's reply back to the right model.
+    """
+
+    question: str = Field(..., min_length=1)
+    options: list[str] = Field(default_factory=list)
+    model_name: str | None = Field(default=None)
+
+
+class ResultContract(BaseModel):
+    """What the pipeline should produce for a governed-SQL turn.
+
+    Read by the composer to pick the answer formatter and by the DB
+    layer to enforce the server-side row cap.
+    """
+
+    grain: str = Field(..., min_length=1)
+    columns: list[str] = Field(default_factory=list)
+    row_limit: int | None = Field(default=None, ge=1)
+    answer_style: Literal["ranked_list", "single_value", "count", "prose", "table"] = "prose"
+
+
+class QueryPlan(BaseModel):
+    """Typed output the agent produces on every turn.
+
+    Discriminated union on ``answer_mode``. To preserve backward
+    compatibility with the template-driven era, ``answer_mode`` defaults
+    to ``TEMPLATE`` and the legacy fields retain their current types.
+
+    Branching order in the pipeline / route (load-bearing):
+
+    1. ``clarification is not None`` -> clarify (accepts str OR Clarification).
+    2. ``not_answerable_note is not None`` -> not-answerable.
+    3. ``answer_mode == EXECUTE_SQL and sql`` -> governed-SQL branch.
+    4. else -> legacy template path (unchanged fallthrough).
+    """
+
+    answer_mode: AnswerMode = AnswerMode.TEMPLATE
+    question_interpretation: str = ""
+
+    # --- legacy (answer_mode == TEMPLATE) ---
     template_id: str = Field(
         default="",
         description=(
-            "Template id that exists in the registry, e.g. 'season_thresholds.fifty_forty_ninety'."
+            "Template id that exists in the registry (legacy mode). "
+            "Empty when answer_mode != TEMPLATE."
         ),
     )
     params: dict[str, Any] = Field(
         default_factory=dict,
-        description="Typed params validated against the template's Params model.",
+        description="Typed params validated against the template's Params model (legacy mode).",
     )
-    clarification: str | None = Field(
+
+    # --- governed (answer_mode == EXECUTE_SQL) ---
+    sql: str | None = Field(
         default=None,
-        description="Set when params are missing/ambiguous and the user must be asked.",
+        description="Generated DuckDB SQL drawn only from catalog base tables (governed mode).",
     )
+    result_contract: ResultContract | None = Field(
+        default=None,
+        description="Expected grain/columns/row-limit/answer-style (governed mode).",
+    )
+
+    # --- clarify (answer_mode == CLARIFY) ---
+    # Union: legacy tests pass a bare str; new code passes Clarification.
+    clarification: str | Clarification | None = Field(
+        default=None,
+        description=(
+            "Set when the question is too ambiguous to act on. Accepts a "
+            "free-text str (legacy) or a structured Clarification (governed)."
+        ),
+    )
+
+    # --- not answerable (answer_mode == NOT_ANSWERABLE) ---
     not_answerable_note: str | None = Field(
         default=None,
-        description="Set when no template fits; explains why with the attempted SQL/evidence.",
+        description="Set when the question cannot be answered; explains why with evidence.",
     )
+
+    @model_validator(mode="after")
+    def _check_mode_consistency(self) -> QueryPlan:
+        """Enforce field presence per mode. Lenient on TEMPLATE mode."""
+        if self.answer_mode == AnswerMode.EXECUTE_SQL:
+            if not self.sql:
+                raise ValueError("execute_sql mode requires `sql`")
+        elif self.answer_mode == AnswerMode.CLARIFY:
+            if self.clarification is None:
+                raise ValueError("clarify mode requires `clarification`")
+        elif self.answer_mode == AnswerMode.NOT_ANSWERABLE and not self.not_answerable_note:
+            raise ValueError("not_answerable mode requires `not_answerable_note`")
+        return self
 
 
 # -- Deps -------------------------------------------------------------------
@@ -129,11 +203,19 @@ class AgentDeps:
     db
         The process-wide `DuckDBSingleton`. `lookup_player` /
         `lookup_team` / `lookup_season` hit the read-only warehouse.
+    catalog
+        The semantic catalog (Phase 3 Lane B). Populated by
+        ``make_deps()`` via :func:`load_catalog`; ``None`` when the
+        catalog failed to load (treated by the governed-SQL branch as
+        a "catalog not loaded" / not-answerable signal). Defaults to
+        ``None`` so every existing ``AgentDeps(registry=..., schema_context=...,
+        db=...)`` construction in the test suite keeps working unchanged.
     """
 
     registry: dict
     schema_context: SchemaContext
     db: DuckDBSingleton
+    catalog: SemanticCatalog | None = None
 
 
 # -- System prompt ---------------------------------------------------------
@@ -155,6 +237,70 @@ The warehouse is the only source of truth for data.
 Available warehouse tables and metrics:
 {schema_context}
 """
+
+
+#: Phase 3.7 governed-SQL system prompt. Active only when
+#: ``Settings.governed_sql_mode`` is True AND the semantic catalog loaded.
+#: Mirrors the legacy prompt's tone but permits the agent to write DuckDB
+#: SELECT SQL against the catalog's business models (``answer_mode =
+#: execute_sql``) instead of being template-only. The catalog summary is
+#: injected at run time so the agent knows which models exist without a
+#: ``list_models`` round-trip on turn one (the tool remains available for
+#: detail).
+SYSTEM_PROMPT_TEMPLATE_GOVERNED = """\
+You are a basketball analytics assistant with governed SQL access to an NBA
+DuckDB warehouse. Answer data questions by writing DuckDB SELECT queries that
+draw ONLY from the curated semantic catalog's business models. Call
+list_models / get_model_detail to inspect a model's base table, dimensions,
+measures, joins, and caveats before writing SQL. Use lookup_player /
+lookup_team / lookup_season to resolve free-text names to canonical ids —
+never guess ids.
+
+Available semantic models (call get_model_detail for full schemas):
+{catalog_summary}
+
+Warehouse reference (allowlist + metrics, supplementary to the catalog):
+{schema_context}
+
+Rules for every governed SQL answer:
+1. SELECT only. No INSERT / UPDATE / DELETE / CREATE / DROP / PRAGMA / ATTACH.
+2. FROM and JOIN only the catalog models' base tables. Never query a table
+   that is not in the catalog. If a question needs a table the catalog does
+   not cover, decline with QueryPlan.not_answerable_note citing the gap.
+3. Always return answer_mode = execute_sql with a non-empty sql string AND a
+   filled result_contract (grain, columns you expect, row_limit, answer_style).
+   The composer uses result_contract to format the answer.
+4. Prefer the catalog's declared measures (SUM/AVG per the additivity) over
+   hand-rolled aggregates. Honor each measure's additivity when composing.
+5. Use the catalog's declared joins (left_on/right_on) when combining models;
+   never invent join keys.
+6. If the question is ambiguous (e.g. which season, which player when several
+   match, a pronoun with no referent), return answer_mode = clarify with a
+   specific clarification question and, where useful, options.
+7. If the question is out of scope (no catalog model covers it, or it asks for
+   non-NBA data), return answer_mode = not_answerable with a note explaining
+   why and what evidence you checked.
+8. The warehouse is the only source of truth. Never fabricate numbers; every
+   value in your answer must come from the executed SQL's result rows.
+"""
+
+
+def _catalog_summary(catalog: SemanticCatalog) -> str:
+    """Render a one-line-per-model summary for the governed system prompt.
+
+    Each line: ``name — description (grain; base_table=...)``. Sorted by
+    model name for determinism. Kept short so the prompt stays well under
+    token limits even with a large catalog (the agent calls
+    ``get_model_detail`` for full schemas on demand).
+    """
+    lines: list[str] = []
+    for name in catalog.list_models():
+        m = catalog.get_model(name)
+        lines.append(
+            f"- {name} — {m.description} (grain: {m.grain}; "
+            f"base_table: {m.base_table.name} as {m.base_table.alias})"
+        )
+    return "\n".join(lines)
 
 
 # -- Model construction ----------------------------------------------------
@@ -231,13 +377,20 @@ def _build_agent(
     def _system_prompt(ctx: RunContext[AgentDeps]) -> str:
         """Inject the schema context into the system prompt.
 
-        Synchronous (returns a string). Reads from `ctx.deps` so the
-        schema context is whatever the caller passed in `make_deps()`
-        (default: the cached `get_schema_context()`).
+        Phase 3.7: branches on ``Settings.governed_sql_mode``. When the flag
+        is on AND the catalog loaded, the governed-SQL prompt is used (the
+        agent may write SQL against catalog models). Otherwise the legacy
+        template-only prompt is used unchanged. The branch is evaluated per
+        turn so flipping the env var takes effect on the next process start
+        (settings are ``lru_cache``-d at module scope).
         """
-        return SYSTEM_PROMPT_TEMPLATE.format(
-            schema_context=ctx.deps.schema_context.as_prompt_text()
-        )
+        schema_text = ctx.deps.schema_context.as_prompt_text()
+        if get_settings().chat_governed_sql_mode and ctx.deps.catalog is not None:
+            return SYSTEM_PROMPT_TEMPLATE_GOVERNED.format(
+                schema_context=schema_text,
+                catalog_summary=_catalog_summary(ctx.deps.catalog),
+            )
+        return SYSTEM_PROMPT_TEMPLATE.format(schema_context=schema_text)
 
     _register_tools(agent)
     return agent
@@ -385,6 +538,107 @@ def _register_tools(agent: Agent[AgentDeps, QueryPlan]) -> None:
             "timeout_seconds": t.timeout_seconds,
             "params": _summarize_params(t.params_model),
             "sql_preview": t.sql.strip()[:200],
+        }
+
+    # --- Phase 3.7: governed-SQL catalog tools ------------------------------
+    # Available in both modes (harmless when the legacy prompt steers the
+    # model away from them); the governed prompt actively directs the model
+    # to call them. Both degrade gracefully when ``deps.catalog is None``.
+
+    @agent.tool
+    def list_models(ctx: RunContext[AgentDeps]) -> list[dict]:
+        """List the semantic catalog's business models (governed-SQL path).
+
+        Returns
+        -------
+        list of dict
+            One entry per model with ``model``, ``description``, ``grain``,
+            ``base_table``, ``synonyms`` (first 5), and ``example_questions``
+            (first 3). Empty list if the catalog is not loaded.
+        """
+        catalog = ctx.deps.catalog
+        if catalog is None:
+            return []
+        out: list[dict] = []
+        for name in catalog.list_models():
+            m = catalog.get_model(name)
+            out.append(
+                {
+                    "model": m.model,
+                    "description": m.description,
+                    "grain": m.grain,
+                    "base_table": m.base_table.name,
+                    "synonyms": list(m.synonyms)[:5],
+                    "example_questions": list(m.example_questions)[:3],
+                }
+            )
+        return out
+
+    @agent.tool
+    def get_model_detail(ctx: RunContext[AgentDeps], model: str) -> dict:
+        """Get full detail for one semantic catalog model (governed-SQL path).
+
+        Parameters
+        ----------
+        model
+            The model name (e.g. ``'player_season'``). Discover valid names
+            via ``list_models``.
+
+        Returns
+        -------
+        dict
+            Full model metadata: ``model``, ``description``, ``grain``,
+            ``base_table`` (``{name, alias}``), ``dimensions`` (list of
+            ``{name, expr, description}``), ``measures`` (list of
+            ``{name, expr, description, additivity}``), ``joins`` (list of
+            ``{name, model, type, left_on, right_on}``), ``caveats``,
+            ``synonyms``, ``example_questions``.
+
+        Raises
+        ------
+        ModelRetry
+            If the catalog is not loaded or ``model`` is unknown. This
+            feeds the error back so the model calls ``list_models`` first.
+        """
+        catalog = ctx.deps.catalog
+        if catalog is None:
+            raise ModelRetry("The semantic catalog is not loaded. Governed SQL is unavailable.")
+        try:
+            m = catalog.get_model(model)
+        except KeyError:
+            raise ModelRetry(
+                f"Unknown model {model!r}. Call list_models first to discover valid names."
+            ) from None
+        return {
+            "model": m.model,
+            "description": m.description,
+            "grain": m.grain,
+            "base_table": {"name": m.base_table.name, "alias": m.base_table.alias},
+            "dimensions": [
+                {"name": d.name, "expr": d.expr, "description": d.description} for d in m.dimensions
+            ],
+            "measures": [
+                {
+                    "name": me.name,
+                    "expr": me.expr,
+                    "description": me.description,
+                    "additivity": me.additivity,
+                }
+                for me in m.measures
+            ],
+            "joins": [
+                {
+                    "name": j.name,
+                    "model": j.model,
+                    "type": j.type,
+                    "left_on": j.left_on,
+                    "right_on": j.right_on,
+                }
+                for j in m.joins
+            ],
+            "caveats": list(m.caveats),
+            "synonyms": list(m.synonyms),
+            "example_questions": list(m.example_questions),
         }
 
     @agent.tool
@@ -548,16 +802,121 @@ async def make_deps() -> AgentDeps:
     Async because `get_schema_context()` is async (it hits the warehouse).
     Routes call this once per turn; tests may build their own deps and
     pass them to `agent.run(deps=...)` directly.
+
+    The semantic catalog (``catalog``) is loaded synchronously via
+    :func:`load_catalog`; the loader is module-cached and cheap on a
+    warm cache. A load failure must NOT crash server startup, so the
+    call is wrapped in a broad ``except Exception`` — on failure we
+    log a warning and leave ``catalog=None``. The governed-SQL branch
+    (Phase 4 wiring, landed in 3.3b) interprets ``catalog=None`` as a
+    "catalog not loaded" / not-answerable signal.
     """
     schema = await get_schema_context()
+    catalog: SemanticCatalog | None = None
+    try:
+        catalog = load_catalog()
+    except Exception as exc:
+        logger.warning("semantic catalog failed to load; AgentDeps.catalog=None: %s", exc)
     return AgentDeps(
         registry=get_registry(),
         schema_context=schema,
         db=get_db(),
+        catalog=catalog,
     )
 
 
 # -- One-shot helper (used by tests + the composer in Phase 4) -----------
+
+
+def keep_last_messages_with_tools(
+    messages: list,
+    n: int = 20,
+) -> list:
+    """Trim a Pydantic AI ``ModelMessage`` history to the last ``n`` items.
+
+    Pydantic AI rejects a ``message_history`` that contains a
+    ``ToolReturnPart`` orphaned from its preceding ``ToolCallPart`` (or
+    vice versa); the LLM provider needs the pair intact to interpret the
+    tool call's result. A naive ``messages[-n:]`` slice can cleave such
+    a pair in half.
+
+    Algorithm
+    ---------
+    1. If ``len(messages) <= n`` return as-is (no trim needed).
+    2. Compute the initial cut point at ``len(messages) - n``.
+    3. Build a ``tool_call_id -> ToolCallPart-index`` map from every
+       message in the input.
+    4. While the message at the cut boundary contains a
+       ``ToolReturnPart`` whose matching ``ToolCallPart`` is in the
+       dropped prefix, back the cut up by one (keeping the pair intact).
+       Each step re-checks the new boundary; chains resolve in O(k) for
+       k dropped pairs.
+    5. Return ``messages[cut:]``.
+
+    Defensive
+    ---------
+    * Falls back to a plain last-``n`` slice when the part types can't
+      be detected (e.g. pydantic-ai version drift renamed the classes).
+      The class-identity checks (``isinstance(part, ToolCallPart)``)
+      catch ImportError-like failures by failing ``isinstance`` to
+      ``False`` rather than raising.
+    * No IO. Pure function. Returns a new list (slicing returns a new
+      list in CPython), so callers can mutate freely.
+
+    Parameters
+    ----------
+    messages
+        The full ``list[ModelMessage]`` to trim. Each message must
+        expose a ``.parts`` iterable of part objects (Pydantic AI
+        ``ModelMessage`` shape).
+    n
+        Target maximum number of messages to keep. Default ``20``;
+        matched by the pipeline / route callers.
+
+    Returns
+    -------
+    list
+        A slice of ``messages`` of length ``<= n`` whose first element
+        (if any) does not contain an orphaned tool-return pair.
+    """
+    if n <= 0:
+        return []
+    if len(messages) <= n:
+        # Copy so the caller never sees aliasing back into the input.
+        return list(messages)
+
+    cut = len(messages) - n
+
+    # Step 3: index every ToolCallPart by its tool_call_id so the
+    # boundary check is O(1) per part. Messages without tool parts are
+    # trivially non-orphan candidates.
+    call_locations: dict[str, int] = {}
+    for i, msg in enumerate(messages):
+        parts = getattr(msg, "parts", ()) or ()
+        for part in parts:
+            if isinstance(part, ToolCallPart):
+                tool_call_id = getattr(part, "tool_call_id", None)
+                if tool_call_id is not None:
+                    call_locations[tool_call_id] = i
+
+    # Step 4: walk the boundary backward as long as it would orphan a
+    # ToolReturnPart from its preceding ToolCallPart.
+    while cut > 0:
+        boundary = messages[cut]
+        parts = getattr(boundary, "parts", ()) or ()
+        has_orphan = False
+        for part in parts:
+            if isinstance(part, ToolReturnPart):
+                tool_call_id = getattr(part, "tool_call_id", None)
+                call_idx = call_locations.get(tool_call_id) if tool_call_id else None
+                if call_idx is not None and call_idx < cut:
+                    has_orphan = True
+                    break
+        if not has_orphan:
+            break
+        cut -= 1
+
+    return list(messages[cut:])
 
 
 async def run_agent(
@@ -565,6 +924,7 @@ async def run_agent(
     *,
     deps: AgentDeps | None = None,
     model: Model | None = None,
+    message_history: list | None = None,
 ) -> QueryPlan:
     """Run the agent on `user_prompt` and return the typed `QueryPlan`.
 
@@ -576,19 +936,33 @@ async def run_agent(
     `None`. Tests must pass `TestModel(...)` via `get_agent(model=...)`
     first (so the singleton uses the fake) and `make_deps()`-style deps
     pointing at a test DB.
+
+    `message_history` is an optional pass-through to
+    ``agent.run(message_history=...)``: a list of Pydantic AI
+    ``ModelMessage`` objects from a previous turn. ``None`` (the
+    default) preserves the original single-turn behaviour — existing
+    call sites are unaffected.
     """
     agent = get_agent(model=model)
     actual_deps = deps if deps is not None else await make_deps()
-    result = await agent.run(user_prompt, deps=actual_deps)
+    kwargs: dict[str, Any] = {"deps": actual_deps}
+    if message_history is not None:
+        kwargs["message_history"] = message_history
+    result = await agent.run(user_prompt, **kwargs)
     return result.output
 
 
 __all__ = [
     "QueryPlan",
+    "AnswerMode",
+    "Clarification",
+    "ResultContract",
     "AgentDeps",
     "SYSTEM_PROMPT_TEMPLATE",
+    "SYSTEM_PROMPT_TEMPLATE_GOVERNED",
     "get_agent",
     "reset_agent_for_tests",
     "make_deps",
     "run_agent",
+    "keep_last_messages_with_tools",
 ]

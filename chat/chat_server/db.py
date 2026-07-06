@@ -56,6 +56,30 @@ from .config import get_settings
 from .json_safe import convert_rows
 
 
+class DryRunError(Exception):
+    """Raised by :meth:`DuckDBSingleton.dry_run` when the warehouse rejects a
+    query at plan / bind time (catalog resolution, unknown column, ambiguous
+    reference, parse error, ...).
+
+    The original SQL and the underlying ``duckdb.Error`` are both preserved
+    so the repair loop (see :mod:`chat_server.repair`) can show the model
+    exactly which SQL failed and what DuckDB complained about.
+
+    Attributes
+    ----------
+    sql
+        The SQL string that failed to dry-run.
+    original
+        The underlying ``duckdb.Error`` raised by the engine. ``str(exc)``
+        in the repair-prompt context should match what DuckDB printed.
+    """
+
+    def __init__(self, sql: str, original: duckdb.Error) -> None:
+        super().__init__(f"dry-run failed: {original}")
+        self.sql = sql
+        self.original = original
+
+
 @dataclass
 class QueryResult:
     """One query execution result, JSON-safe.
@@ -208,6 +232,62 @@ class DuckDBSingleton:
         """
         return await asyncio.to_thread(self._execute_sync, sql, params, limit)
 
+    async def dry_run(self, sql: str) -> None:
+        """Validate ``sql`` resolves cleanly without executing it.
+
+        Implementation
+        --------------
+        We wrap ``sql`` as ``EXPLAIN <sql>`` and run it through the same
+        ``_execute_sync`` / lock path that :meth:`execute` uses. DuckDB's
+        ``EXPLAIN`` walks the planner end-to-end (bind columns, resolve
+        types, build the logical plan) without ever touching the row
+        data — exactly the dry-run semantics we want. Any schema /
+        column / type / parse problem surfaces here as a
+        :class:`duckdb.Error`, which we re-raise as :class:`DryRunError`
+        so callers can branch on it without importing ``duckdb``.
+
+        Returns
+        -------
+        None
+            On success; the warehouse accepted the plan.
+
+        Raises
+        ------
+        DryRunError
+            If ``sql`` failed to bind / parse / resolve against the live
+            schema. The original SQL and the underlying ``duckdb.Error``
+            are preserved on the exception instance.
+
+        Concurrency
+        -----------
+        Reuses the same ``self._lock`` that ``execute`` holds, so a
+        dry-run and a live execute serialize against each other exactly
+        the same way two live executes would. We deliberately do NOT
+        introduce a second lock — the duckdb connection allows only one
+        cursor to drive it at a time, and ``EXPLAIN`` is a read-only
+        operation that costs nothing relative to the queries it
+        precedes.
+        """
+        await asyncio.to_thread(self._dry_run_sync, sql)
+
+    def _dry_run_sync(self, sql: str) -> None:
+        """Synchronous body for :meth:`dry_run`.
+
+        Always called via :func:`asyncio.to_thread`. Holds ``self._lock``
+        around the cursor acquisition + ``EXPLAIN`` execution so the
+        dry-run serializes against ``execute`` calls. Catches
+        ``duckdb.Error`` and re-raises as :class:`DryRunError` carrying
+        both the SQL and the original exception.
+        """
+        with self._lock:
+            cur = self._acquire_cursor()
+            try:
+                cur.execute(f"EXPLAIN {sql}")
+            except duckdb.Error as exc:
+                raise DryRunError(sql=sql, original=exc) from None
+            # Discard the EXPLAIN result row(s) — we don't need it.
+            cur.fetchall()
+
     def _acquire_cursor(self) -> duckdb.DuckDBPyConnection:
         """Round-robin cursor selection. Caller holds `self._lock`."""
         cur = self._cursors[self._cursor_index]
@@ -342,6 +422,7 @@ def get_db_path() -> str:
 __all__ = [
     "DuckDBSingleton",
     "QueryResult",
+    "DryRunError",
     "get_db",
     "reset_singleton_for_tests",
     "check_connection",

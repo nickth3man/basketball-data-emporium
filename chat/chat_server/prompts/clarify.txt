@@ -1,0 +1,8 @@
+Your question, as I read it: {{interpretation}}
+
+That reading is genuinely ambiguous in NBA analytics — different interpretations lead to very different answers, so I'd rather ask than guess.
+
+Did you mean:
+{{options}}
+
+Pick a number (or the label), or describe it in your own words and I'll take it from there.

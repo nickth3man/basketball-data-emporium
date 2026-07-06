@@ -52,12 +52,21 @@ from pydantic import BaseModel, Field
 # module. If that module is missing (parallel PR not yet landed) the
 # application will fail to start; that is the intended fail-fast behaviour
 # because the chat route is unusable without an agent to classify intent.
-from chat_server.agent import get_agent, make_deps  # noqa: E402, F401 — used inside the handler.
-from chat_server.composer import compose, compose_not_answerable
-from chat_server.db import get_db
+from chat_server.agent import (  # noqa: E402, F401 — used inside the handler.
+    AnswerMode,
+    Clarification,
+    ResultContract,
+    get_agent,
+    make_deps,
+)
+from chat_server.clarify import ClarificationState, build_clarification_context_prefix
+from chat_server.composer import compose, compose_governed, compose_not_answerable
+from chat_server.db import DryRunError, get_db
 from chat_server.events import ChatError, to_sse_dict
-from chat_server.pipeline import run_turn
+from chat_server.pipeline import _load_model_history, _safe_append_model_history, run_turn
+from chat_server.repair import repair_sql
 from chat_server.sessions import SessionNotFound, get_store
+from chat_server.sqlgate import validate_governed_sql
 from chat_server.templates import TemplateNotFound, get_template
 from chat_server.validation import validate_template_sql
 
@@ -171,8 +180,35 @@ async def chat(req: ChatRequest) -> ChatResponse:
         # `make_deps` is async (it builds the schema context against the
         # warehouse) — must be awaited, not passed as a coroutine.
         deps = await make_deps()
-        result = await agent.run(req.message, deps=deps)
+        # --- Stage 3.5: load + trim prior ModelMessage history ---------
+        # Best-effort — a missing or corrupt history file is expected on
+        # the first turn and must not crash the response.
+        history = _load_model_history(store, sid)
+        # --- Stage 3.6: enrich prompt if a clarification is pending ----
+        # Complements the model-history snapshot. The pending state is
+        # independent of the snapshot — even if the snapshot is absent /
+        # corrupt / trimmed, a pending clarification still reaches the
+        # agent via this enriched prompt. The raw `req.message` still
+        # flows to the visible-JSONL store unchanged (the user's
+        # literal reply is what the UI shows).
+        pending = store.get_pending_clarification(sid)
+        user_message_text = req.message
+        if pending is not None:
+            user_message_text = build_clarification_context_prefix(pending, req.message)
+        # Pass `message_history` ONLY when there is real history to
+        # forward — an empty list is semantically equivalent to omitting
+        # the kwarg (Pydantic AI treats both as "no prior context"), and
+        # conditional kwargs let test fakes with narrower signatures
+        # continue to work.
+        run_kwargs: dict = {"deps": deps}
+        if history:
+            run_kwargs["message_history"] = history
+        result = await agent.run(user_message_text, **run_kwargs)
         plan = result.output
+        # --- Stage 3.5: persist the post-call history snapshot ----------
+        # Best-effort — a failed write logs and returns; the turn
+        # continues regardless.
+        _safe_append_model_history(store, sid, result)
     except Exception as exc:
         log.exception("agent.run failed; sid=%s", sid)
         _append_assistant_or_500(sid, store, f"Agent failed: {type(exc).__name__}")
@@ -181,6 +217,36 @@ async def chat(req: ChatRequest) -> ChatResponse:
             note=f"Agent failed: {type(exc).__name__}",
             template_id=None,
         )
+
+    # --- Stage 3.6: persist / clear the pending-clarification state ------
+    # Single block, runs for EVERY plan outcome (clarify / not-answerable
+    # / execute_sql / template). The legacy template branch is therefore
+    # auto-cleared too without any invasive branch-local wiring — the
+    # spec's "byte-for-byte unchanged legacy branch" is preserved by
+    # keeping all state-machine side-effects in this one block above
+    # the branching cascade. Mirrors the equivalent block in
+    # ``pipeline.run_turn``.
+    if plan.answer_mode == AnswerMode.CLARIFY and plan.clarification is not None:
+        clar = plan.clarification
+        if isinstance(clar, Clarification):
+            # Normalize the empty options list to ``None`` so the
+            # enrichment prefix omits the options clause for free-form
+            # clarifications.
+            options_list: list[str] | None = list(clar.options) if clar.options else None
+            state = ClarificationState(
+                original_question=req.message,
+                clarification_question=clar.question,
+                options=options_list,
+            )
+            try:
+                store.set_pending_clarification(sid, state)
+            except Exception:  # noqa: BLE001
+                log.exception("set_pending_clarification failed; sid=%s", sid)
+    else:
+        try:
+            store.clear_pending_clarification(sid)
+        except Exception:  # noqa: BLE001
+            log.exception("clear_pending_clarification failed; sid=%s", sid)
 
     # --- 2. Clarification (no DB run) -----------------------------------
     if plan.clarification is not None:
@@ -212,7 +278,159 @@ async def chat(req: ChatRequest) -> ChatResponse:
             reasoning_summary=composed.reasoning_summary,
         )
 
-    # --- 4. Resolve template --------------------------------------------
+    # --- 4. Governed SQL (EXECUTE_SQL mode) ----------------------------
+    if plan.answer_mode == AnswerMode.EXECUTE_SQL and plan.sql:
+        catalog = deps.catalog
+        if catalog is None:
+            note = "The semantic catalog is not loaded, so I can't run governed queries yet."
+            composed = compose_not_answerable(note)
+            store.append_message(sid, "assistant", composed.answer)
+            log.info("chat turn: governed without catalog sid=%s", sid)
+            return ChatResponse(
+                session_id=sid,
+                answer=composed.answer,
+                citations=[],
+                not_answerable=True,
+                not_answerable_note=composed.not_answerable_note,
+                template_id=None,
+                reasoning_summary=composed.reasoning_summary,
+            )
+
+        report = validate_governed_sql(plan.sql, catalog)
+        if not report.valid:
+            errors_note = "; ".join(report.errors) or "SQL validation failed."
+            composed = compose_not_answerable(errors_note, attempted_sql=plan.sql)
+            store.append_message(sid, "assistant", composed.answer)
+            log.info(
+                "chat turn: governed validation failed sid=%s errs=%s",
+                sid,
+                report.errors,
+            )
+            return ChatResponse(
+                session_id=sid,
+                answer=composed.answer,
+                citations=[],
+                not_answerable=True,
+                not_answerable_note=composed.not_answerable_note,
+                template_id=None,
+                sql=plan.sql,
+                reasoning_summary=composed.reasoning_summary,
+            )
+
+        # --- Stage 3.4: dry-run + single-shot repair (mirrors pipeline.py)
+        # The catalog gate above only checks structural legality + table
+        # allowlist; a second class of bugs (stale columns, fabricated
+        # identifiers) only surfaces when DuckDB binds the query. We catch
+        # that with `EXPLAIN` (no row reads) and give the agent one bounded
+        # re-prompt to fix it. See chat_server.repair for the design lineage.
+        db = get_db()
+        try:
+            await db.dry_run(plan.sql)
+        except DryRunError as exc:
+            log.info(
+                "chat turn: dry-run failed; attempting repair sid=%s err=%s",
+                sid,
+                exc.original,
+            )
+            repaired_plan = await repair_sql(
+                agent,
+                deps,
+                question=req.message,
+                broken_sql=plan.sql,
+                error=str(exc.original),
+            )
+            if repaired_plan is None or not repaired_plan.sql:
+                # Repair declined (clarify / not_answerable / empty SQL) ->
+                # not-answerable, surface the original dry-run error.
+                composed = compose_not_answerable(
+                    f"I couldn't fix the query: {exc.original}",
+                    attempted_sql=plan.sql,
+                )
+                store.append_message(sid, "assistant", composed.answer)
+                return ChatResponse(
+                    session_id=sid,
+                    answer=composed.answer,
+                    citations=[],
+                    not_answerable=True,
+                    not_answerable_note=composed.not_answerable_note,
+                    template_id=None,
+                    sql=plan.sql,
+                    reasoning_summary=composed.reasoning_summary,
+                )
+            # Re-validate the repaired SQL against the catalog.
+            repaired_report = validate_governed_sql(repaired_plan.sql, catalog)
+            if not repaired_report.valid:
+                repaired_errors = "; ".join(repaired_report.errors) or (
+                    "repaired SQL failed validation"
+                )
+                composed = compose_not_answerable(
+                    f"I couldn't fix the query: {repaired_errors}",
+                    attempted_sql=plan.sql,
+                )
+                store.append_message(sid, "assistant", composed.answer)
+                return ChatResponse(
+                    session_id=sid,
+                    answer=composed.answer,
+                    citations=[],
+                    not_answerable=True,
+                    not_answerable_note=composed.not_answerable_note,
+                    template_id=None,
+                    sql=plan.sql,
+                    reasoning_summary=composed.reasoning_summary,
+                )
+            # Adopt the repaired SQL + refreshed report.
+            plan = repaired_plan
+            report = repaired_report
+            assert plan.sql is not None, "repair_sql returned a plan with no SQL"
+
+        model_sentinel = f"semantic:{next(iter(report.tables_referenced), 'unknown')}"
+        row_limit = plan.result_contract.row_limit if plan.result_contract else None
+        try:
+            query_result = await db.execute(plan.sql, limit=row_limit)
+        except Exception as exc:
+            log.exception("chat turn: governed db.execute failed sid=%s err=%s", sid, exc)
+            note = f"Query execution failed: {type(exc).__name__}"
+            composed = compose_not_answerable(note, attempted_sql=plan.sql)
+            store.append_message(sid, "assistant", composed.answer)
+            return ChatResponse(
+                session_id=sid,
+                answer=composed.answer,
+                citations=[],
+                not_answerable=True,
+                not_answerable_note=composed.not_answerable_note,
+                template_id=model_sentinel,
+                sql=plan.sql,
+                reasoning_summary=composed.reasoning_summary,
+            )
+
+        composed = compose_governed(
+            plan.result_contract or ResultContract(grain="results", answer_style="prose"),
+            query_result,
+            plan.sql,
+            model_name=model_sentinel,
+        )
+        store.append_message(sid, "assistant", composed.answer)
+        log.info(
+            "chat turn: governed=%s sid=%s duration_ms=%.1f row_count=%d truncated=%s",
+            model_sentinel,
+            sid,
+            query_result.duration_ms,
+            query_result.row_count,
+            query_result.truncated,
+        )
+        return ChatResponse(
+            session_id=sid,
+            answer=composed.answer,
+            citations=_citations_to_dicts(composed.citations),
+            not_answerable=False,
+            template_id=model_sentinel,
+            sql=plan.sql,
+            row_count=query_result.row_count,
+            reasoning_summary=composed.reasoning_summary,
+            duration_ms=query_result.duration_ms,
+        )
+
+    # --- 5. Resolve template --------------------------------------------
     try:
         template = get_template(plan.template_id)
     except TemplateNotFound:

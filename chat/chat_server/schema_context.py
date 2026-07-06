@@ -79,7 +79,7 @@ ALLOWED_TABLES_FOR_AGENT: frozenset[str] = frozenset(
         # Source-backed (allowlisted only via source-backed templates).
         "src_bref_advanced",
         "src_bref_per_100_poss",
-        "src_bref_team_summaries",
+        "src_fact_bref_team_season_summary",
     }
 )
 
@@ -133,7 +133,11 @@ _TABLE_PURPOSES: dict[str, str] = {
     "fact_official_assignment": "One row per (official, game).",
     "src_bref_advanced": "Basketball-Reference advanced stats (WS, BPM, VORP). Source-backed.",
     "src_bref_per_100_poss": "Basketball-Reference per-100-possessions stats. Source-backed.",
-    "src_bref_team_summaries": "Basketball-Reference team season summaries (incl. pace).",
+    "src_fact_bref_team_season_summary": (
+        "Basketball-Reference team season summaries (w/l, pythagorean wins/losses, "
+        "offensive/defensive/net ratings, pace, true-shooting, eFG, attendance). "
+        "Grain: (team_id, season INT, is_playoffs BOOL). Source-backed."
+    ),
 }
 
 

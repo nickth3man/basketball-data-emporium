@@ -1,0 +1,168 @@
+# Semantic catalog model: standings
+#
+# PLAN §1 Phase 2 Lane A: fully grounded against the live warehouse.
+# Every base_table column referenced in `dimensions` and `measures` below
+# was confirmed against the live warehouse via:
+#
+#   duckdb ../data/nba.duckdb -readonly -list -c \
+#     "SELECT column_name, data_type FROM information_schema.columns
+#      WHERE table_name = 'fact_standings' ORDER BY ordinal_position"
+#   duckdb ../data/nba.duckdb -readonly -list -c \
+#     "SELECT season_year, season_type, COUNT(*) FROM fact_standings
+#      GROUP BY 1,2 ORDER BY 1"
+#   duckdb ../data/nba.duckdb -readonly -list -c \
+#     "SELECT MIN(season_year), MAX(season_year) FROM fact_standings"
+#
+# Confirmed schema:
+#   team_id BIGINT, conference VARCHAR ('East'/'West'), division VARCHAR,
+#   conf_rank BIGINT, div_rank BIGINT,
+#   wins BIGINT, losses BIGINT, win_pct DOUBLE,
+#   home_record VARCHAR (e.g. '39-2'), road_record VARCHAR (e.g. '30-11'),
+#   last_ten VARCHAR, current_streak VARCHAR,
+#   games_back DOUBLE, clinch_indicator VARCHAR,
+#   pts_pg DOUBLE, opp_pts_pg DOUBLE, diff_pts_pg DOUBLE,
+#   season_year VARCHAR (BBR style, e.g. '1996-97'),
+#   season_type VARCHAR in {'Regular', 'Playoffs', 'Cup'}.
+#
+# Coverage observed: season_year 1996-97 through 2025-26; Cup rows appear
+# only from 2023-24 (NBA In-Season Tournament launch).
+#
+# Conventions (matching player_career.yml):
+# - All `expr` strings are written against the `st.` alias declared in
+#   `base_table`.
+# - `additivity` follows the Cube.js recipes referenced in PLAN §6:
+#   `sum` for additive counts (wins, losses); `non_additive` for
+#   per-row averages, ranks, and ratios (win_pct, pts_pg, opp_pts_pg,
+#   diff_pts_pg, games_back, conf_rank, div_rank) where re-summing
+#   across grains double-counts or is meaningless.
+# - conf_rank and div_rank are per-row scalars -- exposed as dimensions,
+#   not measures, because averaging ranks across teams is not meaningful.
+
+model: standings
+
+description: >
+  League standings (wins, losses, conference/division rank, games back)
+  per (team, season_year, season_type). Use for questions like "Eastern
+  Conference standings in 2015-16", "division winners by year",
+  "who clinched the playoffs in 2020", or "how many games back were
+  the Lakers in 2022-23".
+
+grain: one row per (team_id, season_year, season_type)
+
+base_table:
+  name: fact_standings
+  alias: st
+
+dimensions:
+  - name: team_id
+    expr: st.team_id
+    description: Canonical team_id for the season (defunct franchises may appear under both old and new team_ids across the relocation boundary).
+
+  - name: season_year
+    expr: st.season_year
+    description: Season year string in BBR style (e.g. '2015-16'); ranges from 1996-97 to 2025-26 in the warehouse.
+
+  - name: season_type
+    expr: st.season_type
+    description: One of 'Regular', 'Playoffs', 'Cup' (Cup = NBA In-Season Tournament, 2023-24+).
+
+  - name: conference
+    expr: st.conference
+    description: Conference ('East' or 'West'); null on some legacy rows.
+
+  - name: division
+    expr: st.division
+    description: Division within the conference (e.g. 'Central', 'Atlantic', 'Pacific', 'Northwest').
+
+  - name: conf_rank
+    expr: st.conf_rank
+    description: Rank within the conference (1 = best). Exposed as a scalar dimension; do not AVG.
+
+  - name: div_rank
+    expr: st.div_rank
+    description: Rank within the division (1 = best). Exposed as a scalar dimension; do not AVG.
+
+  - name: clinch_indicator
+    expr: st.clinch_indicator
+    description: Free-text clinch status (e.g. clinched division / eliminated / playoff berth); often null.
+
+measures:
+  - name: wins
+    expr: SUM(st.wins)
+    description: Season wins for the (team, season_year, season_type) row.
+    additivity: sum
+
+  - name: losses
+    expr: SUM(st.losses)
+    description: Season losses for the (team, season_year, season_type) row.
+    additivity: sum
+
+  - name: games_played
+    expr: SUM(st.wins + st.losses)
+    description: Games played (wins + losses).
+    additivity: sum
+
+  - name: win_pct
+    expr: AVG(st.win_pct)
+    description: Win percentage (already computed in the source fact).
+    additivity: non_additive
+
+  - name: games_back
+    expr: AVG(st.games_back)
+    description: Games behind the conference leader; 0.0 for the leader.
+    additivity: non_additive
+
+  - name: points_per_game
+    expr: AVG(st.pts_pg)
+    description: Team points scored per game.
+    additivity: non_additive
+
+  - name: opp_points_per_game
+    expr: AVG(st.opp_pts_pg)
+    description: Opponent points allowed per game.
+    additivity: non_additive
+
+  - name: point_differential_per_game
+    expr: AVG(st.diff_pts_pg)
+    description: Point differential per game (pts_pg - opp_pts_pg).
+    additivity: non_additive
+
+  - name: distinct_teams
+    expr: COUNT(DISTINCT st.team_id)
+    description: Distinct team count in scope.
+    additivity: count_distinct
+
+joins: []
+
+caveats:
+  - >
+    Season-end snapshot per (team, season_year, season_type): there is
+    exactly one row per (team, season_year, season_type) combination,
+    so SUM(st.wins) is meaningful as a league-wide total but the row
+    itself is not a running snapshot.
+  - >
+    Defunct / relocated franchises (SuperSonics->Thunder,
+    Bobcats->Hornets, Nets->Raptors-era BAA fragments) may appear under
+    BOTH the old and the new team_id across the relocation boundary.
+    SUMming wins across a whole franchise history requires joining
+    through dim_team or a future team-dimension business model -- see
+    AGENTS.md §"Ingestion" and dim_team.valid_from_year / valid_to_year.
+  - >
+    season_type='Cup' (NBA In-Season Tournament) rows appear only from
+    2023-24 onward; pre-2023-24 standings have no Cup rows.
+  - >
+    home_record, road_record, last_ten, and current_streak are VARCHAR
+    strings (e.g. '39-2') -- they are NOT aggregable and are not
+    exposed as measures; surface them via SELECT st.* when relevant.
+
+synonyms:
+  - league table
+  - rankings
+  - seedings
+  - conference standings
+
+example_questions:
+  - Eastern Conference standings in 2015-16.
+  - Who clinched the playoffs in 2020?
+  - How many games back were the Lakers in 2022-23?
+  - Top 5 teams by win percentage in the 1995-96 season.

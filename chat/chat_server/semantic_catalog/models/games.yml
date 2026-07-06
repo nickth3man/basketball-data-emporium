@@ -1,0 +1,216 @@
+# Semantic catalog model: games
+#
+# PLAN Section 1 Phase 2 Lane A: grounded against the live warehouse via:
+#
+#   duckdb ../data/nba.duckdb -readonly -list -c \
+#     "SELECT column_name, data_type FROM information_schema.columns
+#      WHERE table_name = 'dim_game' ORDER BY ordinal_position"
+#
+# Every base_table column referenced in `dimensions` and `measures`
+# below was confirmed in that query. `dim_game` is in the agent's
+# allowlist (`ALLOWED_TABLES_FOR_AGENT`) per chat_server/schema_context.py
+# and serves as both the game-level dimension AND the carrier of
+# game-level facts (home_score, away_score, attendance, is_overtime).
+#
+# Conventions:
+# - All `expr` strings are written against the `g.` alias declared in
+#   `base_table`.
+# - `additivity` follows the Cube.js recipes referenced in PLAN Section 6:
+#   `sum` for additive counts/totals (home_score sums, overtime game
+#   counts, attendance sums), `non_additive` for per-game averages
+#   (avg_total_points, avg_attendance) where re-summing across grains
+#   double-counts, `count_distinct` for distinct-game counts usable
+#   in cross-grain aggregates.
+# - This model currently stands alone; downstream Lane-A fixers are
+#   concurrently grounding player_season / team_season / standings /
+#   shots / head_to_head, so this file does NOT declare joins to
+#   any of them. Cross-model queries can be composed later once the
+#   peer models ship.
+
+model: games
+
+description: >
+  Game-level facts and dimensions: one row per game_id with date,
+  season, teams, scores, attendance, arena, and game type. Use for
+  questions like "what was the final score of game X", "did the Lakers
+  beat the Celtics on date Y", "average attendance at Lakers home
+  games in season S", or as the filter grain for per-game player
+  stats (each fact_player_game_* row joins back here on game_id).
+
+grain: one row per game_id
+
+base_table:
+  name: dim_game
+  alias: g
+
+dimensions:
+  - name: game_id
+    expr: g.game_id
+    description: Canonical 10-char zero-padded numeric game_id (VARCHAR).
+
+  - name: game_date
+    expr: g.game_date
+    description: Calendar date the game was played (DATE).
+
+  - name: game_datetime_est
+    expr: g.game_datetime_est
+    description: Tip-off timestamp in US/Eastern (TIMESTAMP).
+
+  - name: season_year
+    expr: g.season_year
+    description: Season label string (e.g. "2023-24"); covers 1946-47 through 2025-26.
+
+  - name: season_type
+    expr: g.season_type
+    description: One of Regular Season, Playoffs, Preseason, Cup (NBA Emirates Cup), All-Star.
+
+  - name: game_type
+    expr: g.game_type
+    description: Coarse game-type bucket; overlaps season_type but carries finer labels (e.g. Play-in Tournament).
+
+  - name: game_subtype
+    expr: g.game_subtype
+    description: Subtype label (e.g. conference finals, NBA finals); often NULL for regular season.
+
+  - name: game_label
+    expr: g.game_label
+    description: Display label for the game outcome (e.g. "Final").
+
+  - name: game_sub_label
+    expr: g.game_sub_label
+    description: Free-text sub-label (series context, etc.); often NULL.
+
+  - name: series_game_number
+    expr: g.series_game_number
+    description: Game number within its playoff series (INTEGER); NULL for regular season.
+
+  - name: home_team_id
+    expr: g.home_team_id
+    description: Home team id (BIGINT).
+
+  - name: away_team_id
+    expr: g.away_team_id
+    description: Away team id (BIGINT).
+
+  - name: winner_team_id
+    expr: g.winner_team_id
+    description: Winning team id (BIGINT); NULL when the game has not been played.
+
+  - name: arena_id
+    expr: g.arena_id
+    description: Arena id; joins conceptually to dim_arena.
+
+  - name: arena_name
+    expr: g.arena_name
+    description: Host arena name.
+
+  - name: arena_city
+    expr: g.arena_city
+    description: Host arena city.
+
+  - name: arena_state
+    expr: g.arena_state
+    description: Host arena state / province.
+
+  - name: is_overtime
+    expr: g.is_overtime
+    description: Whether the game went to overtime (BOOLEAN -- true/false).
+
+  - name: game_status
+    expr: g.game_status
+    description: Game lifecycle status ("completed" vs "scheduled_or_placeholder").
+
+measures:
+  - name: total_games
+    expr: COUNT(DISTINCT g.game_id)
+    description: Distinct game count (use in cross-grain aggregates so a join fanout does not double-count).
+    additivity: count_distinct
+
+  - name: total_points
+    expr: SUM(g.home_score + g.away_score)
+    description: Total combined points scored across the games in the grain.
+    additivity: sum
+
+  - name: total_home_points
+    expr: SUM(g.home_score)
+    description: Total points scored by home teams.
+    additivity: sum
+
+  - name: total_away_points
+    expr: SUM(g.away_score)
+    description: Total points scored by away teams.
+    additivity: sum
+
+  - name: avg_total_points
+    expr: AVG(g.home_score + g.away_score)
+    description: Mean combined score per game (NULL scores excluded); re-summing double-counts.
+    additivity: non_additive
+
+  - name: home_wins
+    expr: SUM(CASE WHEN g.winner_team_id = g.home_team_id THEN 1 ELSE 0 END)
+    description: Count of games won by the home team.
+    additivity: sum
+
+  - name: away_wins
+    expr: SUM(CASE WHEN g.winner_team_id = g.away_team_id THEN 1 ELSE 0 END)
+    description: Count of games won by the away team.
+    additivity: sum
+
+  - name: total_attendance
+    expr: SUM(g.attendance)
+    description: Sum of reported attendance (NULL attendance rows are ignored by SUM).
+    additivity: sum
+
+  - name: avg_attendance
+    expr: AVG(g.attendance)
+    description: Mean reported attendance (NULL rows ignored); re-summing double-counts.
+    additivity: non_additive
+
+  - name: overtime_games
+    expr: SUM(CASE WHEN g.is_overtime THEN 1 ELSE 0 END)
+    description: Count of games that went to overtime.
+    additivity: sum
+
+joins: []
+
+caveats:
+  - >
+    `dim_game` covers NBA regular season, playoffs, preseason, the NBA
+    Emirates Cup, and All-Star games; pre-1996 identity backfills use
+    current franchise names per meta_known_gap
+    `pre_1996_team_identity_uses_current_name`.
+  - >
+    Only ~27k of ~73k rows have a non-NULL attendance value; older
+    BAA / early-NBA rows and many exhibition games report no attendance,
+    so SUM/AVG attendance measures undercount history. Filter on
+    `season_year` >= '1985-86' for roughly complete coverage.
+  - >
+    69 rows have NULL home_score / away_score (game_status =
+    "scheduled_or_placeholder" -- postponed or not-yet-played games).
+    Aggregates over totals / home_wins / away_wins exclude them
+    automatically because SUM(NULL)=NULL, but AVG(NULL)=NULL will
+    silently drop them too. Filter on game_status = 'completed' when
+    the question is about final results.
+  - >
+    Phantom / exhibition person ids from NBA preseason games abroad
+    can leak into per-game player stats and inflate player-season
+    counts downstream; see AGENTS.md "Ingestion" and meta_known_gap
+    `bbr_duplicate_identity_phantom_ids`.
+  - >
+    `season_type` is the canonical filter (Regular Season / Playoffs /
+    Preseason / Cup / All-Star). The `game_type` column overlaps it
+    but carries finer labels such as "Play-in Tournament" or the
+    rebranded "NBA Emirates Cup" -- prefer `season_type` for
+    coarse splits, `game_type` for fine ones.
+
+synonyms:
+  - games
+  - matchups
+  - schedule
+  - box scores
+
+example_questions:
+  - What was the final score of game 0022400001?
+  - When did the Lakers last play the Celtics?
+  - Average attendance at Lakers home games in 2019-20?
+  - How many overtime games were there in the 2023-24 regular season?

@@ -1,0 +1,178 @@
+# Semantic catalog model: head_to_head
+#
+# PLAN §1 Phase 2 Lane A: fully grounded against the live warehouse.
+# Base table + every referenced column confirmed via:
+#
+#   duckdb ../data/nba.duckdb -readonly -list -c \
+#     "SELECT column_name, data_type FROM information_schema.columns
+#      WHERE table_name = 'mart_head_to_head' ORDER BY ordinal_position"
+#   duckdb ../data/nba.duckdb -readonly -list -c \
+#     "SELECT target_column, source_table, source_column
+#      FROM meta_column_lineage WHERE target_table = 'mart_head_to_head'"
+#   duckdb ../data/nba.duckdb -readonly -list -c \
+#     "SELECT MIN(games_played), MAX(games_played), COUNT(*) FROM mart_head_to_head"
+#
+# Confirmed column shape (mart_head_to_head):
+#   team_id BIGINT, opponent_team_id BIGINT, season_year VARCHAR,
+#   games_played BIGINT, wins HUGEINT, losses HUGEINT,
+#   avg_pts_scored DOUBLE, avg_pts_allowed DOUBLE, avg_margin DOUBLE.
+#
+# IMPORTANT: mart_head_to_head is TEAM-vs-TEAM only. The PLAN.md NBA-domain
+# reference is nba_api playervsplayer.py (Overall / OnOffCourt /
+# ShotAreaOffCourt/OnCourt/Overall / ShotDistanceOffCourt/OnCourt/Overall
+# / PlayerInfo / VsPlayerInfo) — that is a PLAYER-vs-PLAYER endpoint and
+# is NOT materialized as a mart here. Player-vs-player matchup rows live
+# in the src_fact_player_matchups* raw layer (confirmed via
+# information_schema.tables) but have not yet been promoted into a
+# canonical mart. See caveats below.
+#
+# Confirmed range: 1946-47 through 2025-26; modern-era games_played per
+# (team, opponent, season_year) tops out around 12 (regular season +
+# possible playoff rounds).
+#
+# Additivity note: win_pct is expressed as
+#   CAST(SUM(h2h.wins) AS DOUBLE) / NULLIF(SUM(h2h.games_played), 0)
+# rather than an AVG, so it rolls up correctly across seasons. avg_margin
+# stays AVG(h2h.avg_margin) because the per-row margin IS already a
+# season-mean; weighting it by games_played would be a different metric
+# (and not requested by this model).
+#
+# Conventions:
+# - All `expr` strings are written against the `h2h.` alias declared in
+#   `base_table`.
+# - No joins: team_season / standings are concurrently being grounded in
+#   Lane A; do not depend on in-flight model files. A team-dimension
+#   join can be added once `team_season` (or a `dim_team`-backed model)
+#   is fully shipped.
+
+model: head_to_head
+
+description: >
+  Head-to-head aggregates between two franchises, sliced by season.
+  One row per (team_id, opponent_team_id, season_year). Use this model
+  for questions like "Lakers vs Celtics all-time record", "Warriors vs
+  Cavaliers in the 2015-16 finals", or "team A's average margin vs team
+  B". NOTE: this is a team-vs-team model — there is no player-vs-player
+  matchup mart in the warehouse (see caveats).
+
+grain: one row per (team_id, opponent_team_id, season_year)
+
+base_table:
+  name: mart_head_to_head
+  alias: h2h
+
+dimensions:
+  - name: team_id
+    expr: h2h.team_id
+    description: Canonical team_id of the focal team (wins / losses / pts_scored are from its perspective).
+
+  - name: opponent_team_id
+    expr: h2h.opponent_team_id
+    description: Canonical team_id of the opponent.
+
+  - name: season_year
+    expr: h2h.season_year
+    description: >
+      Season year string (e.g. "2015-16"). When aggregating an
+      "all-time series" the season_year dimension is dropped from the
+      GROUP BY and the symmetric-row rule in caveats applies.
+
+measures:
+  - name: games_played
+    expr: SUM(h2h.games_played)
+    description: Games between the two teams in this slice.
+    additivity: sum
+
+  - name: wins
+    expr: SUM(h2h.wins)
+    description: Wins for the focal team in this slice.
+    additivity: sum
+
+  - name: losses
+    expr: SUM(h2h.losses)
+    description: Losses for the focal team in this slice.
+    additivity: sum
+
+  - name: win_pct
+    expr: CAST(SUM(h2h.wins) AS DOUBLE) / NULLIF(SUM(h2h.games_played), 0)
+    description: >
+      Win percentage from the focal team's perspective. Recomputed as
+      wins / games_played so it rolls up correctly across seasons (an
+      AVG over season-level win percentages double-counts seasons with
+      more games). Non_additive because ratios do not sum.
+    additivity: non_additive
+
+  - name: avg_pts_scored
+    expr: AVG(h2h.avg_pts_scored)
+    description: >
+      Mean points scored per game by the focal team across the slice.
+      The per-row value is already a season mean; aggregating across
+      seasons treats each season equally regardless of game count —
+      weight by games_played manually if a true weighted mean is needed.
+    additivity: non_additive
+
+  - name: avg_pts_allowed
+    expr: AVG(h2h.avg_pts_allowed)
+    description: Mean points allowed per game by the focal team across the slice.
+    additivity: non_additive
+
+  - name: avg_margin
+    expr: AVG(h2h.avg_margin)
+    description: >
+      Mean point margin (scored - allowed) for the focal team across
+      the slice. Will be NEGATIVE for the symmetric (opponent, team)
+      row, so direction matters (see symmetric-row caveat).
+    additivity: non_additive
+
+joins: []
+
+caveats:
+  - >
+    TEAM-vs-TEAM ONLY. The PLAN.md NBA-domain reference
+    (nba_api.playervsplayer — Overall / OnOffCourt / ShotArea* /
+    ShotDistance* / PlayerInfo / VsPlayerInfo result sets) is a
+    PLAYER-vs-PLAYER endpoint. There is no player-vs-player matchup
+    mart in the warehouse: the raw player matchup data lives in
+    src_fact_player_matchups / src_fact_player_matchups_detail /
+    src_fact_player_matchups_shot_detail (confirmed in
+    information_schema.tables) but has not yet been promoted into a
+    canonical mart. Questions phrased as "LeBron vs Durant" or
+    "Curry vs Thompson on-court net rating" cannot be answered from
+    this model and should be flagged as out-of-scope until a
+    player-matchup mart is built.
+  - >
+    Symmetric rows are BOTH present: (team_id=A, opponent_team_id=B)
+    and (team_id=B, opponent_team_id=A) carry mirrored wins/losses and
+    sign-flipped avg_margin. For an "all-time series" between A and B
+    filter to one direction only (e.g. team_id = A AND opponent_team_id
+    = B) and sum; summing both directions would double the games.
+  - >
+    No season_type column — this mart does NOT separate regular season
+    from playoff matchups. games_played in the modern era tops out
+    around 12, consistent with regular-season + playoff rounds; for
+    playoff-specific questions, filter on the underlying games model
+    instead.
+  - >
+    No on-court / off-court split — net rating while-sharing vs
+    not-sharing the floor is not represented. The OnOffCourt / Overall
+    shot-area and shot-distance breakdowns from nba_api's
+    playervsplayer.py are also absent. Surface this disambiguation
+    when the user asks "on-court" or "off-court" matchup questions.
+  - >
+    Per-game metrics are noisy at small sample sizes. Two franchises
+    that share a conference meet 3-4 times per regular season and
+    rarely more than 7 (with a playoff series), so a single-season
+    avg_pts_scored can swing several points game-to-game. Prefer
+    multi-season or career-aggregate slices for "rate" questions.
+
+synonyms:
+  - matchup
+  - head to head
+  - series record
+  - team rivalry
+
+example_questions:
+  - Lakers vs Celtics all-time record.
+  - Warriors vs Cavaliers in the 2015-16 season.
+  - Average point margin when the Heat play the Bucks.
+  - Heat vs Bucks head-to-head since 2020-21.

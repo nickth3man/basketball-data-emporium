@@ -49,11 +49,21 @@ from dataclasses import asdict as _dc_asdict
 from pathlib import Path
 from typing import Any
 
+from pydantic_ai.messages import ModelMessagesTypeAdapter
+
 from . import otel
-from .agent import get_agent, make_deps  # noqa: F401 — re-exported by tests via pipeline
-from .composer import compose, compose_not_answerable
+from .agent import (  # noqa: F401 — re-exported by tests via pipeline
+    AnswerMode,
+    Clarification,
+    ResultContract,
+    get_agent,
+    keep_last_messages_with_tools,
+    make_deps,
+)
+from .clarify import ClarificationState, build_clarification_context_prefix
+from .composer import compose, compose_governed, compose_not_answerable
 from .config import get_settings
-from .db import QueryResult, get_db
+from .db import DryRunError, QueryResult, get_db
 from .events import (
     AnswerDelta,
     AnswerFinished,
@@ -69,7 +79,9 @@ from .events import (
     TableReady,
     TurnStarted,
 )
+from .repair import repair_sql
 from .sessions import SessionNotFound, get_store
+from .sqlgate import validate_governed_sql
 from .templates import TemplateNotFound, get_template
 from .validation import validate_template_sql
 
@@ -133,7 +145,31 @@ async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
         try:
             agent = get_agent()
             deps = await make_deps()
-            result = await agent.run(message, deps=deps)
+            # --- Stage 3.5: load + trim prior ModelMessage history -------
+            # Best-effort: a missing file is normal (fresh session); a
+            # corrupt file or schema-drift validation failure must not
+            # break the turn — we fall back to an empty history.
+            history = _load_model_history(store, session_id)
+            # --- Stage 3.6: enrich prompt if a clarification is pending -
+            # Complements the model-history snapshot. The pending state
+            # is independent of the snapshot — even if the snapshot is
+            # absent / corrupt / trimmed, a pending clarification still
+            # reaches the agent via this enriched prompt. The raw user
+            # message still flows to the visible-JSONL store unchanged
+            # (so the user's literal reply is what the UI shows).
+            pending = store.get_pending_clarification(session_id)
+            user_message_text = message
+            if pending is not None:
+                user_message_text = build_clarification_context_prefix(pending, message)
+            # Pass `message_history` ONLY when there is real history to
+            # forward — an empty list is semantically equivalent to
+            # omitting the kwarg (Pydantic AI treats both as "no prior
+            # context"), and conditional kwargs let test fakes with
+            # narrower signatures continue to work.
+            run_kwargs: dict[str, Any] = {"deps": deps}
+            if history:
+                run_kwargs["message_history"] = history
+            result = await agent.run(user_message_text, **run_kwargs)
             plan = result.output
             usage_obj = result.usage  # RunUsage dataclass
             if agent_span is not None:
@@ -145,6 +181,39 @@ async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
             yield ChatError(code=_ERR_AGENT_FAILED, message=f"agent failed: {type(exc).__name__}")
             _write_model_log(settings, session_id, turn_id, template_id=None, usage=None, error=exc)
             return
+
+    # --- Stage 3.5: persist the post-call history snapshot --------------
+    # Best-effort: a write failure must not break the turn.
+    _safe_append_model_history(store, session_id, result)
+
+    # --- Stage 3.6: persist / clear the pending-clarification state ------
+    # Single block, runs for EVERY plan outcome (clarify / not-answerable
+    # / execute_sql / template). The legacy template branch is therefore
+    # auto-cleared too without any invasive branch-local wiring — the
+    # spec's "byte-for-byte unchanged legacy branch" is preserved by
+    # keeping all state-machine side-effects in this one block above
+    # the branching cascade.
+    if plan.answer_mode == AnswerMode.CLARIFY and plan.clarification is not None:
+        clar = plan.clarification
+        if isinstance(clar, Clarification):
+            # Normalize the empty options list to ``None`` so the
+            # enrichment prefix omits the options clause for free-form
+            # clarifications.
+            options_list: list[str] | None = list(clar.options) if clar.options else None
+            state = ClarificationState(
+                original_question=message,
+                clarification_question=clar.question,
+                options=options_list,
+            )
+            try:
+                store.set_pending_clarification(session_id, state)
+            except Exception:  # noqa: BLE001
+                log.exception("set_pending_clarification failed; sid=%s", session_id)
+    else:
+        try:
+            store.clear_pending_clarification(session_id)
+        except Exception:  # noqa: BLE001
+            log.exception("clear_pending_clarification failed; sid=%s", session_id)
 
     # --- branch 1: clarification ---------------------------------------
     if plan.clarification is not None:
@@ -183,7 +252,208 @@ async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
         )
         return
 
-    # --- branch 3: full template path ----------------------------------
+    # --- branch 3: governed SQL (EXECUTE_SQL) --------------------------
+    if plan.answer_mode == AnswerMode.EXECUTE_SQL and plan.sql:
+        catalog = deps.catalog
+        if catalog is None:
+            note = "The semantic catalog is not loaded, so I can't run governed queries yet."
+            composed = compose_not_answerable(note)
+            async for ev in _stream_composed_answer(
+                composed=composed,
+                sql=None,
+                result=None,
+                template_title="(governed)",
+            ):
+                yield ev
+            _safe_append_assistant(store, session_id, composed.answer)
+            _write_model_log(
+                settings,
+                session_id,
+                turn_id,
+                template_id=None,
+                usage=usage_obj,
+                error=None,
+            )
+            return
+
+        report = validate_governed_sql(plan.sql, catalog)
+        if not report.valid:
+            errors_note = "; ".join(report.errors) or "SQL validation failed."
+            composed = compose_not_answerable(errors_note, attempted_sql=plan.sql)
+            async for ev in _stream_composed_answer(
+                composed=composed,
+                sql=plan.sql,
+                result=None,
+                template_title="(governed)",
+            ):
+                yield ev
+            _safe_append_assistant(store, session_id, composed.answer)
+            _write_model_log(
+                settings,
+                session_id,
+                turn_id,
+                template_id=None,
+                usage=usage_obj,
+                error=None,
+            )
+            return
+
+        # --- Stage 3.4: dry-run + single-shot repair ---------------------
+        # The catalog gate (above) only checks that the SQL is structurally
+        # legal and references allowlisted tables. A second class of bugs --
+        # stale column references after a warehouse rebuild, join keys that
+        # don't actually exist in the data, fabricated identifiers that
+        # slipped through the sqlglot optimizer's best-effort column
+        # extraction -- only surfaces when DuckDB tries to bind the query.
+        # We catch that with `EXPLAIN` (a planner walk that doesn't read
+        # rows) and give the agent one bounded re-prompt to fix it. This
+        # is the MAC-SQL Refiner pattern under MAX_ROUND=1.
+        db = get_db()
+        try:
+            await db.dry_run(plan.sql)
+        except DryRunError as exc:
+            log.info(
+                "pipeline: dry-run failed; attempting repair sid=%s err=%s",
+                session_id,
+                exc.original,
+            )
+            repaired_plan = await repair_sql(
+                agent,
+                deps,
+                question=message,
+                broken_sql=plan.sql,
+                error=str(exc.original),
+            )
+            if repaired_plan is None or not repaired_plan.sql:
+                # Repair declined (clarify / not_answerable / empty SQL) ->
+                # not-answerable, surface the original dry-run error.
+                composed = compose_not_answerable(
+                    f"I couldn't fix the query: {exc.original}",
+                    attempted_sql=plan.sql,
+                )
+                async for ev in _stream_composed_answer(
+                    composed=composed,
+                    sql=plan.sql,
+                    result=None,
+                    template_title="(governed)",
+                ):
+                    yield ev
+                _safe_append_assistant(store, session_id, composed.answer)
+                _write_model_log(
+                    settings,
+                    session_id,
+                    turn_id,
+                    template_id=None,
+                    usage=usage_obj,
+                    error=None,
+                )
+                return
+            # Re-validate the repaired SQL against the catalog (it must
+            # still be in the allowlist + free of fan-traps etc.).
+            repaired_report = validate_governed_sql(repaired_plan.sql, catalog)
+            if not repaired_report.valid:
+                repaired_errors = "; ".join(repaired_report.errors) or (
+                    "repaired SQL failed validation"
+                )
+                composed = compose_not_answerable(
+                    f"I couldn't fix the query: {repaired_errors}",
+                    attempted_sql=plan.sql,
+                )
+                async for ev in _stream_composed_answer(
+                    composed=composed,
+                    sql=plan.sql,
+                    result=None,
+                    template_title="(governed)",
+                ):
+                    yield ev
+                _safe_append_assistant(store, session_id, composed.answer)
+                _write_model_log(
+                    settings,
+                    session_id,
+                    turn_id,
+                    template_id=None,
+                    usage=usage_obj,
+                    error=None,
+                )
+                return
+            # Adopt the repaired SQL: update plan + report so the rest of
+            # this branch (sentinel, execute, compose) operates on the
+            # fixed query.
+            plan = repaired_plan
+            report = repaired_report
+            # Narrow `plan.sql` for the type checker: we already proved
+            # `repaired_plan.sql` is truthy above.
+            assert plan.sql is not None, "repair_sql returned a plan with no SQL"
+
+        model_sentinel = f"semantic:{next(iter(report.tables_referenced), 'unknown')}"
+
+        yield IntentClassified(template_id=model_sentinel, confidence=1.0)
+        query_id = secrets.token_urlsafe(8)
+        yield QueryStarted(query_id=query_id, template_id=model_sentinel, sql=plan.sql)
+
+        row_limit = plan.result_contract.row_limit if plan.result_contract else None
+        try:
+            query_result: QueryResult = await db.execute(plan.sql, limit=row_limit)
+        except Exception as exc:  # noqa: BLE001
+            log.exception("pipeline: governed db.execute failed sid=%s err=%s", session_id, exc)
+            yield ChatError(
+                code=_ERR_DB_FAILED,
+                message=f"db execute failed: {type(exc).__name__}",
+            )
+            _write_model_log(
+                settings,
+                session_id,
+                turn_id,
+                template_id=model_sentinel,
+                usage=usage_obj,
+                error=exc,
+            )
+            return
+
+        yield QueryFinished(
+            query_id=query_id,
+            duration_ms=query_result.duration_ms,
+            row_count=query_result.row_count,
+            columns=list(query_result.columns),
+            truncated=query_result.truncated,
+        )
+
+        composed = compose_governed(
+            plan.result_contract or ResultContract(grain="results", answer_style="prose"),
+            query_result,
+            plan.sql,
+            model_name=model_sentinel,
+        )
+        yield Reasoning(
+            summary=composed.reasoning_summary or f"executed {model_sentinel}",
+            execution_plan=plan.sql[:200],
+        )
+        for cite in composed.citations:
+            yield Citation(
+                table_name=cite.table_name,
+                metric_key=cite.metric_key,
+                gap_key=cite.gap_key,
+            )
+        async for ev in _stream_composed_answer(
+            composed=composed,
+            sql=plan.sql,
+            result=query_result,
+            template_title=model_sentinel,
+        ):
+            yield ev
+
+        _safe_append_assistant(store, session_id, composed.answer)
+        _write_model_log(
+            settings,
+            session_id,
+            turn_id,
+            template_id=model_sentinel,
+            usage=usage_obj,
+            error=None,
+        )
+        return
+
+    # --- branch 4: full template path ----------------------------------
     template_id = plan.template_id
     yield IntentClassified(template_id=template_id, confidence=1.0)
 
@@ -484,6 +754,57 @@ def _safe_append_assistant(store, session_id: str, content: str) -> None:
         log.exception("session store missing for sid=%s (assistant msg)", session_id)
     except Exception:  # noqa: BLE001
         log.exception("session store failed (assistant msg); sid=%s", session_id)
+
+
+def _load_model_history(store, session_id: str) -> list:
+    """Load the prior ModelMessage history for `session_id`, validated + trimmed.
+
+    Returns an empty list when the snapshot is absent (fresh session) or
+    when any step fails. The pipeline/route callers always treat an
+    empty list as "no prior context" — a corrupted history file should
+    never crash a turn.
+
+    Three failure paths collapse to ``[]``:
+
+    1. ``store.load_model_history`` raises (IO error, corrupt JSON).
+    2. ``ModelMessagesTypeAdapter.validate_python`` rejects the parsed
+       list (schema drift between pydantic-ai versions).
+    3. ``keep_last_messages_with_tools`` raises (defensive — currently
+       cannot, but mirrors the surrounding robustness pattern).
+    """
+    try:
+        raw = store.load_model_history(session_id)
+    except Exception:  # noqa: BLE001
+        log.warning("model history load failed; degrading to empty sid=%s", session_id)
+        return []
+    if not raw:
+        return []
+    try:
+        messages = ModelMessagesTypeAdapter.validate_python(raw)
+        return keep_last_messages_with_tools(list(messages), n=20)
+    except Exception:  # noqa: BLE001
+        log.warning("model history validation/trim failed; degrading to empty sid=%s", session_id)
+        return []
+
+
+def _safe_append_model_history(store, session_id: str, result) -> None:
+    """Persist the post-call `result.all_messages_json()` snapshot.
+
+    Best-effort: a failed write must not break the turn. Mirrors the
+    robustness pattern of `_safe_append_user` / `_safe_append_assistant`:
+    log the failure, return ``None``, let the turn continue.
+    """
+    try:
+        payload = result.all_messages_json()
+    except Exception:  # noqa: BLE001
+        log.exception("model history serialization failed sid=%s", session_id)
+        return
+    try:
+        store.append_model_history(session_id, payload)
+    except SessionNotFound:
+        log.exception("session store missing for sid=%s (model history)", session_id)
+    except Exception:  # noqa: BLE001
+        log.exception("model history persist failed sid=%s", session_id)
 
 
 # --- helpers: log writers -----------------------------------------------
