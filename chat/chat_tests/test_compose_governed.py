@@ -230,3 +230,82 @@ def test_compose_governed_dispatch_matrix(
     assert composed.not_answerable is False
     assert composed.answer
     assert expect_substr in composed.answer
+
+
+# --- question_interpretation surfacing (clarify-after-execute) -----------
+
+
+def test_compose_governed_interpretation_prepends_preamble() -> None:
+    """A non-empty question_interpretation leads the answer so the user
+    sees how the agent read a subjective term and can redirect next turn."""
+    contract = ResultContract(
+        grain="players similar to Tracy McGrady",
+        columns=["full_name", "avg_pts"],
+        answer_style="ranked_list",
+    )
+    rows = [{"full_name": "Kobe Bryant", "season_year": "2005-06", "avg_pts": 35.4}]
+    result = _result(rows)
+
+    interpretation = (
+        "Similar = within +/-15% of McGrady's career averages in PPG, RPG, and APG "
+        "(minimum 5 seasons)."
+    )
+    composed = compose_governed(
+        contract,
+        result,
+        _SAMPLE_SQL,
+        model_name="player_season",
+        question_interpretation=interpretation,
+    )
+
+    # The preamble leads the answer and names the concrete criteria.
+    assert composed.answer.startswith("I read your question as: ")
+    assert interpretation in composed.answer
+    # The data body still follows the preamble (ranked-list format).
+    assert "1 result" in composed.answer or "1 results" in composed.answer
+    assert "Kobe Bryant" in composed.answer
+
+
+def test_compose_governed_no_interpretation_has_no_preamble() -> None:
+    """Default (empty) interpretation adds no preamble -- unchanged behavior."""
+    contract = ResultContract(grain="top scorers", answer_style="prose")
+    rows = [{"full_name": "Stephen Curry"}]
+    result = _result(rows)
+
+    composed = compose_governed(contract, result, _SAMPLE_SQL)
+
+    assert "I read your question as:" not in composed.answer
+    # The answer is just the formatted body (regression-safe).
+    assert composed.answer.startswith("top scorers") or "top scorers" in composed.answer
+
+
+def test_compose_governed_interpretation_in_empty_rows_path() -> None:
+    """The interpretation surfaces even when the query returns zero rows --
+    the user needs to see the agent's reading to know whether to redirect
+    or whether the criteria simply matched nobody."""
+    contract = ResultContract(grain="similar players", answer_style="prose")
+    result = _result([], columns=["full_name"])
+
+    composed = compose_governed(
+        contract,
+        result,
+        _SAMPLE_SQL,
+        question_interpretation="Similar = identical height and position.",
+    )
+
+    assert "I read your question as:" in composed.answer
+    assert "identical height and position" in composed.answer
+    assert "No data returned." in composed.answer
+
+
+def test_compose_governed_whitespace_interpretation_treated_as_empty() -> None:
+    """Whitespace-only interpretation is treated as absent (no preamble)."""
+    contract = ResultContract(grain="results", answer_style="prose")
+    rows = [{"x": 1}]
+    result = _result(rows)
+
+    composed = compose_governed(
+        contract, result, _SAMPLE_SQL, question_interpretation="   \n  "
+    )
+
+    assert "I read your question as:" not in composed.answer

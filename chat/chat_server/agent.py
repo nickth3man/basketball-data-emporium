@@ -282,6 +282,20 @@ Rules for every governed SQL answer:
    why and what evidence you checked.
 8. The warehouse is the only source of truth. Never fabricate numbers; every
    value in your answer must come from the executed SQL's result rows.
+9. ALWAYS fill question_interpretation with a concise plain-English statement of
+   how you read the user's question — especially when it relies on a subjective
+   or ambiguous term (e.g. "similar", "comparable", "like", "clutch", "elite").
+   State the concrete criteria you chose (which stats, which thresholds, which
+   time window). The user sees this before the data and can redirect on the
+   next turn if your reading doesn't match their intent. Treat question_interpretation
+   as a transparency contract, not boilerplate — a vague restatement of the
+   question is useless; name the specific yardsticks you applied.
+10. For SOFT ambiguity (a subjective term with a reasonable default, like
+   "similar players"), PREFER to execute your best-guess query and surface the
+   interpretation (rule 9) over asking the user to clarify first — the user can
+   refine after seeing concrete results. Reserve answer_mode = clarify (rule 6)
+   for HARD ambiguity (which of several players, which season, an unresolved
+   pronoun) where guessing would waste a query.
 """
 
 

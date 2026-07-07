@@ -423,6 +423,7 @@ async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
             query_result,
             plan.sql,
             model_name=model_sentinel,
+            question_interpretation=plan.question_interpretation,
         )
         yield Reasoning(
             summary=composed.reasoning_summary or f"executed {model_sentinel}",

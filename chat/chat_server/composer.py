@@ -188,6 +188,7 @@ def compose_governed(
     result: QueryResult,
     sql: str,
     model_name: str | None = None,
+    question_interpretation: str = "",
 ) -> ComposedAnswer:
     """Convert a governed-SQL ``QueryResult`` into a grounded answer.
 
@@ -221,6 +222,13 @@ def compose_governed(
         ``table_name`` carries it -- the legacy cite-by-table-name
         pattern extended with a model-name fallback for governed
         answers.
+    question_interpretation
+        The agent's plain-English reading of the user's question
+        (``QueryPlan.question_interpretation``). When non-empty, it is
+        prepended to the answer as a transparent preamble so the user
+        sees how the agent interpreted subjective terms (e.g. what
+        "similar" was taken to mean) and can redirect if it doesn't
+        match their intent. Empty string adds no preamble.
 
     Returns
     -------
@@ -230,13 +238,14 @@ def compose_governed(
         source; ``reasoning_summary`` carries the rendered SQL plus a
         short run summary (``model=... style=... rows=N``).
     """
+    preamble = _interpretation_preamble(question_interpretation)
     if not result.rows:
         # Defensive path: a governed query that ran cleanly but
         # returned zero rows. Mirror the legacy "_format_empty" stable
         # text so downstream consumers can detect the empty branch by
         # substring (legacy callers key on "No rows matched").
         return ComposedAnswer(
-            answer="No data returned.",
+            answer=preamble + "No data returned.",
             citations=[Citation(table_name=model_name)] if model_name else [],
             reasoning_summary=_governed_reasoning_summary(
                 result_contract, result, sql, model_name, note="empty result"
@@ -248,10 +257,26 @@ def compose_governed(
     answer = _dispatch_governed(result_contract, shim_template, result, model_name)
     citations = [Citation(table_name=model_name)] if model_name else []
     return ComposedAnswer(
-        answer=answer,
+        answer=preamble + answer,
         citations=citations,
         reasoning_summary=_governed_reasoning_summary(result_contract, result, sql, model_name),
     )
+
+
+def _interpretation_preamble(question_interpretation: str) -> str:
+    """Render the agent's interpretation as a lead-in to the answer.
+
+    Returns ``""`` when the interpretation is empty/whitespace so the
+    common case (no subjective term, nothing to surface) adds no noise.
+    Otherwise produces a single line followed by a blank-line separator
+    so the data body reads cleanly below it. The phrasing is deliberately
+    neutral ("I read your question as...") so the user knows this is the
+    agent's reading and can correct it on the next turn.
+    """
+    text = (question_interpretation or "").strip()
+    if not text:
+        return ""
+    return f"I read your question as: {text}\n\n"
 
 
 # --- internal dispatch (governed) ---------------------------------------

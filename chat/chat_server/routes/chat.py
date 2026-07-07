@@ -408,6 +408,7 @@ async def chat(req: ChatRequest) -> ChatResponse:
             query_result,
             plan.sql,
             model_name=model_sentinel,
+            question_interpretation=plan.question_interpretation,
         )
         store.append_message(sid, "assistant", composed.answer)
         log.info(
