@@ -63,3 +63,4 @@ data/nba.duckdb.wal
 data/external/
 data/ingest/reports/
 /.plans
+/web/test/fixtures
