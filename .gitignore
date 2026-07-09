@@ -62,3 +62,4 @@ data/nba.duckdb.wal
 # External source drops (large raw files) and per-run ingest reports
 data/external/
 data/ingest/reports/
+/.plans
