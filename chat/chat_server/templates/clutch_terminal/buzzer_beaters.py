@@ -23,11 +23,29 @@ on the live warehouse for the supported ``since_season`` lower bound.
 
 Definition recap (see SQL header for the algorithm)
 ---------------------------------------------------
-1. Shot is a made field goal (Pascal-case + lowercase both supported).
-2. Shot is in the last ``$clock_window`` seconds of Q4 or OT (clock is
-   parsed as ISO 8601 ``PT{MM}M{SS}.{HH}S``).
-3. Shot is the LAST made field goal of the entire game.
-4. The team that shot won the game (``pbp.team_id = dim_game.winner_team_id``).
+Aligned with Basketball-Reference's canonical rule ("successful shots
+taken with the shooter's team tied or trailing which left no time on the
+clock"; BBR's list explicitly counts free throws). The buzzer-beater is
+the made scoring play (field goal OR free throw) that produced the game's
+FINAL lead change:
+
+1. Play is a made FG or made FT (``shot_result='Made'``, ``shot_value``
+   1/2/3), in the last ``$clock_window`` seconds of Q4 or OT.
+2. Immediately before the play the scoring team was tied or trailing
+   (``margin_before <= 0``); immediately after it the team leads
+   (``margin_after > 0``) -- i.e. the play flipped the lead.
+3. It is that game's LAST such lead flip by the eventual winner
+   (``rn_last_flip = 1``), so it is the play that put the winner ahead
+   for good.
+4. The team that scored won the game (``team_id = winner_team_id``).
+
+This supersedes an earlier FG-only definition (last made FG by the
+winner) that was both blind to free throws (so games won at the FT line
+at the buzzer -- e.g. Jimmy Butler, Heat @ Bucks 2020-09-02 Bubble -- were
+missed) and had no tied/trailing condition (so insurance FGs scored while
+already leading qualified). Kobe Bryant's verified count drops from 17 to
+14 under this definition; the 3 removed were last-3s FGs with the Lakers
+already up 3-7.
 """
 
 from __future__ import annotations

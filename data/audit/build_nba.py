@@ -1527,7 +1527,28 @@ class WarehouseBuilder:
         self.execute(
             f"""
             CREATE OR REPLACE TABLE fact_pbp_event AS
-            SELECT * EXCLUDE (_ingest_run_id, _source_system, _source_table, _source_record_hash, _normalized_game_id)
+            SELECT * EXCLUDE (_ingest_run_id, _source_system, _source_table, _source_record_hash, _normalized_game_id,
+                              shot_result, shot_value) REPLACE (
+              CASE
+                WHEN lower(action_type) = 'freethrow' OR action_type ILIKE '%free throw%' THEN
+                  CASE WHEN description ILIKE 'MISS %' THEN 'Missed' ELSE 'Made' END
+                ELSE shot_result
+              END AS shot_result,
+              CASE
+                WHEN lower(action_type) = 'freethrow' OR action_type ILIKE '%free throw%' THEN
+                  CASE WHEN description ILIKE 'MISS %' THEN 0 ELSE 1 END
+                WHEN is_field_goal AND shot_result = 'Made' AND (shot_value IS NULL OR shot_value = 0) THEN
+                  CASE
+                    WHEN action_type ILIKE '%3pt%' OR action_type ILIKE '%3-point%' OR action_type ILIKE '%3 point%'
+                      OR coalesce(sub_type, '') ILIKE '%3pt%'
+                      OR coalesce(sub_type, '') ILIKE '%3-point%'
+                      OR coalesce(sub_type, '') ILIKE '%3 point%'
+                    THEN 3
+                    ELSE 2
+                  END
+                ELSE shot_value
+              END AS shot_value
+            )
             FROM {self.src('fact_pbp_events')}
             """
         )
@@ -2197,6 +2218,29 @@ class WarehouseBuilder:
         pbp_count = self.scalar("SELECT count(*) FROM fact_pbp_event")
         src_pbp_count = self.scalar(f"SELECT count(*) FROM {self.src('fact_pbp_events')}")
         self.record_check("pbp", "pbp_event_row_parity", int(pbp_count) == int(src_pbp_count), "fail", pbp_count, src_pbp_count)
+
+        # Free-throw rows in fact_pbp_events arrive in two flavors (uppercase "Free Throw" with NULL
+        # shot_result, lowercase "freethrow" with shot_result set but shot_value=0); the build
+        # normalizes both to Made/Missed + 1/0 via description. These guards fail the build if the
+        # normalization regresses (see chat/.../largest_scoring_run.sql which filters on shot_result).
+        ft_unnormalized = self.scalar(
+            """
+            SELECT count(*) FROM fact_pbp_event
+            WHERE (lower(action_type) = 'freethrow' OR action_type ILIKE '%free throw%')
+              AND (shot_result IS NULL OR shot_result = '')
+            """
+        )
+        self.record_check("pbp", "free_throw_shot_result_normalized", int(ft_unnormalized) == 0, "fail", ft_unnormalized, 0)
+
+        ft_made_value_off = self.scalar(
+            """
+            SELECT count(*) FROM fact_pbp_event
+            WHERE (lower(action_type) = 'freethrow' OR action_type ILIKE '%free throw%')
+              AND shot_result = 'Made'
+              AND shot_value <> 1
+            """
+        )
+        self.record_check("pbp", "free_throw_made_shot_value_is_one", int(ft_made_value_off) == 0, "fail", ft_made_value_off, 0)
 
         shot_orphans = self.scalar("SELECT count(*) FROM fact_shot s LEFT JOIN dim_game g USING (game_id) WHERE g.game_id IS NULL")
         self.record_check("shots", "shot_game_join_orphans", int(shot_orphans) == 0, "fail", shot_orphans, 0)

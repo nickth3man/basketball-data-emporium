@@ -6,9 +6,11 @@ rating. The "franchise final season" is derived from
 ``team_id``), with an opt-out via the ``final_season`` parameter for
 explicit callers.
 
-Team offensive rating is computed as the average of per-player-game
-``off_rating`` from ``fact_player_game_advanced`` over all Regular-season
-player-games for the team+season.
+Team offensive rating is sourced directly from
+``src_fact_bref_team_season_summary.o_rtg`` — the Basketball-Reference
+team-season summary row that mirrors the per-team BBR page (e.g. the
+2007-08 Seattle SuperSonics BBR team page shows ORtg = 100.5). This is
+the canonical team-level ORtg, not a player-game reconstruction.
 """
 
 from __future__ import annotations
@@ -43,8 +45,8 @@ DESCRIPTION = (
 )
 ALLOWED_TABLES = {
     "fact_coach_season",
-    "fact_player_game_advanced",
     "dim_team_era",
+    "src_fact_bref_team_season_summary",
 }
 RESULT_SCHEMA = {
     "coach_name": str,

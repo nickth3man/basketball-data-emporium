@@ -9,18 +9,18 @@
   },
   "expected": {
     "expect_min_rows": 1,
-    "expect_contains_player": "Kareem Abdul-Jabbar"
+    "expect_contains_player": "Patrick Ewing"
   },
   "expected_rows": [
     {
-      "player_id": 76003,
-      "full_name": "Kareem Abdul-Jabbar",
-      "streak_games": 5,
-      "streak_start": "1974-02-27",
-      "streak_end": "1974-03-03"
+      "player_id": 121,
+      "full_name": "Patrick Ewing",
+      "streak_games": 145,
+      "streak_start": "1988-11-05",
+      "streak_end": "1990-03-23"
     }
   ],
   "status": "stable",
   "confidence": "verified",
-  "notes": "PLAN \u00a712 row 14. Verified the warehouse's max streak with BLK>=1 is 5 games (Kareem 1974-02-27 to 1974-03-03). Limitation: fact_player_game_box only carries rows for games the player appeared in, so streaks span only consecutive games the player actually played (not calendar days); missed games are absent rows. Historical backfill may be sparse for blocks in early eras."
+  "notes": "PLAN \u00a712 row 14. Verified via two-step gaps-and-islands: game_seq numbers every fact_player_game_box row for the player (PLAYED games only -- DNP rows are absent and do not advance the sequence), rn numbers BLK>=1 rows within that sequence, and game_seq - rn is constant within a streak. Patrick Ewing's 145-game regular-season BLK streak (1988-11-05 to 1990-03-23) and Mark Eaton's 94-game streak now correctly appear, matching the widely-cited basketball-reference block-streak leaderboard. Prior calendar-day grouping (single ROW_NUMBER OVER BLK>=1 ORDER BY game_date, then game_date - rn) capped at 5 games (Kareem, 1974-02-27 to 1974-03-03) -- a known bug caused by game_date jumping 2-4 days across normal weeks, which always broke the grp_key. The two-step sequence fixes this. fact_player_game_box only contains rows for games the player appeared in; missed games are absent rows and intentionally do not break the streak (correct semantics: a player cannot break a block streak by sitting out)."
 }

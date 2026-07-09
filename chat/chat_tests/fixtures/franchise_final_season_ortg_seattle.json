@@ -15,11 +15,11 @@
     {
       "coach_name": "P.J. Carlesimo",
       "season_year": "2007-08",
-      "team_off_rating": 96.65,
+      "team_off_rating": 100.5,
       "team_abbreviation": "SEA"
     }
   ],
   "status": "stable",
   "confidence": "verified",
-  "notes": "PLAN \u00a712 row 2. Verified via fact_coach_season (P.J. Carlesimo, 20-62) + fact_player_game_advanced (AVG off_rating = 96.65 over Regular player-games). Team abbreviation 'SEA' from dim_team_era (the Seattle/Seattle SuperSonics era valid 1996-2008)."
+  "notes": "PLAN \u00a712 row 2. team_off_rating is now sourced directly from src_fact_bref_team_season_summary.o_rtg (Basketball-Reference team-season summary, exact mirror of the per-team BBR page). The 2007-08 Seattle SuperSonics BBR team page shows ORtg = 100.5, which matches our src_fact_bref_team_season_summary row for team_id=1610612760, season_end_year=2008, playoffs=false. Prior implementation averaged fact_player_game_advanced.off_rating across Regular player-games and yielded 96.65 -- a player-game reconstruction that disagreed with the BBR team page (the canonical source). Coach: P.J. Carlesimo via fact_coach_season (20-62). Team abbreviation 'SEA' from dim_team_era (the Seattle/Seattle SuperSonics era valid 1996-2008)."
 }

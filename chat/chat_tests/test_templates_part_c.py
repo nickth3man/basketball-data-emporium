@@ -103,3 +103,33 @@ async def test_part_c_template_loop(template_id: str) -> None:
             assert any(expected in (n or "") for n in names), (
                 f"{template_id} test[{idx}] expected player {expected!r} in {names}"
             )
+
+
+@skip_no_db
+@pytest.mark.asyncio
+async def test_buzzer_beaters_include_free_throws() -> None:
+    """Option B regression: a game WON at the FT line at the buzzer must surface.
+
+    Jimmy Butler (player_id 202710), Heat @ Bucks 2020-09-02 (Bubble):
+    tied 114-114, fouled at 0:00, made both FTs after the horn to win
+    116-114. The prior FG-only logic was structurally blind to this; the
+    tied/trailing -> leading rule (which counts made FGs *and* FTs) must
+    surface it, and at least one returned buzzer-beater must be a free
+    throw (``score_after_margin == 1``).
+    """
+    tmpl = get_template("clutch_terminal.buzzer_beaters")
+    db = get_db()
+    params = tmpl.params_model(
+        player_id=202710, since_season="2010-11", clock_window=3.0
+    )
+    result = await db.execute(tmpl.sql, params.model_dump())
+
+    game_ids = {row["game_id"] for row in result.rows}
+    assert "0041900202" in game_ids, (
+        "Butler's 2020-09-02 Heat@Bucks buzzer-beating FT (game 0041900202) "
+        "must surface under the tied/trailing->leading definition"
+    )
+    margins = {row.get("score_after_margin") for row in result.rows}
+    assert 1 in margins, (
+        f"expected at least one FT buzzer-beater (score_after_margin==1), got {margins}"
+    )

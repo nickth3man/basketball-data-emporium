@@ -1,90 +1,137 @@
 -- Template: clutch_terminal.buzzer_beaters
--- PLAN §12 row 18: game-winning buzzer-beaters for a single player +
--- opponents.  Spike-gated (PLAN §15) — shipped REAL because Phase 6
--- verification showed the late-clock PBP data is reliable enough from
--- 1996-97 onward (17+ verified candidates for Kobe Bryant id=977;
--- see chat_tests/test_templates_part_c.py).
+-- Params:
+--   player_id     (int):            dim_player.player_id of the target player.
+--   since_season  (str, '1996-97'): inclusive lower bound on dim_game.season_year.
+--   clock_window  (float, 3.0):     max remaining-clock seconds for the play to qualify.
 --
--- Buzzer-beater definition
--- ------------------------
--- A "game-winning buzzer-beater" is a made field goal in the last
--- $clock_window seconds (default 3.0) of Q4 or OT that:
---   1. is the LAST made field goal of the game (no other
---      ``shot_result='Made'`` row has a strictly higher
---      ``action_number`` in the same game);
---   2. was made by the team that ended up winning the game
---      (``pbp.team_id = g.winner_team_id``).
+-- Definition (Option B — aligned with Basketball-Reference's canonical rule)
+-- ---------------------------------------------------------------------
+-- A "game-winning buzzer-beater" is the scoring play (field goal OR free
+-- throw) that produced the game's FINAL lead change: the made shot after
+-- which the eventual winner moved from tied/trailing into the lead, with
+-- no later play flipping it back. BBR's methodology
+-- (sports-reference.com/blog/2020/02/buzzer-beaters-explainer) defines
+-- these as "successful shots taken with the shooter's team tied or
+-- trailing which left no time on the clock" and explicitly counts free
+-- throws ("772 such shots ... including free throws with time expired").
+-- The r/nba "Call Game Award" uses the same "first points that eclipsed
+-- the losing team's total" framing and separately counts Gamewinning FTs.
 --
--- Clock filtering
--- ---------------
--- The PBP ``clock`` column is an ISO 8601 duration
--- (``PT{MM}M{SS}.{HUNDREDTHS}S``).  We parse it with ``SUBSTR``:
---   minutes   = CAST(SUBSTR(clock, 3, 2) AS INT)
---   seconds   = CAST(SUBSTR(clock, 6, 2) AS INT)
---   hundredths= CAST(SUBSTR(clock, 9, 2) AS INT)
--- Total remaining seconds = minutes*60 + seconds + hundredths/100.  We
--- require this to be <= $clock_window.
+-- Why this replaced the prior FG-only logic
+-- -----------------------------------------
+-- The old query filtered ``is_field_goal = TRUE AND shot_result = 'Made'``
+-- and took the last made FG of the game by the winner inside the clock
+-- window. That had two correctness flaws, both fixed by the tied/trailing
+-- -> leading rule below:
+--   1. It was structurally blind to free throws, so any game WON at the
+--      FT line in the final buzzer sequence was missed (e.g. Jimmy
+--      Butler, Heat @ Bucks 2020-09-02 Bubble: tied 114-114, fouled at
+--      0:00, made both FTs after the horn to win 116-114).
+--   2. It had no tied/trailing condition, so an "insurance" FG scored by
+--      the winner in the last few seconds while ALREADY leading also
+--      qualified (e.g. three of Kobe's prior 17 "buzzer-beaters" were
+--      last-3s FGs with the Lakers already up 3-7 -- now correctly
+--      excluded; Kobe's true count under this definition is 14).
 --
--- Opponent attribution
--- --------------------
--- If the player is on the winning team, the opponent is the other team
--- in the game.  ``score_after_margin`` is the shot's ``shot_value`` —
--- for a buzzer-beater it is the value of the made FG (2 or 3 points).
+-- Algorithm
+-- ----------
+-- 1. ``scored`` -- every made scoring event (FG or FT; ``shot_value`` is
+--    1 for a FT, 2/3 for a FG), carrying the post-event score snapshot
+--    and the parsed remaining clock.
+-- 2. ``scored_margin`` -- ``margin_after`` from the scoring team's
+--    perspective (home or away), and ``margin_before = margin_after -
+--    shot_value`` (the per-event score snapshot advances by exactly the
+--    shot's value, so subtracting it reconstructs the score immediately
+--    before the event).
+-- 3. ``lead_flips`` -- events where the team was tied or trailing before
+--    (``margin_before <= 0``) and leading after (``margin_after > 0``),
+--    restricted to the eventual winner. ``ROW_NUMBER() ... ORDER BY
+--    action_number DESC`` picks each game's LAST such flip (the winning
+--    play -- since the winner ends up ahead, no later event reverses it).
+-- 4. Keep only that last flip (rn_last_flip = 1), require period >= 4
+--    and clock <= $clock_window, apply the player/season filters.
 --
--- Performance
--- -----------
--- The CTE restricts to one player + a ``season_year`` window before
--- windowing; one season's worth of buzzer-beaters is <100 rows.
-WITH parsed AS (
+-- score_after_margin is the buzzer-beating shot's value (1 = FT, 2/3 =
+-- FG); the final winning margin is recoverable from home_score/away_score.
+WITH scored AS (
   SELECT
     pbp.game_id,
     pbp.action_number,
     pbp.period,
     pbp.clock,
     pbp.team_id,
-    pbp.shot_value,
     pbp.player_id,
+    pbp.shot_value,
+    pbp.score_home,
+    pbp.score_away,
     CAST(SUBSTR(pbp.clock, 3, 2) AS INT) * 60
-    + CAST(SUBSTR(pbp.clock, 6, 2) AS INT)
-    + CAST(SUBSTR(pbp.clock, 9, 2) AS DOUBLE) / 100.0
+      + CAST(SUBSTR(pbp.clock, 6, 2) AS INT)
+      + CAST(SUBSTR(pbp.clock, 9, 2) AS DOUBLE) / 100.0
       AS clock_seconds_remaining
   FROM fact_pbp_event AS pbp
   WHERE
-    pbp.is_field_goal = TRUE
-    AND pbp.shot_result = 'Made'
+    pbp.shot_result = 'Made'
+    AND pbp.shot_value >= 1
 ),
 
-last_fg_per_game AS (
+scored_margin AS (
   SELECT
-    game_id,
-    MAX(action_number) AS last_fg_action
-  FROM fact_pbp_event
-  WHERE is_field_goal = TRUE AND shot_result = 'Made'
-  GROUP BY game_id
+    s.game_id,
+    s.action_number,
+    s.period,
+    s.clock,
+    s.clock_seconds_remaining,
+    s.team_id,
+    s.player_id,
+    s.shot_value,
+    g.winner_team_id,
+    g.home_team_id,
+    CASE WHEN s.team_id = g.home_team_id
+         THEN s.score_home - s.score_away
+         ELSE s.score_away - s.score_home
+    END AS margin_after,
+    CASE WHEN s.team_id = g.home_team_id
+         THEN s.score_home - s.score_away
+         ELSE s.score_away - s.score_home
+    END - s.shot_value AS margin_before
+  FROM scored AS s
+  INNER JOIN dim_game AS g ON s.game_id = g.game_id
+),
+
+lead_flips AS (
+  SELECT
+    *,
+    ROW_NUMBER() OVER (
+      PARTITION BY game_id
+      ORDER BY action_number DESC
+    ) AS rn_last_flip
+  FROM scored_margin
+  WHERE
+    margin_before <= 0
+    AND margin_after > 0
+    AND team_id = winner_team_id
 )
 
 SELECT
-  p.game_id,
+  f.game_id,
   g.season_year,
   g.game_date,
-  p.period,
-  p.clock,
-  p.team_id AS scoring_team_id,
+  f.period,
+  f.clock,
+  f.team_id AS scoring_team_id,
   CASE
-    WHEN g.home_team_id = p.team_id THEN g.away_team_id
+    WHEN g.home_team_id = f.team_id THEN g.away_team_id
     ELSE g.home_team_id
   END AS opponent_team_id,
   g.home_score,
   g.away_score,
-  p.shot_value AS score_after_margin
-FROM parsed AS p
-INNER JOIN last_fg_per_game AS lf ON p.game_id = lf.game_id
-INNER JOIN dim_game AS g ON p.game_id = g.game_id
+  f.shot_value AS score_after_margin
+FROM lead_flips AS f
+INNER JOIN dim_game AS g ON f.game_id = g.game_id
 WHERE
-  p.player_id = $player_id
-  AND p.period >= 4
-  AND p.action_number = lf.last_fg_action
-  AND p.clock_seconds_remaining <= $clock_window
-  AND p.team_id = g.winner_team_id
+  f.rn_last_flip = 1
+  AND f.period >= 4
+  AND f.clock_seconds_remaining <= $clock_window
+  AND ($player_id IS NULL OR f.player_id = $player_id)
   AND g.season_year >= $since_season
 ORDER BY g.game_date

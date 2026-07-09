@@ -10,11 +10,15 @@
 --
 -- Step 2: look up the head coach for that team+season in fact_coach_season.
 --
--- Step 3: compute team off_rating as AVG(off_rating) over every Regular
--- player-game for the team+season in fact_player_game_advanced. (A true
--- possession-weighted ORtg would need SUM(pts)/SUM(poss)*100; the
--- advanced box carries the per-100-possession ORtg already, so the
--- straight average is equivalent.)
+-- Step 3: team offensive rating is read directly from
+-- src_fact_bref_team_season_summary.o_rtg -- the Basketball-Reference
+-- team-season summary row that mirrors the per-team BBR page (e.g. the
+-- 2007-08 Seattle SuperSonics page shows ORtg = 100.5). We join on
+-- team_id and on season_end_year = CAST(SUBSTR(season_year,1,4) AS INT)+1,
+-- and filter to Regular-season rows (playoffs = false). This is the
+-- canonical team-level ORtg, not a player-game reconstruction -- prior
+-- AVG(off_rating) over fact_player_game_advanced was an approximation
+-- that disagreed with the BBR team page.
 WITH final_era AS (
   SELECT
     team_id,
@@ -39,17 +43,15 @@ resolved AS (
 
 team_ortg AS (
   SELECT
-    fpa.team_id,
-    AVG(fpa.off_rating) AS team_off_rating
-  FROM fact_player_game_advanced AS fpa
+    s.team_id,
+    s.o_rtg AS team_off_rating
+  FROM src_fact_bref_team_season_summary AS s
   INNER JOIN resolved AS r
     ON
-      fpa.team_id = r.team_id
-      AND fpa.season_year = r.season_year
+      s.team_id = r.team_id
+      AND s.season_end_year = CAST(SUBSTR(r.season_year, 1, 4) AS INTEGER) + 1
   WHERE
-    fpa.season_type = 'Regular'
-    AND fpa.off_rating IS NOT NULL
-  GROUP BY fpa.team_id
+    s.playoffs = false
 )
 
 SELECT

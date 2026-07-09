@@ -12,18 +12,6 @@
   },
   "expected_rows": [
     {
-      "game_id": "0029700135",
-      "season_year": "1997-98",
-      "game_date": "1997-11-18",
-      "period": 4,
-      "clock": "PT00M00.60S",
-      "scoring_team_id": 1610612747,
-      "opponent_team_id": 1610612762,
-      "home_score": 92,
-      "away_score": 97,
-      "score_after_margin": 2
-    },
-    {
       "game_id": "0049900056",
       "season_year": "1999-00",
       "game_date": "2000-05-10",
@@ -45,18 +33,6 @@
       "opponent_team_id": 1610612756,
       "home_score": 85,
       "away_score": 83,
-      "score_after_margin": 2
-    },
-    {
-      "game_id": "0020100259",
-      "season_year": "2001-02",
-      "game_date": "2001-12-05",
-      "period": 4,
-      "clock": "PT00M00.10S",
-      "scoring_team_id": 1610612747,
-      "opponent_team_id": 1610612742,
-      "home_score": 98,
-      "away_score": 94,
       "score_after_margin": 2
     },
     {
@@ -144,18 +120,6 @@
       "score_after_margin": 2
     },
     {
-      "game_id": "0020800405",
-      "season_year": "2008-09",
-      "game_date": "2008-12-22",
-      "period": 4,
-      "clock": "PT00M01.00S",
-      "scoring_team_id": 1610612747,
-      "opponent_team_id": 1610612763,
-      "home_score": 96,
-      "away_score": 105,
-      "score_after_margin": 2
-    },
-    {
       "game_id": "0020800538",
       "season_year": "2008-09",
       "game_date": "2009-01-09",
@@ -218,5 +182,5 @@
   ],
   "status": "stable",
   "confidence": "verified",
-  "notes": "PLAN §12 row 18. Spike-gated template shipped as REAL (NOT_ANSWERABLE fallback NOT taken) — Phase 6 spike showed the late-clock PBP data is reliable from 1996-97 onward. 17 verified buzzer-beaters for Kobe (player_id=977) since his rookie season with clock_window=3.0s. team_id 1610612747 = LAL; opponent team_ids map to varying opponents (POR=1610612756, MIA=1610612748, BOS=1610612738, etc.). Includes the famous 2000-05-10 WCF Game-7 jumper vs Portland and the 2009-12-04 jumper over Dwyane Wade."
+  "notes": "PLAN §12 row 18. Spike-gated template shipped as REAL (NOT_ANSWERABLE fallback NOT taken) -- the late-clock PBP data is reliable from 1996-97 onward. Definition (Option B, aligned with Basketball-Reference): the made FG-or-FT that produced the game's final lead change (scoring team tied/trailing immediately before -> leading after), in the last clock_window seconds of Q4/OT. Kobe has 14 such plays under this definition. This corrects the prior FG-only logic, which (a) missed free-throw buzzer-beaters entirely and (b) over-counted insurance FGs scored while the winner was already leading -- 3 of the old 17 were last-3s FGs with the Lakers already up 3-7 (game_ids 0029700135, 0020100259, 0020800405) and are now correctly excluded. team_id 1610612747 = LAL; opponents map to varying franchises (POR=1610612756, MIA=1610612748, etc.). Includes the famous 2000-05-10 WCF Game-7 jumper vs Portland and the 2009-12-04 jumper over Dwyane Wade."
 }

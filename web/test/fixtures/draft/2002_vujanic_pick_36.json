@@ -17,7 +17,7 @@
     "params": ["2002"]
   },
   "match": "containsObject",
-  "status": "regression",
+  "status": "stable",
   "confidence": "verified",
   "notes": "Guards against the stale mixed-source draft_history duplicate-pick bug around forfeited picks. Regression as of the 2026-07 schema migration: fact_draft still lists Vujanic at overall_pick=35 (duplicated with Carlos Boozer, round_pick correctly 7 vs 6) rather than the corrected 36 — flagged via draft_slot_status='duplicate_source_slot' (same_overall_pick_rows=2) but not renumbered. Flip back to stable once fact_draft's build resolves duplicate_source_slot picks to sequential overall_pick numbers.",
   "skip_if_no_db": true

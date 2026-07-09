@@ -11,13 +11,6 @@
   },
   "expected_rows": [
     {
-      "game_id": "0041800402",
-      "season_year": "2018-19",
-      "scoring_team_id": 1610612744,
-      "run_points": 22,
-      "scoring_plays": 10
-    },
-    {
       "game_id": "0042100406",
       "season_year": "2021-22",
       "scoring_team_id": 1610612744,
@@ -25,28 +18,35 @@
       "scoring_plays": 8
     },
     {
-      "game_id": "0041500402",
-      "season_year": "2015-16",
+      "game_id": "0041800402",
+      "season_year": "2018-19",
       "scoring_team_id": 1610612744,
+      "run_points": 20,
+      "scoring_plays": 10
+    },
+    {
+      "game_id": "0042000403",
+      "season_year": "2020-21",
+      "scoring_team_id": 1610612749,
       "run_points": 19,
-      "scoring_plays": 8
+      "scoring_plays": 11
     },
     {
-      "game_id": "0041000402",
-      "season_year": "2010-11",
-      "scoring_team_id": 1610612742,
-      "run_points": 18,
-      "scoring_plays": 8
+      "game_id": "0042100401",
+      "season_year": "2021-22",
+      "scoring_team_id": 1610612738,
+      "run_points": 17,
+      "scoring_plays": 6
     },
     {
-      "game_id": "0041200405",
-      "season_year": "2012-13",
-      "scoring_team_id": 1610612759,
-      "run_points": 18,
-      "scoring_plays": 8
+      "game_id": "0041100405",
+      "season_year": "2011-12",
+      "scoring_team_id": 1610612748,
+      "run_points": 16,
+      "scoring_plays": 10
     }
   ],
   "status": "stable",
   "confidence": "verified",
-  "notes": "PLAN §12 row 10. Top 5 scoring runs in NBA Finals games since 2009-10. team_id 1610612744 = GSW (Golden State Warriors); 1610612742 = DAL (Dallas Mavericks); 1610612759 = SAS (San Antonio Spurs). Verified by direct query against data/nba.duckdb using the gaps-and-islands algorithm documented in pbp_aggregate/largest_scoring_run.sql. Ordering between tied run_points is by scoring_plays DESC then season_year DESC per the SQL."
+  "notes": "PLAN §12 row 10. Top 5 scoring runs in NBA Finals games since 2009-10. team_id 1610612744 = GSW (Golden State Warriors); 1610612749 = MIL (Milwaukee Bucks); 1610612738 = BOS (Boston Celtics); 1610612748 = MIA (Miami Heat). Verified by direct query against data/nba.duckdb using the gaps-and-islands algorithm in pbp_aggregate/largest_scoring_run.sql, after normalizing free-throw shot_result/shot_value in fact_pbp_event. Public-source cross-check: 2022 G6 Warriors 21-0 (ESPN/Elias, CBS Sports, NBA.com), 2019 G2 Warriors 20-0 (USA Today, NBA.com)."
 }
