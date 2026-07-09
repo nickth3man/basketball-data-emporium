@@ -5,7 +5,7 @@
 --
 -- Lists every game in the requested season_type where a player hit the
 -- threshold in each of PTS, REB, AST, and BLK. Default min_stat=10
--- matches the canonical quadruple-double definition (PLAN §12 row 17).
+-- matches the canonical quadruple-double definition.
 SELECT
   fb.player_id,
   dp.full_name,

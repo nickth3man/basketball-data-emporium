@@ -1,12 +1,12 @@
 """``shot_zones.corner_threes_split`` template metadata.
 
-PLAN §12 row 9: a player's left- vs right-corner 3-point attempts,
+A player's left- vs right-corner 3-point attempts,
 makes, and FG% for a given season.
 
 Warehouse adaptation
 --------------------
-The plan's summary in §11.1 states that ``fact_shot.shot_zone_basic``
-carries ``"Left Corner 3"`` and ``"Right Corner 3"`` values. It does not
+``fact_shot.shot_zone_basic`` was expected to carry
+``"Left Corner 3"`` and ``"Right Corner 3"`` values. It does not
 (verified at load time — only five distinct values exist: ``"Above the
 Break 3"``, ``"Restricted Area"``, ``"Mid-Range"``, ``"In The Paint
 (Non-RA)"``, ``"Backcourt"``).
@@ -63,17 +63,11 @@ EXAMPLES = [
 ]
 TESTS = [
     {
-        # Stephen Curry, 2016-17: 84 left-corner / 58 right-corner attempts.
         "params": {"player_id": 201939, "season_year": "2016-17", "season_type": "Regular"},
         "expect_min_rows": 2,
         "expect_contains_player": None,
-        # Custom assertion handled in the test runner: both labels present
-        # with attempts > 0. (expect_contains_player is a no-op here
-        # because the result rows are zones, not players.)
     },
     {
-        # Earlier season — sanity check that historical data is also
-        # represented in corner-3 form.
         "params": {"player_id": 201939, "season_year": "2014-15", "season_type": "Regular"},
         "expect_min_rows": 2,
     },

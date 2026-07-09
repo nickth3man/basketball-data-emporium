@@ -1,5 +1,5 @@
 /**
- * Tiny CSV serializer (PLAN §8.3 — ResultTable's "Copy CSV" affordance).
+ * Tiny CSV serializer (ResultTable's "Copy CSV" affordance).
  *
  * - Quotes any cell containing a comma, double-quote, CR, or LF.
  * - Escapes embedded double-quotes by doubling them (RFC 4180).

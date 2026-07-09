@@ -1,5 +1,5 @@
 -- Template: pbp_aggregate.largest_scoring_run
--- PLAN §12 row 10: largest scoring run in an NBA Finals game since 2010.
+-- Largest scoring run in an NBA Finals game since 2010.
 --
 -- Strategy (gaps-and-islands across the play-by-play event sequence):
 --   1. Restrict to NBA Finals games (dim_game.game_label = 'NBA Finals') with

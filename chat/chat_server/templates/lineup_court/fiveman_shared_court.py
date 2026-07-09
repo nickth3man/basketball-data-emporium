@@ -1,10 +1,10 @@
 """``lineup_court.fiveman_shared_court`` template metadata.
 
-PLAN §12 row 11: aggregate stats for a 5-man lineup that shared the
+Aggregate stats for a 5-man lineup that shared the
 court in a single season.
 
-Spike outcome (PLAN §15)
-------------------------
+Spike outcome
+-------------
 **Shipped as a REAL template.**  Phase 6 verification showed:
 
 * ``fact_lineup_player`` (canonical lineup-roster map) has per-game
@@ -20,7 +20,7 @@ The plan's source-backed table ``src_fact_lineup_stats`` is empty in
 the current warehouse; ``src_agg_lineup_efficiency`` is the working
 replacement and is allowlisted explicitly.  The spike fallback
 (``NOT_ANSWERABLE=True``) was NOT taken because the possession-stitch
-cost PLAN §12 row 11 flagged does not materialise — the aggregate
+cost does not materialise — the aggregate
 columns are precomputed in ``src_agg_lineup_efficiency``.
 """
 

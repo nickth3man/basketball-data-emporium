@@ -1,5 +1,5 @@
 /**
- * E2E error-path tests (PLAN §13, §15 Phase 7 exit — error UX).
+ * E2E error-path tests (error UX).
  *
  * Validates the network-loss / cancel affordances without breaking the
  * happy-path smoke. The two tests are independent (no shared state).
@@ -10,8 +10,9 @@
  *     No live agent or warehouse call is required for this test.
  *
  *  2. `Cancel restores the composer and shows the inline Cancelled. note`
- *     — sends a real turn, waits for the Cancel button (after the §13
- *     5 s threshold), clicks it, asserts the inline "Cancelled." note
+ *     — sends a real turn, waits for the Cancel button (after the 5 s
+ *     cancel-affordance threshold), clicks it, asserts the inline
+ *     "Cancelled." note
  *     appears AND the composer re-enables. This makes ONE live OpenRouter
  *     call (~$0.001); the call is cancelled before it can settle.
  *
@@ -83,7 +84,7 @@ test("Cancel restores the composer and shows the inline Cancelled. note", async 
   // is timer-driven on the client; the backend never sees a fully
   // delivered response because we abort the fetch.
   await page.route("**/api/chat/stream", async (route) => {
-    // 8 s ≫ the 5 s §13 cancel-affordance threshold, < the global
+    // 8 s ≫ the 5 s cancel-affordance threshold, < the global
     // test timeout. The handler never calls route.fulfill or
     // route.continue; the test aborts the fetch via the UI's
     // Cancel button before this promise resolves.
@@ -102,7 +103,7 @@ test("Cancel restores the composer and shows the inline Cancelled. note", async 
   // Composer MUST disable while the turn is running.
   await expect(composer).toBeDisabled({ timeout: 5_000 });
 
-  // Cancel button appears after 5 s (§13).
+  // Cancel button appears after 5 s.
   const cancel = page.getByRole("button", { name: /^cancel$/i });
   await expect(cancel).toBeVisible({ timeout: 9_000 });
   await cancel.click();

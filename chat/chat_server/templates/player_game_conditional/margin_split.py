@@ -1,6 +1,6 @@
 """``player_game_conditional.margin_split`` template metadata.
 
-PLAN §12 row 6: a player's FG% split between wins and losses decided by
+A player's FG% split between wins and losses decided by
 some absolute margin threshold (default 10 points). Uses the player's
 ``is_win`` flag (carried on every ``fact_player_game_box`` row) joined to
 ``fact_game_result.margin`` to classify each game.
@@ -24,7 +24,7 @@ class Params(BaseModel):
         ``"Regular"`` (default), ``"Playoffs"``, or ``"Cup"``.
     margin
         Absolute point threshold used to define a "blowout" win or loss.
-        Default ``10`` matches PLAN §12 row 6 ("wins by 10+ vs losses by 10+").
+        Default ``10`` matches the canonical benchmark ("wins by 10+ vs losses by 10+").
     """
 
     player_id: int = Field(ge=0, description="dim_player.player_id")

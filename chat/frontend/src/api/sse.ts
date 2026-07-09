@@ -1,5 +1,5 @@
 /**
- * SSE transport — POST + fetch/ReadableStream (PLAN §8.2).
+ * SSE transport — POST + fetch/ReadableStream.
  *
  * Why not EventSource: it is GET-only, and chat turns are POSTs with a
  * message body. Putting prompts in URLs would leak them into server

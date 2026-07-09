@@ -82,7 +82,7 @@ jobs:
         # yet exist (Phase 0), skip the step entirely.
         run: |
           if [ -d chat_tests ]; then
-            uv run pytest -q --tb=short
+            uv run pytest -q --tb=short -m "not live_llm"
           else
             echo "chat_tests/ not present yet — skipping pytest (expected for Phase 0)."
           fi

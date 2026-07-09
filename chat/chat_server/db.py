@@ -1,6 +1,6 @@
 """Async DuckDB read-only access for the chatbot.
 
-PLAN §7.2. One process-wide read-only `duckdb.DuckDBPyConnection` with a
+One process-wide read-only `duckdb.DuckDBPyConnection` with a
 small pool of cursors, guarded by a `threading.Lock`. All public methods
 are `async` and delegate the synchronous DuckDB call to
 `asyncio.to_thread`, so the FastAPI event loop never blocks on a query.
@@ -125,9 +125,7 @@ def _has_existing_limit(sql: str) -> bool:
     (a column named `limit`) are rare in our warehouse and would be a
     template author's bug to fix anyway.
     """
-    # Step 1: line comments.
     no_line_comments = "\n".join(line.split("--", 1)[0] for line in sql.splitlines())
-    # Step 2: block comments.
     text = no_line_comments
     while "/*" in text:
         a = text.find("/*")
@@ -136,11 +134,9 @@ def _has_existing_limit(sql: str) -> bool:
             text = text[:a]
             break
         text = text[:a] + " " + text[b + 2 :]
-    # Step 3 + 4: trim, strip trailing semicolons, lowercase.
     text = text.strip().rstrip(";").strip().lower()
     if not text:
         return False
-    # Step 5: token scan.
     return "limit" in text.split()
 
 
@@ -177,21 +173,11 @@ class DuckDBSingleton:
         self._db_path = db_path
         self._pool_size = pool_size
         self._default_limit = default_limit
-        # Single read-only connection; cursors share this instance.
         self._conn: duckdb.DuckDBPyConnection = duckdb.connect(db_path, read_only=True)
-        # Eager cursor pool. In duckdb's Python client `cursor()` returns a
-        # lightweight handle onto the same connection; type-wise it is
-        # reported as `DuckDBPyConnection` (no separate cursor class).
-        # We pre-pay so the hot path never blocks on cursor allocation.
         self._cursors: list[duckdb.DuckDBPyConnection] = [
             self._conn.cursor() for _ in range(pool_size)
         ]
         self._cursor_index = 0
-        # Serializes every DuckDB call across threads (asyncio.to_thread
-        # can dispatch to multiple workers concurrently). DuckDB's Python
-        # client is thread-safe at the connection level, but we serialize
-        # anyway to keep result correlation predictable and to bound
-        # cursor usage to one in-flight query at a time.
         self._lock = threading.Lock()
 
     @property
@@ -285,7 +271,6 @@ class DuckDBSingleton:
                 cur.execute(f"EXPLAIN {sql}")
             except duckdb.Error as exc:
                 raise DryRunError(sql=sql, original=exc) from None
-            # Discard the EXPLAIN result row(s) — we don't need it.
             cur.fetchall()
 
     def _acquire_cursor(self) -> duckdb.DuckDBPyConnection:
@@ -308,7 +293,6 @@ class DuckDBSingleton:
         with self._lock:
             cur = self._acquire_cursor()
 
-            # Append LIMIT if requested and the SQL doesn't already have one.
             if effective_limit is not None and not _has_existing_limit(sql):
                 rendered_sql = f"{sql.rstrip().rstrip(';').rstrip()} LIMIT {int(effective_limit)}"
                 injected_limit = True
@@ -321,11 +305,8 @@ class DuckDBSingleton:
             raw_rows = cur.fetchall()
             duration_ms = (time.perf_counter() - t0) * 1000.0
 
-        # `cursor.description` is the DB-API 7-tuple; column name is index 0.
         columns: list[str] = [str(col[0]) for col in (cur.description or ()) if col and col[0]]
         rows = convert_rows(columns, raw_rows)
-        # Truncated means results were actually cut off: an injected cap was hit.
-        # If we injected LIMIT N and got back exactly N rows, more may exist.
         truncated = bool(injected_limit and effective_limit and len(rows) >= effective_limit)
         return QueryResult(
             columns=columns,
@@ -346,12 +327,10 @@ class DuckDBSingleton:
         """
         with self._lock:
             self._cursors.clear()
-            # Closing an already-closed connection raises; swallow it.
             with contextlib.suppress(duckdb.Error):
                 self._conn.close()
 
 
-# Module-level lazy singleton + double-checked locking.
 _singleton: DuckDBSingleton | None = None
 _singleton_lock = threading.Lock()
 
@@ -380,16 +359,6 @@ def reset_singleton_for_tests() -> None:
         _singleton = None
 
 
-# ---------------------------------------------------------------------------
-# Phase 0 compatibility shims.
-#
-# `routes/meta.py` (untouchable per the Phase 1 task spec) imports
-# `check_connection`. Rather than touch the route, we keep that name alive
-# here as a thin wrapper that runs `SELECT 1` synchronously against the
-# singleton. New code should prefer `get_db().execute("SELECT 1")`.
-# ---------------------------------------------------------------------------
-
-
 def check_connection() -> bool:
     """Open (or reuse) the read-only connection and run `SELECT 1`.
 
@@ -400,13 +369,9 @@ def check_connection() -> bool:
     try:
         db = get_db()
     except Exception:
-        # Config / import errors surface here (e.g. missing DUCKDB_PATH).
-        # Phase 0 callers expect a True/False verdict; bubble it up as
-        # "disconnected" by returning False — the calling /health route
-        # already catches broad exceptions for non-duckdb errors.
         return False
     try:
-        with db._lock:  # noqa: SLF001 - intentional single-statement health probe
+        with db._lock:  # noqa: SLF001
             cur = db._acquire_cursor()  # noqa: SLF001
             cur.execute("SELECT 1").fetchone()
         return True

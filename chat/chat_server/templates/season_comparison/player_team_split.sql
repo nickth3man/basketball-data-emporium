@@ -4,7 +4,7 @@
 --   season_year (str):            Canonical season_year.
 --   season_type (str, 'Regular'): Regular | Playoffs | Cup.
 --
--- Evidence query for the NOT-ANSWERABLE case (PLAN §10, §12 row 4):
+-- Evidence query for the NOT-ANSWERABLE case:
 -- returns the mart_player_season rows that DO exist for the player in
 -- the given season. In the canonical warehouse, this will be exactly
 -- one team partition (PHI for Harden 2022-23) — which is the proof that

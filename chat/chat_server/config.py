@@ -40,13 +40,7 @@ class Settings(BaseSettings):
     chat_log_dir: str = Field(default="./logs")
     chat_port: int = Field(default=8787, ge=1, le=65535)
     query_timeout_seconds: int = Field(default=300, ge=1)
-    # Visible session storage root (PLAN §6). Holds chat/data/sessions/.
     chat_data_dir: str = Field(default="./data")
-    # Phase 3.7 cutover flag. When True, the agent's system prompt switches
-    # to the governed-SQL variant (SYSTEM_PROMPT_TEMPLATE_GOVERNED) and the
-    # catalog tools (list_models / get_model_detail) become the primary path.
-    # Default OFF so legacy template-only behaviour is unchanged until an
-    # operator opts in via CHAT_GOVERNED_SQL_MODE=1.
     chat_governed_sql_mode: bool = Field(default=False)
 
 
@@ -67,7 +61,6 @@ def get_settings() -> Settings:
                 + ", ".join(str(name) for name in missing)
                 + ". Copy chat/.env.example to chat/.env and fill them in."
             ) from exc
-        # Re-raise any other validation error unchanged.
         raise
 
 

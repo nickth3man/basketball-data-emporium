@@ -1,5 +1,5 @@
 -- Template: clutch_terminal.clutch_ts_leader
--- PLAN §12 row 8: highest True Shooting percentage in the postseason
+-- Highest True Shooting percentage in the postseason
 -- clutch window (last N minutes of 4th quarter + OT, score within M).
 --
 -- Clutch definition

@@ -1,4 +1,4 @@
-"""Pydantic models for the semantic-catalog YAML format (PLAN §1 Phase 1).
+"""Pydantic models for the semantic-catalog YAML format.
 
 The schema is hand-rolled in-house. It borrows the SHAPE of
 ``boring-semantic-layer``'s ``flights.yml`` (per-field ``description``,
@@ -65,12 +65,6 @@ class Dimension(_StrictModel):
     description: str = Field(..., min_length=1)
 
 
-#: Per the ``boring-semantic-layer`` cube recipes referenced in PLAN §6:
-#: "sum" = additive across the grain (e.g. games, points, rebounds via
-#: SUM); "non_additive" = per-row average or ratio (e.g. PPG, FG%) where
-#: re-summing across grains double-counts; "count_distinct" = distinct
-#: count (sums correctly but loses duplicates, hence its own flag);
-#: "percentile" = requires ordering, never sums.
 Additivity = Literal["sum", "non_additive", "count_distinct", "percentile"]
 
 
@@ -87,10 +81,6 @@ class Measure(_StrictModel):
     additivity: Additivity = "sum"
 
 
-#: Cardinality from the SOURCE model's perspective: "one_to_one" = each
-#: source row joins to at most one target row; "many_to_one" = many source
-#: rows share one target row (typical lookup); "one_to_many" = one source
-#: row fans out to many target rows (drill-down).
 JoinType = Literal["one_to_one", "many_to_one", "one_to_many"]
 
 
@@ -140,9 +130,6 @@ class BusinessModel(_StrictModel):
     dimensions: list[Dimension] = Field(default_factory=list)
     measures: list[Measure] = Field(default_factory=list)
     joins: list[Join] = Field(default_factory=list)
-    # Free-text caveats, mirroring the spirit of `meta_known_gap`. Kept as
-    # plain strings per the PLAN §1 spec; the standalone :class:`Caveat`
-    # Pydantic model is exported for callers that want a structured shape.
     caveats: list[str] = Field(default_factory=list)
     synonyms: list[str] = Field(default_factory=list)
     example_questions: list[str] = Field(default_factory=list)

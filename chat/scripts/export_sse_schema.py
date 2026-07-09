@@ -4,7 +4,7 @@ Run from ``chat/``::
 
     uv run python scripts/export_sse_schema.py
 
-CI drift guard (PLAN §9.2 guard #1): regenerate the file and run
+CI drift guard: regenerate the file and run
 ``git diff --exit-code chat/frontend/src/generated/sse-events.schema.json``.
 The snapshot is committed under
 ``chat/frontend/src/generated/sse-events.schema.json`` so the frontend drift

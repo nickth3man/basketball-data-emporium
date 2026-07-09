@@ -12,7 +12,7 @@
 #       (e.g. contributors touching only `chat/**`).
 #
 # Either way, every hook defines `stage_fixed: true` for formatters so
-# lefthook automatically re-stages the file after fixing it (per PLAN §14.3).
+# lefthook automatically re-stages the file after fixing it.
 
 pre-commit:
   parallel: true

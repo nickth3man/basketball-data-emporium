@@ -1,11 +1,11 @@
 """``pbp_aggregate.fouls_by_period`` template metadata.
 
-PLAN §12 row 12: most offensive fouls committed in a given period
+Most offensive fouls committed in a given period
 (default 4th quarter) of a single season.
 
 Foul taxonomy
 -------------
-Per PLAN §11.1 the warehouse ``fact_pbp_event`` has ~99K
+The warehouse ``fact_pbp_event`` has ~99K
 ``Foul|Offensive`` rows and ~15K ``Foul|Offensive Charge`` rows.  These
 are the two ``action_type='Foul'`` sub-types we treat as "offensive
 fouls committed".  ``Turnover|Foul`` rows (~102K) are excluded — those
@@ -35,7 +35,7 @@ class Params(BaseModel):
     season_year
         The single season to filter on (e.g. ``'2022-23'``).
     period
-        The period (1–10).  Default 4 matches PLAN §12 row 12.
+        The period (1–10).  Default 4 matches the canonical benchmark.
     top_n
         Maximum number of players to return.
     """

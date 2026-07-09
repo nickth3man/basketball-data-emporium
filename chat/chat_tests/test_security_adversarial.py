@@ -1,4 +1,4 @@
-"""Adversarial security tests (Phase 8, PLAN §16).
+"""Adversarial security tests (Phase 8).
 
 These tests PROVE the v1 safety properties hold — they are the evidence for the
 "no SQL injection vector, no table outside the allowlist ever executed" claim:
@@ -35,7 +35,7 @@ from chat_tests.conftest import skip_no_db
 @pytest.mark.asyncio
 async def test_sql_injection_payload_in_param_is_bound_not_executed():
     """A classic injection payload passed as a param value must be treated as a
-    literal string — never executed as SQL. Proves PLAN §16 ("no SQL injection")."""
+    literal string — never executed as SQL. Proves the "no SQL injection" contract."""
     from chat_server.templates import get_template
 
     tmpl = get_template("season_thresholds.fifty_forty_ninety")
@@ -64,7 +64,7 @@ async def test_sql_injection_payload_in_param_is_bound_not_executed():
 @skip_no_db
 @pytest.mark.asyncio
 async def test_read_only_connection_rejects_writes():
-    """Defense in depth (PLAN §16): even if a write statement reached the
+    """Defense in depth: even if a write statement reached the
     connection, the read-only DuckDB handle rejects it."""
     from chat_server.db import get_db
 
@@ -146,7 +146,7 @@ def test_catalog_qualified_table_reference_is_rejected():
     ],
 )
 def test_forbidden_statements_rejected(sql: str):
-    """No DDL/DML/PRAGMA/ATTACH/COPY/utility statement may pass (PLAN §7.4)."""
+    """No DDL/DML/PRAGMA/ATTACH/COPY/utility statement may pass."""
     report = validate_template_sql(sql, {"dim_player"})
     assert not report.valid, f"forbidden statement must be rejected: {sql}"
 

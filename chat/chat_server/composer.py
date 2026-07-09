@@ -4,7 +4,7 @@ Phase 3 (this module) implements the minimal per-policy formatters needed
 to land the Phase 3 exit criterion: "Non-streaming ``POST /api/chat``
 returns a plan + (for one template) executes it and returns the answer."
 
-The composer's contract is small on purpose (PLAN §7.5 #8):
+The composer's contract is small on purpose:
 
 * ``compose(template, result, plan_template_id)`` — happy-path formatter.
 * ``compose_not_answerable(note, attempted_sql=None)`` — explicit
@@ -97,9 +97,6 @@ class ComposedAnswer:
     reasoning_summary: str | None = None
 
 
-# --- public API ----------------------------------------------------------
-
-
 def compose(
     template: Template,
     result: QueryResult,
@@ -129,7 +126,7 @@ def compose(
     ComposedAnswer
         The answer text, plus one ``Citation`` per allowlisted table.
     """
-    del plan_template_id  # unused in Phase 3; reserved for Phase 4 per-template enrichment
+    del plan_template_id
     answer = _format_empty(template) if not result.rows else _dispatch(template, result)
     citations = [Citation(table_name=t) for t in sorted(template.allowed_tables)]
     return ComposedAnswer(
@@ -178,9 +175,6 @@ def compose_not_answerable(
         not_answerable_note=note,
         reasoning_summary=reasoning,
     )
-
-
-# --- governed-SQL path (Phase 3 Lane B / Stage 3.3a) --------------------
 
 
 def compose_governed(
@@ -240,10 +234,6 @@ def compose_governed(
     """
     preamble = _interpretation_preamble(question_interpretation)
     if not result.rows:
-        # Defensive path: a governed query that ran cleanly but
-        # returned zero rows. Mirror the legacy "_format_empty" stable
-        # text so downstream consumers can detect the empty branch by
-        # substring (legacy callers key on "No rows matched").
         return ComposedAnswer(
             answer=preamble + "No data returned.",
             citations=[Citation(table_name=model_name)] if model_name else [],
@@ -277,9 +267,6 @@ def _interpretation_preamble(question_interpretation: str) -> str:
     if not text:
         return ""
     return f"I read your question as: {text}\n\n"
-
-
-# --- internal dispatch (governed) ---------------------------------------
 
 
 def _dispatch_governed(
@@ -410,9 +397,6 @@ def _fallback_title(model_name: str | None) -> str:
     return f"results from the {model_name} semantic model" if model_name else "governed query"
 
 
-# --- internal dispatch ---------------------------------------------------
-
-
 def _dispatch(template: Template, result: QueryResult) -> str:
     """Route to the per-policy formatter; fall back to the generic one."""
     policy = template.answer_policy
@@ -427,7 +411,7 @@ def _dispatch(template: Template, result: QueryResult) -> str:
 
 def _format_empty(template: Template) -> str:
     """Stable text for a zero-row result so the answer is never empty."""
-    del template  # unused
+    del template
     return "No rows matched the query."
 
 
@@ -474,7 +458,7 @@ def _format_row_compact(row: dict[str, Any]) -> str:
 
 def _format_single_value(template: Template, result: QueryResult) -> str:
     """``"<column> = <value>"`` for a one-row result. Template unused."""
-    del template  # unused
+    del template
     row = result.rows[0]
     col = result.columns[0]
     return f"{col} = {row[col]}"
@@ -482,14 +466,14 @@ def _format_single_value(template: Template, result: QueryResult) -> str:
 
 def _format_count(template: Template, result: QueryResult) -> str:
     """Plain row-count answer."""
-    del template  # unused
+    del template
     n = len(result.rows)
     return f"{n} matching row{'s' if n != 1 else ''}."
 
 
 def _format_generic(template: Template, result: QueryResult) -> str:
     """Fallback for unknown policies. Lists columns so the reader knows the shape."""
-    del template  # unused
+    del template
     n = len(result.rows)
     if n == 0:
         return "No rows returned."

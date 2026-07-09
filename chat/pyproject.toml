@@ -3,7 +3,6 @@ name = "chat-server"
 version = "0.1.0"
 description = "Basketball data chatbot API"
 requires-python = ">=3.12,<3.14"
-readme = "PLAN.md"
 dependencies = [
     "fastapi>=0.135,<1.0",
     "uvicorn[standard]>=0.34",
@@ -13,14 +12,14 @@ dependencies = [
     "sqlglot>=25,<26",
     # `sqlfluff` is moved to the `dev` dependency group below — it's a
     # linting CLI (`sqlfluff lint --dialect duckdb`), not imported by
-    # the app package (PLAN §7.4 / §14.1).
+    # the app package.
     "httpx>=0.28",
     "loggingredactor>=0.0.7",
     "pydantic-settings>=2.10",
-    # PyYAML is a direct dep of `chat_server.semantic_catalog` (PLAN
-    # §1 Phase 1) -- declared explicitly even though it currently
-    # arrives transitively, so the catalog loader does not silently
-    # break if a transitive consumer drops it.
+    # PyYAML is a direct dep of `chat_server.semantic_catalog` --
+    # declared explicitly even though it currently arrives transitively,
+    # so the catalog loader does not silently break if a transitive
+    # consumer drops it.
     "pyyaml>=6,<7",
 ]
 
@@ -34,15 +33,15 @@ dev = [
     "deptry>=0.20",
     "check-jsonschema>=0.30",
     "jsonschema>=4",
-    # SQLFluff CLI lint (PLAN §7.4 / §14.1). Lives in the dev group so
-    # `pip install chat-server` doesn't pull in the linter.
+    # SQLFluff CLI lint. Lives in the dev group so `pip install
+    # chat-server` doesn't pull in the linter.
     "sqlfluff>=3.2,<4.0",
 ]
 
 [project.optional-dependencies]
 # Phase 7: optional OpenTelemetry span hooks. The base install does NOT
 # pull these in — `chat_server.otel` is off by default and only imports
-# `opentelemetry` inside its `_ENABLED` guard (PLAN §4.1#9 / §15 Phase 7).
+# `opentelemetry` inside its `_ENABLED` guard.
 otel = [
     "opentelemetry-api>=1.27",
 ]
@@ -59,7 +58,7 @@ select = ["E", "F", "I", "UP", "B", "SIM", "N"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-testpaths = ["chat_tests", "evals"]
+testpaths = ["chat_tests", "chat/evals"]
 markers = [
     # Eval-suite marker (EVALS.md §5): nightly runs only; CI excludes via
     # ``pytest -m "not live_llm"``. Apply to tests that hit OpenRouter.
@@ -68,14 +67,14 @@ markers = [
 
 [tool.ty.src]
 # Phase 8: include the test package so `ty check chat_server chat_tests`
-# exercises every annotated source file (PLAN §14.1 + §15 Phase 8 exit).
+# exercises every annotated source file.
 include = ["chat_server", "chat_tests"]
 
 [tool.ty.environment]
 python-version = "3.12"
 
 [tool.deptry]
-# Phase 8 hardening (PLAN §15 Phase 8 exit / §14.1).
+# Phase 8 hardening.
 #
 # - `known_first_party` tells deptry `chat_server` is a first-party
 #   module so the DEP003 transitive-dep warnings for it stop firing.

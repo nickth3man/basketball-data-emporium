@@ -1,4 +1,4 @@
-"""Loader for the semantic-catalog YAML files (PLAN §1 Phase 1).
+"""Loader for the semantic-catalog YAML files.
 
 Reads every ``*.yml`` under this package's ``models/`` subdirectory,
 parses each into a :class:`~chat_server.semantic_catalog.schema.BusinessModel`,
@@ -21,9 +21,6 @@ import yaml
 
 from .schema import BusinessModel
 
-# Default models directory: <this-package>/models/. Resolved relative to
-# THIS file so it works regardless of the caller's current working
-# directory (matters for FastAPI, pytest, and CLI invocation paths).
 _DEFAULT_MODELS_DIR = Path(__file__).resolve().parent / "models"
 
 
@@ -141,8 +138,6 @@ def load_catalog(models_dir: Path | None = None) -> SemanticCatalog:
 
 def _owner_of(models: dict[str, BusinessModel], name: str) -> str:
     """Return the YAML filename that first declared ``name`` (test helper)."""
-    # Best-effort: the cache has not been populated yet so we don't know
-    # the source filename at this point; fall back to the model name.
     return f"<previously parsed model {name!r}>"
 
 
@@ -152,7 +147,6 @@ def reset_catalog_cache() -> None:
     _catalog_cache = None
 
 
-# Module-level cache. Tests reset it via :func:`reset_catalog_cache`.
 _catalog_cache: SemanticCatalog | None = None
 
 

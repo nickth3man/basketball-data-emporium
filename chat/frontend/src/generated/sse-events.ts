@@ -1,5 +1,5 @@
 /**
- * Hand-maintained SSE event union for `POST /api/chat/stream` (PLAN §7.8, §9.2).
+ * Hand-maintained SSE event union for `POST /api/chat/stream`.
  *
  * Mirrors the 11-event Pydantic discriminated union in `chat_server/events.py`.
  * **Drift-guarded** (in CI):
@@ -7,7 +7,7 @@
  *      `frontend/src/generated/sse-events.schema.json` from the live Pydantic
  *      `ChatEvent` `TypeAdapter`.
  *   2. `git diff --exit-code frontend/src/generated/sse-events.schema.json`
- *      in `.github/workflows/chat.yml` → drift guard #1 (PLAN §9.2).
+ *      in `.github/workflows/chat.yml` → drift guard #1.
  *   3. `frontend/src/__tests__/sse-events.drift.test.ts` → asserts every event
  *      name in the TS union matches the schema's discriminator mapping
  *      (drift guard #2) — if a backend event is added or removed, the TS union
@@ -57,7 +57,7 @@ export interface QueryStarted {
   event: "query_started";
   query_id: string;
   template_id: string;
-  /** The rendered SQL (already validated by §7.4). */
+      /** The rendered SQL (already validated). */
   sql: string;
 }
 

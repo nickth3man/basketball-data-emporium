@@ -1,5 +1,5 @@
 /**
- * SSE parser unit tests (PLAN §8.2).
+ * SSE parser unit tests.
  *
  * No network — `globalThis.fetch` is mocked with a `ReadableStream`
  * constructed from synthetic `text/event-stream` frames. Covers:

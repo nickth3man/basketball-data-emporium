@@ -4,7 +4,7 @@ Mirrors ``test_templates.py``'s pattern: each template ships a ``TESTS``
 list in its metadata module and this module runs every spec against the
 live warehouse via the dev ``DuckDBSingleton``.
 
-Hard-coded to the Batch-A templates (PLAN §12 rows 1, 3, 9, 16, 20):
+Hard-coded to the Batch-A templates:
 
 * ``season_thresholds.rookie_vs_final``           (row 16)
 * ``career_demographic.hs_draftee_career_ws``     (row  1)

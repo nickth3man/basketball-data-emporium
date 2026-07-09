@@ -1,7 +1,7 @@
 """``clutch_terminal.clutch_ts_leader`` template metadata.
 
-PLAN §12 row 8: highest True Shooting percentage in a single postseason's
-clutch window.  Per PLAN §11.1 the canonical ``agg_clutch_stats`` mart is
+Highest True Shooting percentage in a single postseason's
+clutch window.  The canonical ``agg_clutch_stats`` mart is
 an ``empty_endpoint_shell``, so we derive clutch TS% live from
 ``fact_pbp_event``.
 

@@ -1,7 +1,7 @@
-"""Phase 6 BATCH B integration tests (PLAN §15 exit criterion).
+"""Phase 6 BATCH B integration tests.
 
 Live-warehouse parametrized assertions for the 9 templates shipped in
-TEMPLATE_BATCH_B (PLAN §12 rows 2, 4, 6, 7, 13, 14, 15, 17, 19). Each
+TEMPLATE_BATCH_B. Each
 test runs the template's own ``TESTS`` list against the warehouse and
 checks the per-spec assertions. The suite mirrors the Phase 1
 ``test_fifty_forty_ninety_loop`` shape but generalized via the

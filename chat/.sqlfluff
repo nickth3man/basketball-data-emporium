@@ -1,7 +1,7 @@
 [sqlfluff]
 dialect = duckdb
 templater = placeholder
-# Keep a readable, meaningful rule subset (PLAN §7.4): capitalisation + core
+# Keep a readable, meaningful rule subset: capitalisation + core
 # structure. Exclude noisy layout/qualification rules that false-positive on
 # templated DuckDB SQL ($param placeholders, single-table CTE refs, etc.).
 # NOTE: never run `sqlfluff fix` — it does not understand DuckDB $placeholders

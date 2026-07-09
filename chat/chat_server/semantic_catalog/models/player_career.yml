@@ -1,6 +1,6 @@
 # Semantic catalog model: player_career
 #
-# PLAN §1 Phase 1: this is the ONE fully-grounded reference model. Every
+# This is the ONE fully-grounded reference model. Every
 # base_table column referenced in `dimensions` and `measures` below was
 # confirmed against the live warehouse via:
 #
@@ -17,7 +17,7 @@
 # Conventions:
 # - All `expr` strings are written against the `pc.` alias declared in
 #   `base_table`.measure / dimension rows below.
-# - `additivity` follows the Cube.js recipes referenced in PLAN §6:
+# - `additivity` follows the canonical Cube.js recipes:
 #   `sum` for additive measures, `non_additive` for per-row averages
 #   (career_ppg etc.) where re-summing across grains double-counts.
 # - The join to `player_season` substitutes for a dedicated player

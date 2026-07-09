@@ -1,6 +1,6 @@
 """``player_game_conditional.streak_stat`` template metadata.
 
-PLAN §12 row 14: longest run of consecutive games (in calendar order)
+Longest run of consecutive games (in calendar order)
 where the player recorded at least one blocked shot. Uses a classic
 gaps-and-islands pattern: rank games per player by date, then group by
 ``game_date - rank`` so consecutive-day games share the same group key.

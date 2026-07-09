@@ -1,6 +1,6 @@
 """``season_comparison.league_pace_era`` template metadata.
 
-PLAN §12 row 15: compare average league pace across two seasons. Uses
+Compare average league pace across two seasons. Uses
 ``fact_player_game_advanced.pace`` (a player-game proxy for team pace,
 since this warehouse does not expose a true team-game pace table).
 

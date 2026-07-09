@@ -1,5 +1,5 @@
 /**
- * SSE event drift guard (PLAN §9.2 guard #2).
+ * SSE event drift guard.
  *
  * Why this test exists
  * --------------------

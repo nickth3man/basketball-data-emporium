@@ -1,10 +1,10 @@
 """``clutch_terminal.buzzer_beaters`` template metadata.
 
-PLAN §12 row 18: game-winning buzzer-beaters for a single player + their
+Game-winning buzzer-beaters for a single player + their
 opponents in each game.
 
-Spike outcome (PLAN §15)
-------------------------
+Spike outcome
+-------------
 **Shipped as a REAL template.**  Phase 6 verification against
 ``data/nba.duckdb`` showed:
 
@@ -18,7 +18,7 @@ Spike outcome (PLAN §15)
   ``chat_tests/fixtures/clutch_terminal__buzzer_beaters_kobe_1996_97.json``.
 
 Spike fallback (``NOT_ANSWERABLE=True``) was NOT taken because the
-clock-reliability concern PLAN §12 row 18 flagged does not materialise
+clock-reliability concern does not materialise
 on the live warehouse for the supported ``since_season`` lower bound.
 
 Definition recap (see SQL header for the algorithm)

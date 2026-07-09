@@ -1,11 +1,10 @@
 /**
- * Session-list React hook (PLAN §8, Phase 2 typed-wiring proof).
+ * Session-list React hook (typed-wiring proof).
  *
  * Owns the in-memory session list and pings the health endpoint once at
  * mount. Mutations (`create`, `clearHistory`) refresh the list after
- * settling. Phase 5 will replace this stub with a richer `useChatTurn`
- * hook driven by the SSE pipeline; this hook will stay around as the
- * session-management primitive.
+ * settling. This hook will stay around as the session-management
+ * primitive; `useChatTurn` drives the streaming turn lifecycle.
  */
 import { useCallback, useEffect, useState } from "react";
 

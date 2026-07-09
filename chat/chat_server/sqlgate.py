@@ -1,4 +1,4 @@
-"""Governed-SQL validation gate (PLAN §Guardrails / Phase 3 Lane B).
+"""Governed-SQL validation gate (Phase 3 Lane B).
 
 This module LAYERS on top of :func:`chat_server.validation.validate_template_sql`
 rather than replacing it. The legacy safety gate (parse + forbidden-node +
@@ -54,17 +54,9 @@ if TYPE_CHECKING:
     from chat_server.semantic_catalog import SemanticCatalog
 
 
-# Pattern that captures ``<table_alias>.<column>`` references. Used for
-# best-effort column extraction from catalog `expr` strings (which look
-# like ``ps.total_pts`` or ``SUM(ps.total_min)`` or even
-# ``SUM(ps.w + ps.l)``). Whitespace around the dot is tolerated.
 _COL_REF_PATTERN = re.compile(r"\b[A-Za-z_]\w*\s*\.\s*([A-Za-z_]\w*)\b")
 
 
-# Default type assigned to catalog-derived schema columns. sqlglot's
-# optimizer primarily cares that the column KEY exists in the schema --
-# the type only matters for ``annotate_types``. ``VARCHAR`` is safe and
-# matches the duckdb default for untyped string casts.
 _DEFAULT_TYPE = "VARCHAR"
 
 
@@ -193,8 +185,6 @@ def validate_governed_sql(sql: str, catalog: SemanticCatalog) -> ValidationRepor
     """
     allowed_tables: set[str] = {m.base_table.name for m in catalog.models.values()}
 
-    # Step 1: inherited safety gate. If it fails, propagate unchanged --
-    # no point stacking semantic checks on top of a known-bad payload.
     inherited = validate_template_sql(sql, allowed_tables)
     if not inherited.valid:
         return inherited
@@ -202,18 +192,9 @@ def validate_governed_sql(sql: str, catalog: SemanticCatalog) -> ValidationRepor
     errors: list[str] = list(inherited.errors)
     tables_referenced: set[str] = set(inherited.tables_referenced)
 
-    # Step 2: optimizer semantic pass.
-    #
-    # The legacy gate already parsed the SQL once, but we re-parse here
-    # because (a) the AST isn't returned and (b) we want a fresh parse in
-    # the duckdb dialect for the optimizer. `validate_template_sql` uses
-    # `parse_one` internally too; the cost is negligible.
     try:
         ast = sqlglot.parse_one(sql, read="duckdb")
     except SqlglotError as exc:
-        # Defensive: the inherited gate should have caught this already,
-        # but if a parse path slips through (e.g. optimizer finds a
-        # different parse error class), we still want to flag it.
         errors.append(f"SQL parse error: {exc}")
         return ValidationReport(
             valid=False,
@@ -225,15 +206,8 @@ def validate_governed_sql(sql: str, catalog: SemanticCatalog) -> ValidationRepor
     try:
         optimizer.optimize(ast, schema=schema, dialect="duckdb")
     except SqlglotError as exc:
-        # Catch the full SqlglotError hierarchy (OptimizeError,
-        # SchemaError, UnsupportedError, etc.). sqlglot 25.x raises
-        # OptimizeError for unknown-column / type-mismatch errors via
-        # the qualify / annotate_types sub-passes; older sqlglots may
-        # surface them as different subclasses. Catching the umbrella
-        # type keeps the gate version-tolerant.
         errors.append(f"sqlglot optimizer rejected the query: {exc}")
 
-    # Step 3: fan / chasm-trap detection.
     errors.extend(_detect_fan_chasm(ast, catalog))
 
     return ValidationReport(
@@ -284,14 +258,6 @@ def _detect_fan_chasm(ast: exp.Expression, catalog: SemanticCatalog) -> list[str
     """
     errors: list[str] = []
 
-    # Build a lookup: target_model_name -> (src_model_name, join_decl) for
-    # every one_to_many declaration in the catalog. The AST gives us a
-    # table name (e.g. "mart_player_season"), not a model name
-    # (e.g. "player_season"), so we also keep a model-name -> table-name
-    # reverse map to translate at lookup time. Multiple source models
-    # could in principle declare the same target with one_to_many; we
-    # record the first one and let the rest surface via duplicate
-    # detections (acceptable for v1).
     one_to_many_by_target_model: dict[str, tuple[str, CatalogJoin]] = {}
     model_to_base_table: dict[str, str] = {}
     for src_model in catalog.models.values():
@@ -306,27 +272,16 @@ def _detect_fan_chasm(ast: exp.Expression, catalog: SemanticCatalog) -> list[str
                     join_decl,
                 )
 
-    # Reverse map: base_table_name -> model_name. Used to translate the
-    # AST's table reference back to the catalog's model name so we can
-    # look up one_to_many declarations keyed by model.
     base_table_to_model: dict[str, str] = {v: k for k, v in model_to_base_table.items()}
 
-    # Catalog base table names -- a quick membership check so we skip
-    # joins into CTEs / subqueries (which aren't real base tables and
-    # therefore can't have a one_to_many declaration in the catalog).
     base_table_names: set[str] = set(model_to_base_table.values())
 
     for join in ast.find_all(exp.Join):
         joined = join.this
         if not isinstance(joined, exp.Table):
-            # Subquery join (`JOIN (SELECT ...) t ON ...`) -- skip; we
-            # can't map it back to a catalog model.
             continue
         joined_table_name = joined.name
         if joined_table_name not in base_table_names:
-            # Not a catalog base table (could be a CTE alias or a true
-            # phantom -- the legacy gate already rejects phantoms via
-            # the allowlist). Skip.
             continue
         target_model_name = base_table_to_model.get(joined_table_name)
         if target_model_name is None:
@@ -336,11 +291,6 @@ def _detect_fan_chasm(ast: exp.Expression, catalog: SemanticCatalog) -> list[str
             continue
         src_model_name, join_decl = decl
 
-        # Collect every alias that could reference the joined table --
-        # the SQL author may have used the catalog alias or an arbitrary
-        # alias of their own choosing. ``Table.alias`` returns the
-        # ``TableAlias`` node (sqlglot 25.x) whose ``.name`` is the
-        # string; we accept either to stay version-tolerant.
         joined_aliases: set[str] = set()
         alias_node = joined.alias
         if alias_node:
@@ -351,9 +301,6 @@ def _detect_fan_chasm(ast: exp.Expression, catalog: SemanticCatalog) -> list[str
         if target_model is not None:
             joined_aliases.add(target_model.base_table.alias)
 
-        # Step a: is there a SUM aggregate over a column from one of the
-        # joined aliases? This is the "additive measure from the fanned
-        # table" heuristic.
         additive_found = False
         for agg in ast.find_all(exp.Sum):
             inner = agg.this
@@ -365,23 +312,13 @@ def _detect_fan_chasm(ast: exp.Expression, catalog: SemanticCatalog) -> list[str
         if not additive_found:
             continue
 
-        # Step b: does GROUP BY include the right_on column reference?
-        # Parse the catalog's right_on (e.g. "ps.player_id") into a
-        # (table_alias, column_name) tuple and look for an exact match
-        # in the GROUP BY columns. We don't accept column-name-only
-        # matches because that would false-positive on ambiguous cases
-        # (e.g. GROUP BY player_id when player_id appears on both sides).
         right_col = _parse_dotted_ref(join_decl.right_on)
         if right_col is None:
-            # Malformed right_on -- skip rather than guess.
             continue
         rt_alias, rt_col = right_col
 
         group = ast.args.get("group")
         if group is None:
-            # No GROUP BY at all -> the SUM aggregates the entire joined
-            # result, which fans out the right side across every left
-            # row. Classic fan trap.
             errors.append(
                 f"fan trap: one_to_many join '{join_decl.name}' "
                 f"({src_model_name} -> {joined_table_name}) with additive "

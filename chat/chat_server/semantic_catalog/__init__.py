@@ -1,4 +1,4 @@
-"""Semantic catalog for the governed-SQL chat migration (PLAN §1 Phase 1).
+"""Semantic catalog for the governed-SQL chat migration.
 
 This package defines the Pydantic schema for the business-model YAML files
 that author every analytics question the chatbot is allowed to answer, plus
@@ -17,10 +17,10 @@ Public surface
   ``*.yml`` under this package's ``models/`` subdirectory, validates
   join targets resolve, and returns the populated :class:`SemanticCatalog`.
 
-PLAN phase
-----------
-This package delivers PLAN.md Phase 1 ("Catalog schema + reference YAML").
-It is the dependency root for Phase 2 Lane A (the remaining YAML models),
+Phase coverage
+-------------
+This package delivers the catalog schema + reference YAML.
+It is the dependency root for the remaining YAML models,
 the schema-retrieval layer, and the SQL validation gate.
 """
 

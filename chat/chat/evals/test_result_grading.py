@@ -69,11 +69,8 @@ async def test_layer2_gold_match_when_present(
         )
 
 
-@pytest.mark.live_llm
 @skip_no_warehouse
-@skip_no_llm
-@pytest.mark.asyncio
-async def test_layer2_helper_executes_plan_sql(
+def test_layer2_helper_executes_plan_sql(
     csv_rows: list[EvalRow],
     golds_present: bool,
 ) -> None:

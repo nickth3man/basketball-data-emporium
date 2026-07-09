@@ -3,7 +3,7 @@
 The SSE event union already has a dedicated exporter (``export_sse_schema.py``)
 that writes ``frontend/src/generated/sse-events.schema.json``. This script
 covers the **two other JSONL streams** so they can be validated by
-``check-jsonschema`` (PLAN §14.1) and the pytest suite
+``check-jsonschema`` and the pytest suite
 (``chat_tests/test_observability.py``):
 
 * **session-message** — one line of ``chat/data/sessions/<id>.jsonl``.

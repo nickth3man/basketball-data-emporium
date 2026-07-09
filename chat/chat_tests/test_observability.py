@@ -1,4 +1,4 @@
-"""Phase 7 backend observability tests (PLAN §4.1#9, §7.10, §15).
+"""Phase 7 backend observability tests.
 
 Covers the four Phase-7 deliverables:
 
@@ -139,7 +139,7 @@ def test_sweep_all_never_raises_on_missing_dir(tmp_path: Path, monkeypatch) -> N
     """``sweep_all`` returns a subdir→count map even when ``chat_log_dir``
     points at an empty directory.
 
-    Best-effort contract (PLAN §7.10): the lifespan startup must never
+    Best-effort contract: the lifespan startup must never
     fail because of a missing log root.
     """
     from chat_server import config as config_module

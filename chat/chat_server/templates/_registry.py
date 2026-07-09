@@ -1,4 +1,4 @@
-"""Template registry: typed view + lookup helpers (PLAN §7.3).
+"""Template registry: typed view + lookup helpers.
 
 A `Template` is the metadata the runner needs to execute a parameterized
 SQL query against the warehouse. The registry is populated by the loader
@@ -14,17 +14,11 @@ Public surface (re-exported from `chat_server.templates.__init__`):
 
 from __future__ import annotations
 
-# `field` is re-exported in the public surface for future templates that may
-# want mutable defaults via `field(default_factory=...)`; `BaseModel` is the
-# documented base class of every `params_model` (kept here for type introspection).
 from dataclasses import dataclass, field  # noqa: F401
 from typing import Any
 
 from pydantic import BaseModel  # noqa: F401
 
-#: A template's `params_model` is a subclass of `pydantic.BaseModel`; we type
-#: it as `type` here because the registry only needs to know "this is a class",
-#: not its full Pydantic generic shape.
 ParamsModel = type[BaseModel]
 
 
@@ -64,7 +58,7 @@ class Template:
         Each dict has at least a ``params`` key and may have
         ``expect_min_rows`` / ``expect_contains_player`` / etc.
     capability
-        Folder name that groups the template (see PLAN §11).
+        Folder name that groups the template.
     """
 
     template_id: str
@@ -82,13 +76,10 @@ class Template:
     capability: str
 
 
-class TemplateNotFound(LookupError):  # noqa: N818  — name fixed by the registry contract (see PLAN §7.3).
+class TemplateNotFound(LookupError):  # noqa: N818
     """Raised by `get_template` when the requested id is not registered."""
 
 
-#: The live registry, keyed by `template_id`. Populated by the loader at
-#: import time. Treat as read-only after startup; the loader is the only
-#: writer and it runs once.
 REGISTRY: dict[str, Template] = {}
 
 

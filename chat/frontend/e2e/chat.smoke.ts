@@ -1,5 +1,5 @@
 /**
- * E2E smoke for the basketball chatbot UI (PLAN §8.4, §15 Phase 5 exit).
+ * E2E smoke for the basketball chatbot UI.
  *
  * Boots BOTH servers via Playwright's webServer config:
  *   - FastAPI chat backend on :8787 (real OpenRouter agent + DuckDB).
@@ -7,7 +7,7 @@
  *
  * Sends ONE live question end-to-end through the real UI + real backend
  * + real agent (one OpenRouter call, ~$0.001). Asserts:
- *   1. The composer accepts text and Enter submits (§8.4 keyboard).
+ *   1. The composer accepts text and Enter submits (keyboard contract).
  *   2. The streamed answer reaches the timeline and contains "Curry"
  *      (the 50-40-90 template deterministically returns Stephen Curry —
  *      see `chat_server/templates/season_thresholds/fifty_forty_ninety.py`).
@@ -17,12 +17,12 @@
  *      in the EvidenceCard; the template's allowlist is `mart_player_season`
  *      + `dim_player`, so at least one of those must be visible).
  *   6. The Send button disables while a turn runs and a Cancel button
- *      appears after the > 5 s threshold (§13) — best-effort, the turn
- *      may complete faster than 5 s in which case we soft-pass.
+ *      appears after the > 5 s cancel-affordance threshold — best-effort,
+ *      the turn may complete faster than 5 s in which case we soft-pass.
  *   7. axe-core finds zero `critical` / `serious` violations in BOTH the
  *      initial shell AND the populated post-turn state.
  *
- * Layout deviation from PLAN §6: the spec lists tests under
+ * Layout deviation: the spec lists tests under
  * `chat/tests/e2e/`, but `@playwright/test` and `@axe-core/playwright`
  * are deps of `chat/frontend/package.json`. Co-locating the test with
  * the frontend is the practical choice — the config file documents it.
@@ -87,7 +87,7 @@ test("chat answers a 50-40-90 question end-to-end with no a11y violations", asyn
     `axe (initial shell) — ${JSON.stringify(initialSerious, null, 2)}`,
   ).toEqual([]);
 
-  // 2. Type a question. Enter to send (§8.4 keyboard contract).
+  // 2. Type a question. Enter to send (keyboard contract).
   await composer.fill("Who shot 50/40/90 with at least 25 points per game?");
   await composer.press("Enter");
 
@@ -141,7 +141,7 @@ test("chat answers a 50-40-90 question end-to-end with no a11y violations", asyn
 });
 
 test("chat shows running state with disabled composer and Cancel affordance", async ({ page }) => {
-  // Per §13: while a turn runs the composer must be disabled; a Cancel
+  // While a turn runs the composer must be disabled; a Cancel
   // button appears after the turn has been running for > 5 s. The
   // 50-40-90 turn is Simple-tier (1-5 s target) so we cannot guarantee
   // the Cancel button appears before the turn finishes — but we CAN

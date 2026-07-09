@@ -1,4 +1,4 @@
-"""Unit tests for the SSE event union (`chat_server.events`, PLAN §7.8, §9.2).
+"""Unit tests for the SSE event union (`chat_server.events`).
 
 Pure-Python tests — **no DB connection required**. Covers:
 
@@ -304,7 +304,7 @@ def _validator() -> Any:
     Pydantic v2 emits JSON Schema draft-07-compatible output (`type`,
     `properties`, `required`, `$ref`/`$defs`, `oneOf`, `discriminator`).
     The `Draft7Validator` is what `check-jsonschema` wraps under the hood
-    for the JSONL log fixture corpus (PLAN §14.1). Annotated as `Any`
+    for the JSONL log fixture corpus. Annotated as `Any`
     because `jsonschema` ships no `.pyi` (see import-block note).
     """
     return _Draft7Validator(export_json_schema())

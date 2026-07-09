@@ -1,5 +1,5 @@
 /**
- * useChatTurn — one chat turn driven by SSE (PLAN §8.2, Phase 5).
+ * useChatTurn — one chat turn driven by SSE.
  *
  * Wraps `streamChat` in a `useReducer` that accumulates state from each
  * `ChatEvent` as it arrives:

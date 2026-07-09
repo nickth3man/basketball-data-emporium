@@ -1,5 +1,5 @@
 """Chat routes — non-streaming ``POST /api/chat`` (Phase 3) and
-streaming ``POST /api/chat/stream`` (Phase 4, PLAN §7.9).
+streaming ``POST /api/chat/stream`` (Phase 4).
 
 The non-streaming handler is a thin orchestrator whose substantive work
 lives in:
@@ -48,11 +48,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.sse import EventSourceResponse
 from pydantic import BaseModel, Field
 
-# NOTE: these imports come from the parallel fixer's ``chat_server.agent``
-# module. If that module is missing (parallel PR not yet landed) the
-# application will fail to start; that is the intended fail-fast behaviour
-# because the chat route is unusable without an agent to classify intent.
-from chat_server.agent import (  # noqa: E402, F401 — used inside the handler.
+from chat_server.agent import (  # noqa: E402, F401
     AnswerMode,
     Clarification,
     ResultContract,
@@ -74,9 +70,6 @@ router = APIRouter(tags=["chat"])
 log = logging.getLogger(__name__)
 
 
-# --- request / response models ------------------------------------------
-
-
 class ChatRequest(BaseModel):
     """Body for ``POST /api/chat``.
 
@@ -96,7 +89,7 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     """Response for ``POST /api/chat``.
 
-    Mirrors the canonical turn response (PLAN §7.7): answer + citations +
+    Mirrors the canonical turn response: answer + citations +
     provenance fields. ``sql`` is non-null only on the happy path
     (``template_id`` resolved, query executed). ``not_answerable=True``
     short-circuits the SQL + row_count fields.
@@ -112,9 +105,6 @@ class ChatResponse(BaseModel):
     row_count: int | None = None
     reasoning_summary: str | None = None
     duration_ms: float | None = None
-
-
-# --- helpers -------------------------------------------------------------
 
 
 def _resolve_session_id(store, requested: str | None, fallback_title: str) -> str:
@@ -149,65 +139,36 @@ def _citations_to_dicts(composed_citations) -> list[dict]:
     ]
 
 
-# --- route ---------------------------------------------------------------
-
-
 @router.post("/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest) -> ChatResponse:
     """Run one chat turn end-to-end and return the final answer.
 
-    The flow mirrors PLAN §7.7 (non-streaming subset) with explicit
+    The flow mirrors the canonical non-streaming subset with explicit
     not-answerable fallbacks so a bad plan / bad params / failed DB
     call never surfaces as a 500 stack trace to the UI.
     """
     store = get_store()
     sid = _resolve_session_id(store, req.session_id, _title_from(req.message))
 
-    # Persist the user message BEFORE running anything so a slow turn
-    # never loses the user input from the visible history.
     try:
         store.append_message(sid, "user", req.message)
     except SessionNotFound:
-        # Defensive: store.create succeeded so this shouldn't happen, but
-        # if the disk vanished mid-write we surface a clean 500 instead of
-        # a half-populated session.
         log.exception("session store failed to append user message; sid=%s", sid)
         raise HTTPException(status_code=500, detail="session store error") from None
 
-    # --- 1. Run the agent ------------------------------------------------
     try:
         agent = get_agent()
-        # `make_deps` is async (it builds the schema context against the
-        # warehouse) — must be awaited, not passed as a coroutine.
         deps = await make_deps()
-        # --- Stage 3.5: load + trim prior ModelMessage history ---------
-        # Best-effort — a missing or corrupt history file is expected on
-        # the first turn and must not crash the response.
         history = _load_model_history(store, sid)
-        # --- Stage 3.6: enrich prompt if a clarification is pending ----
-        # Complements the model-history snapshot. The pending state is
-        # independent of the snapshot — even if the snapshot is absent /
-        # corrupt / trimmed, a pending clarification still reaches the
-        # agent via this enriched prompt. The raw `req.message` still
-        # flows to the visible-JSONL store unchanged (the user's
-        # literal reply is what the UI shows).
         pending = store.get_pending_clarification(sid)
         user_message_text = req.message
         if pending is not None:
             user_message_text = build_clarification_context_prefix(pending, req.message)
-        # Pass `message_history` ONLY when there is real history to
-        # forward — an empty list is semantically equivalent to omitting
-        # the kwarg (Pydantic AI treats both as "no prior context"), and
-        # conditional kwargs let test fakes with narrower signatures
-        # continue to work.
         run_kwargs: dict = {"deps": deps}
         if history:
             run_kwargs["message_history"] = history
         result = await agent.run(user_message_text, **run_kwargs)
         plan = result.output
-        # --- Stage 3.5: persist the post-call history snapshot ----------
-        # Best-effort — a failed write logs and returns; the turn
-        # continues regardless.
         _safe_append_model_history(store, sid, result)
     except Exception as exc:
         log.exception("agent.run failed; sid=%s", sid)
@@ -218,20 +179,9 @@ async def chat(req: ChatRequest) -> ChatResponse:
             template_id=None,
         )
 
-    # --- Stage 3.6: persist / clear the pending-clarification state ------
-    # Single block, runs for EVERY plan outcome (clarify / not-answerable
-    # / execute_sql / template). The legacy template branch is therefore
-    # auto-cleared too without any invasive branch-local wiring — the
-    # spec's "byte-for-byte unchanged legacy branch" is preserved by
-    # keeping all state-machine side-effects in this one block above
-    # the branching cascade. Mirrors the equivalent block in
-    # ``pipeline.run_turn``.
     if plan.answer_mode == AnswerMode.CLARIFY and plan.clarification is not None:
         clar = plan.clarification
         if isinstance(clar, Clarification):
-            # Normalize the empty options list to ``None`` so the
-            # enrichment prefix omits the options clause for free-form
-            # clarifications.
             options_list: list[str] | None = list(clar.options) if clar.options else None
             state = ClarificationState(
                 original_question=req.message,
@@ -248,7 +198,6 @@ async def chat(req: ChatRequest) -> ChatResponse:
         except Exception:  # noqa: BLE001
             log.exception("clear_pending_clarification failed; sid=%s", sid)
 
-    # --- 2. Clarification (no DB run) -----------------------------------
     if plan.clarification is not None:
         clarification_text: str = plan.clarification
         store.append_message(sid, "assistant", clarification_text)
@@ -262,7 +211,6 @@ async def chat(req: ChatRequest) -> ChatResponse:
             reasoning_summary="Clarification needed before query.",
         )
 
-    # --- 3. Explicit not-answerable (no DB run) --------------------------
     if plan.not_answerable_note is not None:
         note: str = plan.not_answerable_note
         composed = compose_not_answerable(note)
@@ -278,7 +226,6 @@ async def chat(req: ChatRequest) -> ChatResponse:
             reasoning_summary=composed.reasoning_summary,
         )
 
-    # --- 4. Governed SQL (EXECUTE_SQL mode) ----------------------------
     if plan.answer_mode == AnswerMode.EXECUTE_SQL and plan.sql:
         catalog = deps.catalog
         if catalog is None:
@@ -317,12 +264,6 @@ async def chat(req: ChatRequest) -> ChatResponse:
                 reasoning_summary=composed.reasoning_summary,
             )
 
-        # --- Stage 3.4: dry-run + single-shot repair (mirrors pipeline.py)
-        # The catalog gate above only checks structural legality + table
-        # allowlist; a second class of bugs (stale columns, fabricated
-        # identifiers) only surfaces when DuckDB binds the query. We catch
-        # that with `EXPLAIN` (no row reads) and give the agent one bounded
-        # re-prompt to fix it. See chat_server.repair for the design lineage.
         db = get_db()
         try:
             await db.dry_run(plan.sql)
@@ -340,8 +281,6 @@ async def chat(req: ChatRequest) -> ChatResponse:
                 error=str(exc.original),
             )
             if repaired_plan is None or not repaired_plan.sql:
-                # Repair declined (clarify / not_answerable / empty SQL) ->
-                # not-answerable, surface the original dry-run error.
                 composed = compose_not_answerable(
                     f"I couldn't fix the query: {exc.original}",
                     attempted_sql=plan.sql,
@@ -357,7 +296,6 @@ async def chat(req: ChatRequest) -> ChatResponse:
                     sql=plan.sql,
                     reasoning_summary=composed.reasoning_summary,
                 )
-            # Re-validate the repaired SQL against the catalog.
             repaired_report = validate_governed_sql(repaired_plan.sql, catalog)
             if not repaired_report.valid:
                 repaired_errors = "; ".join(repaired_report.errors) or (
@@ -378,7 +316,6 @@ async def chat(req: ChatRequest) -> ChatResponse:
                     sql=plan.sql,
                     reasoning_summary=composed.reasoning_summary,
                 )
-            # Adopt the repaired SQL + refreshed report.
             plan = repaired_plan
             report = repaired_report
             assert plan.sql is not None, "repair_sql returned a plan with no SQL"
@@ -431,7 +368,6 @@ async def chat(req: ChatRequest) -> ChatResponse:
             duration_ms=query_result.duration_ms,
         )
 
-    # --- 5. Resolve template --------------------------------------------
     try:
         template = get_template(plan.template_id)
     except TemplateNotFound:
@@ -449,7 +385,6 @@ async def chat(req: ChatRequest) -> ChatResponse:
             reasoning_summary=composed.reasoning_summary,
         )
 
-    # --- 5. Validate params against the template's Pydantic model --------
     try:
         validated_params = template.params_model(**plan.params).model_dump()
     except Exception as exc:
@@ -473,11 +408,6 @@ async def chat(req: ChatRequest) -> ChatResponse:
             reasoning_summary=composed.reasoning_summary,
         )
 
-    # --- 6. Defense-in-depth SQL validation ------------------------------
-    # The loader already ran this at import time; re-checking here means
-    # a runtime mutation of the template (impossible today, but cheap to
-    # guard) would fail loudly instead of executing an out-of-allowlist
-    # query.
     sql_report = validate_template_sql(template.sql, template.allowed_tables)
     if not sql_report.valid:
         log.error(
@@ -499,10 +429,6 @@ async def chat(req: ChatRequest) -> ChatResponse:
             reasoning_summary=composed.reasoning_summary,
         )
 
-    # --- 7. Execute against the warehouse --------------------------------
-    # Enforce the template's per-query timeout (PLAN §7.7 step 10 / §16).
-    # Without this a heavy template (pbp/clutch/lineup, TIMEOUT_SECONDS=300)
-    # could hold the process-wide DB lock and starve every other turn (C1).
     try:
         query_result = await asyncio.wait_for(
             get_db().execute(
@@ -548,7 +474,6 @@ async def chat(req: ChatRequest) -> ChatResponse:
             reasoning_summary=composed.reasoning_summary,
         )
 
-    # --- 8. Compose + persist + respond ---------------------------------
     composed = compose(template, query_result, plan.template_id)
     store.append_message(sid, "assistant", composed.answer)
     log.info(
@@ -570,9 +495,6 @@ async def chat(req: ChatRequest) -> ChatResponse:
         reasoning_summary=composed.reasoning_summary,
         duration_ms=query_result.duration_ms,
     )
-
-
-# --- helpers (private) ---------------------------------------------------
 
 
 def _append_assistant_or_500(sid: str, store, text: str) -> None:
@@ -603,25 +525,6 @@ def _not_answerable_response(*, sid: str, note: str, template_id: str | None) ->
 __all__ = ["ChatRequest", "ChatResponse", "router"]
 
 
-# --- streaming endpoint (Phase 4, PLAN §7.7 / §7.9) ---------------------
-
-
-# Note: ``EventSourceResponse`` accepts any async iterator; it sets the
-# ``text/event-stream`` media type and disables buffering at the ASGI
-# layer. The route builds the body by mapping each ``ChatEvent`` through
-# ``to_sse_dict`` and rendering one ``event:`` / ``data:`` frame per
-# payload. SSE keeps the connection open until the generator returns
-# (i.e. the pipeline exhausts its async generator).
-#
-# Client disconnect behaviour: FastAPI/Starlette will close the
-# underlying send channel when the client goes away. The inner
-# ``async for ev in run_turn(...)`` raises ``GeneratorExit`` (or
-# ``asyncio.CancelledError``) and the pipeline's try/except wrappers
-# convert any in-flight exception into a ``ChatError`` event first —
-# but in the disconnect case the generator is just terminated. The
-# pipeline never assumes the consumer is still listening.
-
-
 @router.post("/chat/stream")
 async def chat_stream(req: ChatRequest) -> EventSourceResponse:
     """SSE endpoint: stream one turn's ``ChatEvent``s back to the UI.
@@ -646,21 +549,11 @@ async def chat_stream(req: ChatRequest) -> EventSourceResponse:
     sid = _resolve_session_id(store, req.session_id, _title_from(req.message))
 
     async def event_gen():
-        # ``run_turn`` is an async generator. Each yielded ``ChatEvent``
-        # is mapped to one SSE frame. ``EventSourceResponse`` flushes
-        # immediately (no buffering); the UI sees events as they are
-        # produced.
         try:
             async for ev in run_turn(sid, req.message):
                 d = to_sse_dict(ev)
-                # SSE wire format: "event: <name>\ndata: <json>\n\n".
                 yield f"event: {d['event']}\ndata: {d['data']}\n\n"
         except Exception as exc:  # noqa: BLE001
-            # Last-resort safety net — the pipeline already converts
-            # step-level errors into ``ChatError`` events; this only
-            # fires for catastrophic failures (e.g. the agent runner
-            # itself blows up before yielding anything past
-            # ``TurnStarted``).
             log.exception("chat_stream: pipeline raised; sid=%s", sid)
             fallback = to_sse_dict(
                 ChatError(code="stream_failed", message=f"{type(exc).__name__}: {exc}")

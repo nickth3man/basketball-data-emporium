@@ -1,6 +1,6 @@
 """``teammate_overlap.two_player_shared_team_seasons`` template metadata.
 
-PLAN §12 row 3: every other player who shared at least one (team,
+Every other player who shared at least one (team,
 season_year) with both of two named players (regular season by default).
 
 Derivation
@@ -68,17 +68,11 @@ EXAMPLES = [
 ]
 TESTS = [
     {
-        # Benchmark deviation: PLAN §12 row 3 names LeBron + CP3, but those
-        # two never shared a regular-season team in the warehouse (verified
-        # via DISTINCT (team_id, season_year) INTERSECT — only the All-Star
-        # ghost row matches). We test with LeBron + Wade instead, who
-        # shared MIA 2010-14 + CLE 2017-18.
         "params": {"player_a_id": 2544, "player_b_id": 2548, "season_type": "Regular"},
         "expect_min_rows": 1,
         "expect_contains_player": "Chris Bosh",
     },
     {
-        # Document the empty-result case explicitly: PLAN's canonical pair.
         "params": {"player_a_id": 2544, "player_b_id": 101108, "season_type": "Regular"},
         "expect_min_rows": 0,
     },

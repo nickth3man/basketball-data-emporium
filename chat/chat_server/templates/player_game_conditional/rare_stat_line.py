@@ -1,6 +1,6 @@
 """``player_game_conditional.rare_stat_line`` template metadata.
 
-PLAN §12 row 17: regular-season quadruple-doubles since 1954 (PTS, REB,
+Regular-season quadruple-doubles since 1954 (PTS, REB,
 AST, BLK all >= 10). The warehouse confirms two qualifying games for the
 canonical "10 in four categories" definition (Nate Thurmond 1974-10-18
 and David Robinson 1994-02-17). Alvin Robertson 1986-02-18 also
@@ -24,7 +24,7 @@ class Params(BaseModel):
         ``"Regular"`` (default), ``"Playoffs"``, or ``"Cup"``.
     min_stat
         Minimum value for each of PTS/REB/AST/BLK. Default ``10`` matches
-        the canonical "quadruple-double" definition in PLAN §12 row 17.
+        the canonical "quadruple-double" definition.
     """
 
     season_type: str = Field(default="Regular", description="Regular | Playoffs | Cup")

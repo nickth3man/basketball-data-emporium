@@ -1,6 +1,6 @@
 """``career_demographic.country_gp_leaders`` template metadata.
 
-PLAN §12 row 20: among non-USA countries, which has the most players with
+Among non-USA countries, which has the most players with
 at least ``min_gp`` career games, and who is the highest career-points
 scorer from each qualifying country?
 
@@ -23,7 +23,7 @@ class Params(BaseModel):
     ----------
     min_gp
         Minimum career games played to count as a "leader".
-        Default 500 matches the PLAN §12 row-20 benchmark.
+        Default 500 matches the canonical benchmark.
     top_n
         How many top countries to return, ranked by player count DESC.
     """
@@ -55,16 +55,12 @@ EXAMPLES = [
 ]
 TESTS = [
     {
-        # Default min_gp (500) — at least one non-USA country qualifies
-        # (verified: Canada leads with 13 players; Steve Nash top scorer).
         "params": {"min_gp": 500, "top_n": 5},
         "expect_min_rows": 1,
         "expect_contains_player": "Steve Nash",
         "expect_player_column": "top_scorer_full_name",
     },
     {
-        # Lower min_gp threshold — broader fan-out (verified: 10 qualifying
-        # countries when min_gp=300).
         "params": {"min_gp": 300, "top_n": 10},
         "expect_min_rows": 3,
         "expect_contains_player": "Dirk Nowitzki",

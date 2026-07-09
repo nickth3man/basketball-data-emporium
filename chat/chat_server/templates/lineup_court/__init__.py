@@ -1,4 +1,4 @@
-"""``lineup_court`` template family (PLAN §11).
+"""``lineup_court`` template family.
 
 5-man shared-court lineup queries. The canonical lineup-roster map lives
 in ``fact_lineup_player`` (one row per player-in-lineup-game, keyed by a

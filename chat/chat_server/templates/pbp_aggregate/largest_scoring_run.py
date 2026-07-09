@@ -1,6 +1,6 @@
 """``pbp_aggregate.largest_scoring_run`` template metadata.
 
-PLAN §12 row 10: the largest scoring run in any NBA Finals game since
+The largest scoring run in any NBA Finals game since
 2010.  Built on top of ``fact_pbp_event`` (scoring-event islands) and
 ``dim_game`` (Finals filter).  Heavy tier — 300s timeout.
 
@@ -26,7 +26,7 @@ class Params(BaseModel):
     ----------
     since_season
         Lower bound (inclusive) on ``dim_game.season_year``.  Default
-        ``'2009-10'`` matches PLAN §12 row 10 (since the 2010 Finals).
+        ``'2009-10'`` matches the canonical benchmark (since the 2010 Finals).
     top_n
         Maximum number of runs to return, ordered by ``run_points DESC``.
     """

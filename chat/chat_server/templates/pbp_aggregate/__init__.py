@@ -1,4 +1,4 @@
-"""``pbp_aggregate`` template family (PLAN §11).
+"""``pbp_aggregate`` template family.
 
 Heavy play-by-play aggregates that derive from ``fact_pbp_event``: scoring
 runs across a game's event sequence, foul taxonomy aggregates per period,

@@ -1,9 +1,9 @@
 -- Template: lineup_court.fiveman_shared_court
--- PLAN §12 row 11: aggregate stats for a 5-man lineup that shared the
+-- Aggregate stats for a 5-man lineup that shared the
 -- court in N games of a single season.
 --
--- Spike outcome (PLAN §15)
--- ------------------------
+-- Spike outcome
+-- -------------
 -- **Shipped as a REAL template.**  Phase 6 verification showed:
 --   * ``fact_lineup_player`` (canonical lineup roster) has a per-game
 --     row per player-in-lineup, keyed by a

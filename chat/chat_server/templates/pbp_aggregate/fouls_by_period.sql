@@ -1,5 +1,5 @@
 -- Template: pbp_aggregate.fouls_by_period
--- PLAN §12 row 12: most offensive fouls committed in a given period.
+-- Most offensive fouls committed in a given period.
 --
 -- Offensive-foul definition
 -- -------------------------

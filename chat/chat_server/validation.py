@@ -1,8 +1,7 @@
 """SQL safety gate for the chatbot's template-driven query layer.
 
 Every SQL string that the runner is allowed to execute MUST first pass
-`validate_template_sql(sql, allowed_tables)`. The checks are layered per
-PLAN §7.4:
+`validate_template_sql(sql, allowed_tables)`. The checks are layered:
 
 1. Parse with `sqlglot.parse_one(sql, read="duckdb")`; reject on
    `sqlglot.errors.ParseError`.
@@ -42,10 +41,6 @@ import sqlglot
 from sqlglot import exp
 from sqlglot.errors import ParseError
 
-#: AST node kinds that are never legal inside a chatbot query. The union
-#: mirrors PLAN §7.4 step 3 plus `Command` (sqlglot's catch-all for
-#: unmodeled statements like CALL / LOAD / INSTALL / VACUUM / CHECKPOINT
-#: / EXPORT — many of which lack a dedicated class on `sqlglot.exp`).
 _FORBIDDEN: tuple[type[exp.Expression], ...] = (
     exp.Attach,
     exp.Copy,
@@ -127,7 +122,6 @@ def validate_template_sql(sql: str, allowed_tables: set[str]) -> ValidationRepor
     errors: list[str] = []
     tables_referenced: set[str] = set()
 
-    # Step 1: parse.
     try:
         ast = sqlglot.parse_one(sql, read="duckdb")
     except ParseError as exc:
@@ -136,8 +130,6 @@ def validate_template_sql(sql: str, allowed_tables: set[str]) -> ValidationRepor
             errors=[f"SQL parse error: {exc}"],
         )
 
-    # Step 2: reject multi-statement input. `parse` returns one entry per
-    # top-level statement; we only want one.
     try:
         statements = sqlglot.parse(sql, read="duckdb")
     except ParseError as exc:
@@ -151,26 +143,17 @@ def validate_template_sql(sql: str, allowed_tables: set[str]) -> ValidationRepor
             errors=[f"expected exactly 1 SQL statement, got {len(statements)}"],
         )
 
-    # Step 3: root must be a SELECT.
     if not isinstance(ast, exp.Select):
         return ValidationReport(
             valid=False,
             errors=[f"only SELECT is allowed; got {type(ast).__name__}"],
         )
 
-    # Step 4: forbidden node kinds anywhere in the AST.
     forbidden_hits = [type(node).__name__ for node in ast.find_all(*_FORBIDDEN)]
     if forbidden_hits:
-        # Deduplicate + sort for deterministic error messages.
         unique = sorted(set(forbidden_hits))
         errors.append(f"forbidden statements/operations present: {', '.join(unique)}")
 
-    # Step 5: table allowlist.
-    #
-    # CTE names show up as `exp.Table` nodes in sqlglot's AST even though
-    # they aren't real tables — they're local aliases inside the query.
-    # Subtract CTE aliases from the table set so the allowlist check only
-    # fires on genuine base tables.
     cte_aliases: set[str] = set()
     for cte in ast.find_all(exp.CTE):
         alias = cte.alias
@@ -178,8 +161,6 @@ def validate_template_sql(sql: str, allowed_tables: set[str]) -> ValidationRepor
             cte_aliases.add(alias)
     for tbl in ast.find_all(exp.Table):
         name = tbl.name
-        # Step 5a: reject catalog/schema-qualified references outright (H1).
-        # Our templates never qualify; a qualified name is a defense-in-depth red flag.
         if tbl.db or tbl.catalog:
             errors.append(
                 f"catalog/schema-qualified table reference not allowed: {tbl.sql(dialect='duckdb')}"
@@ -192,11 +173,6 @@ def validate_template_sql(sql: str, allowed_tables: set[str]) -> ValidationRepor
                 f"table '{name}' is not in the template's allowed set ({sorted(allowed_tables)})"
             )
 
-    # Step 5b: reject dangerous table-valued functions (C2). TVFs like
-    # `read_csv_auto`, `read_parquet`, `pragma_*`, `duckdb_*` parse as
-    # `exp.Func`/`exp.Anonymous` — NOT `exp.Table` — so the allowlist walk
-    # above would miss them, allowing a template to read arbitrary files
-    # exposed to the DuckDB process. Deny by name regardless of position.
     _dangerous_tvfs = {
         "read_csv_auto",
         "read_csv",
@@ -227,7 +203,6 @@ def validate_template_sql(sql: str, allowed_tables: set[str]) -> ValidationRepor
             fname = ""
         if fname in _dangerous_tvfs:
             errors.append(f"table-valued function not allowed: {fname}(...)")
-    # `read_csv_auto` and similar unmodeled DuckDB functions parse as Anonymous.
     for anon in ast.find_all(exp.Anonymous):
         if anon.name and anon.name.lower() in _dangerous_tvfs:
             errors.append(f"table-valued function not allowed: {anon.name.lower()}(...)")

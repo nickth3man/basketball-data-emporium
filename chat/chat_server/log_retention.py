@@ -1,4 +1,4 @@
-"""7-day rolling log retention sweep (PLAN §7.10).
+"""7-day rolling log retention sweep.
 
 On startup, this module walks every known log root under
 ``settings.chat_log_dir`` and unlinks files whose mtime is older than
@@ -17,7 +17,7 @@ Sweep contract
   read-only or a file is locked.
 * ``now`` is overridable for tests (no need to monkeypatch ``time.time``).
 
-Log roots covered (PLAN §6 layout):
+Log roots covered:
 
 * ``{chat_log_dir}/app/<date>.jsonl``         (root JSONL app log)
 * ``{chat_log_dir}/queries/<date>/...``       (per-turn SQL + results)
@@ -41,11 +41,8 @@ from .config import get_settings
 
 log = logging.getLogger(__name__)
 
-#: Default retention window in days. Matches PLAN §7.10 ("7 rolling days").
 RETENTION_DAYS: int = 7
 
-#: Log sub-directories under ``chat_log_dir`` that this sweep covers.
-#: Order is informational only; each entry is independent.
 LOG_SUBDIRS: tuple[str, ...] = ("app", "queries", "model")
 
 
@@ -64,7 +61,6 @@ def _is_under_retention(path: Path, cutoff: float) -> bool:
     try:
         return path.stat().st_mtime < cutoff
     except OSError:
-        # Symlink loops, race with unlink, etc. — treat as "do not delete".
         return False
 
 
@@ -86,7 +82,6 @@ def sweep_logs(
         return 0
 
     if not root.exists():
-        # Missing root is the common case on a fresh checkout; not an error.
         return 0
     if not root.is_dir():
         log.warning("sweep_logs: %s exists but is not a directory; skipping", root)
@@ -94,13 +89,10 @@ def sweep_logs(
 
     cutoff = _cutoff_epoch(retention_days, now=now)
     removed = 0
-    # Walk top-down so empty directories can be cleaned up after their files.
     for dirpath, dirnames, filenames in os.walk(root, topdown=True, followlinks=False):
-        # Skip symlinked subtrees entirely — we never delete through symlinks.
         dirnames[:] = [d for d in dirnames if not (Path(dirpath) / d).is_symlink()]
         for name in filenames:
             path = Path(dirpath) / name
-            # Honor symlinks-to-files by leaving them alone.
             if path.is_symlink():
                 continue
             if not _is_under_retention(path, cutoff):
@@ -111,14 +103,10 @@ def sweep_logs(
             except OSError as exc:
                 log.warning("sweep_logs: failed to delete %s: %s", path, exc)
 
-    # Best-effort: prune empty leaf dirs under root. We walk bottom-up so a
-    # directory whose children have been removed above also gets pruned.
     for dirpath, dirnames, filenames in os.walk(root, topdown=False, followlinks=False):
-        # Never remove the root itself.
         if Path(dirpath) == root:
             continue
         if not dirnames and not filenames:
-            # Directory not empty (raced with a writer) or permission denied.
             with contextlib.suppress(OSError):
                 os.rmdir(dirpath)
 
@@ -139,7 +127,7 @@ def sweep_all(retention_days: int = RETENTION_DAYS) -> dict[str, int]:
         root = log_root / subdir
         try:
             results[subdir] = sweep_logs(root, retention_days)
-        except Exception:  # noqa: BLE001 - belt-and-braces: never break startup
+        except Exception:  # noqa: BLE001
             log.exception("sweep_all: unhandled error sweeping %s", root)
             results[subdir] = 0
     return results

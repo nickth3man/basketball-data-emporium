@@ -1,6 +1,6 @@
 """``season_thresholds.fifty_forty_ninety`` template metadata.
 
-PLAN §12 row 5: 50-40-90 (FG% >= 50, 3P% >= 40, FT% >= 90) seasons
+50-40-90 (FG% >= 50, 3P% >= 40, FT% >= 90) seasons
 filtered by a minimum PPG floor. Phase 1 default uses Regular season.
 """
 
@@ -16,7 +16,7 @@ class Params(BaseModel):
     ----------
     min_ppg
         Minimum points per game for inclusion. Default 25.0 matches the
-        PLAN §12 row-5 benchmark question.
+        canonical benchmark question.
     fg_min
         Minimum FG% (default 0.50).
     fg3_min

@@ -4,7 +4,7 @@ Phase 2 (this file): configures the root logger with a redacting filter
 plus a basic JSONL handler that writes to ``{chat_log_dir}/app/<date>.jsonl``.
 
 Phase 4/7 will add per-session/query/model JSONL handlers and a 7-day
-rolling retention sweep (see PLAN §7.10).
+rolling retention sweep.
 
 Design
 ------
@@ -32,18 +32,15 @@ from logging import LogRecord
 from pathlib import Path
 from typing import Any
 
-try:  # pragma: no cover - defensive import
+try:  # pragma: no cover
     from loggingredactor import CommonPIIRedactingFilter
 
     _PII_FILTER_CLS: Any = CommonPIIRedactingFilter
-except Exception:  # noqa: BLE001 - any import failure falls back to key-only redaction
+except Exception:  # noqa: BLE001
     _PII_FILTER_CLS: Any = None
 
 from .config import get_settings
 
-# OpenRouter key pattern (per PLAN §7.10). The replacement string intentionally
-# mirrors the marker the upstream PII filter would emit, so log consumers can
-# recognise redacted values uniformly.
 _OPENROUTER_KEY_RE = re.compile(r"sk-or-[A-Za-z0-9_-]+")
 _REDACTED_KEY = "sk-or-[REDACTED]"
 
@@ -71,7 +68,6 @@ class RedactingFilter(logging.Filter):
         self._pii: logging.Filter | None = pii_filter
 
     def filter(self, record: LogRecord) -> bool:
-        # 1. OpenRouter API keys — both in the format string and in args.
         try:
             if isinstance(record.msg, str):
                 record.msg = _redact_string(record.msg)
@@ -86,7 +82,6 @@ class RedactingFilter(logging.Filter):
         except Exception:  # noqa: BLE001
             pass
 
-        # 2. Chain the upstream PII filter; never raise.
         if self._pii is not None:
             with contextlib.suppress(Exception):
                 self._pii.filter(record)
@@ -110,10 +105,6 @@ class JsonlFormatter(logging.Formatter):
             "message": record.getMessage(),
         }
         if record.exc_info:
-            # Redact any sk-or-... that may appear in the traceback (e.g. an
-            # httpx/OpenRouter SDK exception whose repr includes the Authorization
-            # header). RedactingFilter only scrubs record.msg/args, not the
-            # formatted exception, so do it here (H3).
             payload["exc_info"] = _redact_string(self.formatException(record.exc_info))
         return json.dumps(payload, ensure_ascii=False, default=str)
 

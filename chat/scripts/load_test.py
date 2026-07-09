@@ -1,4 +1,4 @@
-"""Concurrent-turn load smoke (Phase 8, PLAN §15 "load test").
+"""Concurrent-turn load smoke (Phase 8).
 
 Fires N parallel POST /api/chat/stream turns against the LOCAL running API and
 reports per-turn status + p50/p95 latency + error count.

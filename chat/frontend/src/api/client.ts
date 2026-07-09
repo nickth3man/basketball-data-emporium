@@ -1,5 +1,5 @@
 /**
- * Typed REST client (PLAN §9.1).
+ * Typed REST client.
  *
  * Wraps `openapi-fetch` against the `paths` interface generated from
  * `frontend/openapi.json` (which mirrors the FastAPI app's `openapi()`).
@@ -9,7 +9,7 @@
  *   1. From `chat/` (backend): `uv run python scripts/export_openapi.py`
  *      → writes `chat/frontend/openapi.json` from the live FastAPI app.
  *      CI runs this then `git diff --exit-code frontend/openapi.json`
- *      (PLAN §9.1 drift guard).
+ *      (drift guard).
  *   2. From `chat/frontend/` (this dir): `npm run gen:types`
  *      → writes `src/generated/api.d.ts` from the committed
  *      `openapi.json`.

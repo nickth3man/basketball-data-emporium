@@ -1,6 +1,6 @@
 # Semantic catalog model: head_to_head
 #
-# PLAN §1 Phase 2 Lane A: fully grounded against the live warehouse.
+# Fully grounded against the live warehouse.
 # Base table + every referenced column confirmed via:
 #
 #   duckdb ../data/nba.duckdb -readonly -list -c \
@@ -17,7 +17,7 @@
 #   games_played BIGINT, wins HUGEINT, losses HUGEINT,
 #   avg_pts_scored DOUBLE, avg_pts_allowed DOUBLE, avg_margin DOUBLE.
 #
-# IMPORTANT: mart_head_to_head is TEAM-vs-TEAM only. The PLAN.md NBA-domain
+# IMPORTANT: mart_head_to_head is TEAM-vs-TEAM only. The NBA-domain
 # reference is nba_api playervsplayer.py (Overall / OnOffCourt /
 # ShotAreaOffCourt/OnCourt/Overall / ShotDistanceOffCourt/OnCourt/Overall
 # / PlayerInfo / VsPlayerInfo) — that is a PLAYER-vs-PLAYER endpoint and
@@ -128,7 +128,7 @@ joins: []
 
 caveats:
   - >
-    TEAM-vs-TEAM ONLY. The PLAN.md NBA-domain reference
+    TEAM-vs-TEAM ONLY. The NBA-domain reference
     (nba_api.playervsplayer — Overall / OnOffCourt / ShotArea* /
     ShotDistance* / PlayerInfo / VsPlayerInfo result sets) is a
     PLAYER-vs-PLAYER endpoint. There is no player-vs-player matchup

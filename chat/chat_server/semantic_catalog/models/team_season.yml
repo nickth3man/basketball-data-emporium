@@ -1,6 +1,6 @@
 # Semantic catalog model: team_season
 #
-# PLAN §1 Phase 2 Lane A: fully grounded against the live warehouse.
+# Fully grounded against the live warehouse.
 # Every base_table column referenced in `dimensions` and `measures` below
 # was confirmed against the live warehouse via:
 #
@@ -47,7 +47,7 @@
 # Conventions (matching player_career.yml):
 # - All `expr` strings are written against the `ts.` alias declared in
 #   `base_table`.
-# - `additivity` follows the Cube.js recipes referenced in PLAN §6:
+# - `additivity` follows the canonical Cube.js recipes:
 #   `sum` for additive season totals (w, l, pw, pl, attend, attend_g);
 #   `non_additive` for ratings and rates (o_rtg, d_rtg, n_rtg, pace,
 #   mov, srs, sos, percentages) which are already per-team averages and

@@ -4,7 +4,7 @@ Run from ``chat/``::
 
     uv run python scripts/export_openapi.py
 
-CI drift guard (PLAN §9.1): regenerate the file and run
+CI drift guard: regenerate the file and run
 ``git diff --exit-code frontend/openapi.json``. The snapshot is committed
 under ``chat/frontend/openapi.json`` so ``openapi-typescript`` can type the
 frontend REST client against the committed schema without a live backend.

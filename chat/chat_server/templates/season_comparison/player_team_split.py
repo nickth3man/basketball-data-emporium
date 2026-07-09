@@ -1,6 +1,6 @@
 """``season_comparison.player_team_split`` template metadata.
 
-PLAN §12 row 4: Harden 2022-23 PHI-vs-BKN per-game + team win% after the
+Harden 2022-23 PHI-vs-BKN per-game + team win% after the
 mid-season trade. **Not answerable with evidence in this warehouse.**
 
 The trade event is not captured canonically. ``mart_player_season``
@@ -13,7 +13,7 @@ rows that do exist (the PHI rows), so the composer can attach them as
 evidence when emitting the not-answerable response. The module-level
 constants ``NOT_ANSWERABLE = True`` and ``NOT_ANSWERABLE_NOTE`` are the
 new optional fields a future composer / agent honors to switch into the
-PLAN §10 transparent not-answerable-with-evidence path.
+transparent not-answerable-with-evidence path.
 """
 
 from __future__ import annotations
@@ -61,9 +61,6 @@ RESULT_SCHEMA = {
 ANSWER_POLICY = "not_answerable"
 DEFAULT_LIMIT = 20
 TIMEOUT_SECONDS = 30
-# Not-answerable flags read by the composer / agent (PLAN §10). Defining
-# these as module constants is non-breaking: the loader only consumes the
-# required constants listed in `_loader.py`; anything else is ignored.
 NOT_ANSWERABLE = True
 NOT_ANSWERABLE_NOTE = (
     "The mid-season trade event isn't captured canonically; "

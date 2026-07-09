@@ -1,6 +1,5 @@
 /**
- * E2E test for the not-answerable UX (PLAN §12 #4 + §15 Phase 8 exit:
- * "not-answerable UX review").
+ * E2E test for the not-answerable UX ("not-answerable UX review").
  *
  * What we're proving
  * ------------------
@@ -14,7 +13,7 @@
  *
  * The canonical not-answerable question is the Harden 2022-23 PHI-vs-BKN
  * trade split (`season_comparison.player_team_split`,
- * NOT_ANSWERABLE=True, PLAN §12 #4). A prompt like "James Harden
+ * NOT_ANSWERABLE=True). A prompt like "James Harden
  * 2022-23 per-game stats split between Philadelphia and Brooklyn after
  * the trade" routes the agent to that template's not-answerable path.
  *
@@ -43,7 +42,7 @@
  *
  * Assertions
  * ----------
- *   - Composer accepts text and Enter submits (§8.4 keyboard).
+ *   - Composer accepts text and Enter submits (keyboard contract).
  *   - The streamed answer text appears in the timeline as a regular
  *     assistant bubble (`aria-label="Assistant answered"`). The
  *     "not answerable" copy is asserted explicitly so a future change
@@ -189,9 +188,9 @@ test("not-answerable answer renders as a normal assistant bubble, not an error b
   await expect(composer).toBeVisible();
   await expect(composer).toBeEnabled();
 
-  // The canonical not-answerable question (PLAN §12 #4). The
-  // canned SSE response decouples us from the live agent's routing
-  // — the test asserts the *rendering*, not the agent's classification.
+  // The canonical not-answerable question. The canned SSE response
+  // decouples us from the live agent's routing — the test asserts
+  // the *rendering*, not the agent's classification.
   await composer.fill(
     "James Harden 2022-23 per-game stats split between Philadelphia and Brooklyn after the trade",
   );

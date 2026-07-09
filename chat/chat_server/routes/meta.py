@@ -23,7 +23,7 @@ class HealthResponse(BaseModel):
 
 
 class LatencyTiers(BaseModel):
-    """Latency budget per template complexity tier (PLAN §13)."""
+    """Latency budget per template complexity tier."""
 
     simple_seconds: tuple[int, int]
     medium_seconds: tuple[int, int]
@@ -38,7 +38,6 @@ class ConfigResponse(BaseModel):
     latency_tiers: LatencyTiers
 
 
-# Latency tier budgets — see PLAN §13. Single source of truth.
 _LATENCY_TIERS = LatencyTiers(
     simple_seconds=(1, 5),
     medium_seconds=(5, 20),

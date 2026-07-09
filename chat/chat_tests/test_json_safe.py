@@ -68,7 +68,7 @@ def test_int_above_safe_range_becomes_str(value: int) -> None:
 
 
 def test_decimal_becomes_float() -> None:
-    # Per PLAN §7.2: Decimal -> float (lossy is acceptable for stats).
+    # Decimal -> float (lossy is acceptable for stats).
     assert to_json_safe(Decimal("3.14")) == 3.14
     assert isinstance(to_json_safe(Decimal("3.14")), float)
 

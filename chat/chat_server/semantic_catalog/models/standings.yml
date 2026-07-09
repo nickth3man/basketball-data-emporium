@@ -1,6 +1,6 @@
 # Semantic catalog model: standings
 #
-# PLAN §1 Phase 2 Lane A: fully grounded against the live warehouse.
+# Fully grounded against the live warehouse.
 # Every base_table column referenced in `dimensions` and `measures` below
 # was confirmed against the live warehouse via:
 #
@@ -30,7 +30,7 @@
 # Conventions (matching player_career.yml):
 # - All `expr` strings are written against the `st.` alias declared in
 #   `base_table`.
-# - `additivity` follows the Cube.js recipes referenced in PLAN §6:
+# - `additivity` follows the canonical Cube.js recipes:
 #   `sum` for additive counts (wins, losses); `non_additive` for
 #   per-row averages, ranks, and ratios (win_pct, pts_pg, opp_pts_pg,
 #   diff_pts_pg, games_back, conf_rank, div_rank) where re-summing

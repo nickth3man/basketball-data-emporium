@@ -1,6 +1,6 @@
 """``player_game_conditional.career_conditional_aggregate`` template metadata.
 
-PLAN §12 row 19: players with the most career assists in games where
+Players with the most career assists in games where
 they scored zero points. Aggregates over ``fact_player_game_box`` with
 ``pts = 0``, summed per player, joined to ``dim_player`` for the name.
 """

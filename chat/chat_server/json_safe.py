@@ -11,7 +11,7 @@ This module provides a single recursive converter, `to_json_safe`, plus a
 helper that zips a column list with a list of raw row tuples:
 `convert_rows(columns, raw_rows) -> list[dict]`.
 
-Per PLAN §7.2 and the conversation's verified warehouse facts:
+Per the conversation's verified warehouse facts:
 
 * HUGEINT values that exceed `2 ** 53` (JavaScript's `Number.MAX_SAFE_INTEGER`)
   are downcast to `str` so they round-trip through JSON without silent
@@ -36,8 +36,6 @@ from decimal import Decimal
 from itertools import zip_longest
 from typing import Any
 
-#: JavaScript's Number.MAX_SAFE_INTEGER. Anything larger cannot round-trip
-#: through JSON without losing precision when re-parsed.
 SAFE_INT_MAX = 2**53
 
 
@@ -61,31 +59,21 @@ def to_json_safe(value: Any) -> Any:
     if value is None or isinstance(value, (bool, str, float)):
         return value
     if isinstance(value, int):
-        # HUGEINT/BIGINT/UBIGINT/INTEGER/SMALLINT/TINYINT all surface as `int`
-        # in DuckDB's Python client. Python ints are unbounded, so we only
-        # need to be careful about the JSON/JS precision boundary.
         return value if -SAFE_INT_MAX <= value <= SAFE_INT_MAX else str(value)
     if isinstance(value, Decimal):
         return float(value)
     if isinstance(value, datetime.datetime):
-        # Isoformat includes microseconds + timezone when present; json.dumps
-        # encodes this verbatim.
         return value.isoformat()
     if isinstance(value, datetime.date):
         return value.isoformat()
     if isinstance(value, datetime.timedelta):
         return value.total_seconds()
     if isinstance(value, (bytes, bytearray, memoryview)):
-        # Hex is shorter and easier to scan than base64 for BLOB payloads of
-        # the sizes the chatbot actually sees (UUIDs, hashes, etc.).
         return bytes(value).hex()
     if isinstance(value, (list, tuple)):
         return [to_json_safe(item) for item in value]
     if isinstance(value, dict):
         return {str(k): to_json_safe(v) for k, v in value.items()}
-    # Defensive fallback: keep the result page from blowing up on one odd
-    # cell (a custom Decimal subtype, a UUID, etc.). The downside is we
-    # silently stringify unknown values; the upside is robustness.
     return str(value)
 
 

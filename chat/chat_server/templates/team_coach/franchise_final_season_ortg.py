@@ -1,6 +1,6 @@
 """``team_coach.franchise_final_season_ortg`` template metadata.
 
-PLAN §12 row 2: a franchise's final season — head coach + team offensive
+A franchise's final season — head coach + team offensive
 rating. The "franchise final season" is derived from
 ``dim_team_era.valid_to_year`` (the last non-current era for that
 ``team_id``), with an opt-out via the ``final_season`` parameter for

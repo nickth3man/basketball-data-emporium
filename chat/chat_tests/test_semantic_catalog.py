@@ -1,4 +1,4 @@
-"""Tests for the semantic catalog package (PLAN §1 Phase 1).
+"""Tests for the semantic catalog package.
 
 Five tests cover the loader's contract end to end:
 

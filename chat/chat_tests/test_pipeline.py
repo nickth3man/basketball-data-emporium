@@ -351,7 +351,7 @@ def test_chat_event_union_schema_contains_all_eleven():
     assert keys == expected, f"missing={expected - keys}, extra={keys - expected}"
 
 
-# --- 6. secret redaction on the debug log paths (PLAN §7.10) -----------
+# --- 6. secret redaction on the debug log paths -----------------------
 
 
 @skip_no_db
@@ -361,7 +361,7 @@ def test_pipeline_does_not_leak_api_key_into_debug_logs(monkeypatch, tmp_path):
 
     The visible session history (under ``sessions/``) intentionally
     preserves the user's message verbatim — that's the chat log, not
-    a debug artifact. The redaction contract (PLAN §7.10) covers the
+    a debug artifact. The redaction contract covers the
     debug paths only.
     """
     from chat_server import config as config_module

@@ -1,8 +1,8 @@
 # Prompt templates (v1 scaffolds)
 
-Static text scaffolds consumed by Phase 3 of the governed-SQL migration (see `chat/PLAN.md`). They are deliberately hand-authored as plain text with double-brace, Jinja-like placeholders (named slots, written inline as `name`) so a future Pydantic AI system-prompt loader can substitute them with either `str.format`-style rendering or a Jinja-style renderer, without touching the templates themselves.
+Static text scaffolds consumed by Phase 3 of the governed-SQL migration. They are deliberately hand-authored as plain text with double-brace, Jinja-like placeholders (named slots, written inline as `name`) so a future Pydantic AI system-prompt loader can substitute them with either `str.format`-style rendering or a Jinja-style renderer, without touching the templates themselves.
 
-These are v1 static assets. Wire them up during Phase 3 (see `PLAN.md` Implementation Phasing). Do NOT edit `agent.py`, `pipeline.py`, `pyproject.toml`, or any Python file to consume them yet — another lane owns all Python.
+These are v1 static assets. Wire them up during Phase 3. Do NOT edit `agent.py`, `pipeline.py`, `pyproject.toml`, or any Python file to consume them yet — another lane owns all Python.
 
 ## Templates
 
@@ -10,7 +10,7 @@ These are v1 static assets. Wire them up during Phase 3 (see `PLAN.md` Implement
 
 Purpose: the SQL-analyst agent's system prompt for Pydantic AI (the `@agent.system_prompt` decorator form, eventually replacing the inline `SYSTEM_PROMPT_TEMPLATE` in `agent.py`). Follows the LangGPT Role / Profile / Goal / Skills / Rules / Workflow skeleton.
 
-Serves PLAN.md sections:
+Covers:
 - "Key Changes" — the new structured `QueryPlan` fields (`answer_mode`, `question_interpretation`, `sql`, `clarification`, `result_contract`).
 - "Guardrails And Runtime" — catalog-first generation, read-only DuckDB, no DDL / DML / writes, server-side `LIMIT`.
 - "Conversation Behavior" — clarification over guessing, caveats only when they affect trust, conversational tone in user-facing text.
@@ -23,9 +23,9 @@ Slots:
 
 ### `repair.txt`
 
-Purpose: the repair-loop prompt dispatched after a DuckDB dry-run failure. Shape lifted from DIN-SQL's `debuger()` 7-bullet fix-it rules (`PLAN.md` References Catalog) plus the MAC-SQL Refiner dispatch (`sqlite_error + exception_class + question + schema` under a `MAX_ROUND` cap).
+Purpose: the repair-loop prompt dispatched after a DuckDB dry-run failure. Shape lifted from DIN-SQL's `debuger()` 7-bullet fix-it rules plus the MAC-SQL Refiner dispatch (`sqlite_error + exception_class + question + schema` under a `MAX_ROUND` cap).
 
-Serves PLAN.md sections:
+Covers:
 - "Guardrails And Runtime" — DuckDB dry-run on syntax or schema errors, single repair reprompt under `MAX_ROUND`, fall back to a clarification or a grounded "I can't answer that yet".
 - "References Catalog" — DIN-SQL `debuger()` + MAC-SQL Refiner entries.
 
@@ -37,9 +37,9 @@ Slots:
 
 ### `clarify.txt`
 
-Purpose: the conversational clarification prompt rendered by the composer when `QueryPlan.answer_mode == "clarify"`. Grounded in the McGrady "similarity" example from `PLAN.md` Conversation Behavior (career averages, career totals, peak season, advanced metrics, or overall blend).
+Purpose: the conversational clarification prompt rendered by the composer when `QueryPlan.answer_mode == "clarify"`. Grounded in the McGrady "similarity" example (career averages, career totals, peak season, advanced metrics, or overall blend).
 
-Serves PLAN.md sections:
+Covers:
 - "Conversation Behavior" — clarification flow, conversational tone, no implementation details in user-facing text.
 - "Guardrails And Runtime" — Tracy McGrady example referenced as the canonical ambiguous case.
 

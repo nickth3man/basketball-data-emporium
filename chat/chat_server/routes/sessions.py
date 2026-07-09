@@ -4,7 +4,6 @@ Mounted under ``/api`` by ``chat_server.main``. Paths in this file are bare
 (``/sessions``, ``/sessions/{id}``, ``/debug/artifacts/{id}``) so they
 share the FastAPI prefix declaration done in ``main``.
 
-PLAN §7.9 (rest surface) + §7.10 (visible sessions / debug artifacts).
 """
 
 from __future__ import annotations
@@ -22,11 +21,8 @@ from ..sessions import (
 router = APIRouter(tags=["sessions"])
 
 
-# --- Request / response models -------------------------------------------
-
-
 class CreateSessionRequest(BaseModel):
-    """Body for `POST /api/sessions` (PLAN §7.9).
+    """Body for `POST /api/sessions`.
 
     ``title`` is optional; the store falls back to ``"New chat"`` when
     the field is omitted, empty, or whitespace-only.
@@ -35,11 +31,6 @@ class CreateSessionRequest(BaseModel):
     title: str | None = Field(default=None, max_length=200)
 
 
-# --- Pagination helpers --------------------------------------------------
-
-# Page-size bounds for `GET /api/sessions/{id}/history`. The clamp lives in
-# the route layer so the store stays policy-free; tests exercise both edges
-# of the clamp directly.
 _DEFAULT_HISTORY_LIMIT = 50
 _MAX_HISTORY_LIMIT = 200
 
@@ -63,16 +54,13 @@ def _session_not_found() -> HTTPException:
     return HTTPException(status_code=404, detail="session not found")
 
 
-# --- Routes --------------------------------------------------------------
-
-
 @router.post(
     "/sessions",
     response_model=SessionMeta,
     status_code=201,
 )
 def create_session(
-    body: CreateSessionRequest | None = Body(default=None),  # noqa: B008 - FastAPI marker
+    body: CreateSessionRequest | None = Body(default=None),  # noqa: B008
 ) -> SessionMeta:
     """Create a new session with the given (or default) title.
 
@@ -88,9 +76,8 @@ def create_session(
 def list_sessions() -> list[SessionMeta]:
     """Return every session's meta (no messages).
 
-    Not explicitly in PLAN §7.9 but useful for the UI's session-list view;
-    kept here so the OpenAPI snapshot exposes the shape to the frontend
-    codegen.
+    Useful for the UI's session-list view; kept here so the OpenAPI
+    snapshot exposes the shape to the frontend codegen.
     """
     return get_store().list_all()
 
@@ -140,7 +127,7 @@ def get_session(session_id: str) -> SessionMeta:
 
 @router.delete("/sessions/{session_id}", status_code=204)
 def delete_session(session_id: str) -> None:
-    """Clear the visible history (PLAN §7.9 manual-clear).
+    """Clear the visible history (manual-clear).
 
     The session's meta (title, id, created_at) is preserved so the UI can
     keep showing the empty session in its list. ``404`` if the meta is

@@ -9,9 +9,6 @@ template (never writes SQL), SSE streaming, inline citations, collapsible
 SQL + reasoning panels, and a transparent "not answerable with evidence"
 path for questions the warehouse can't support.
 
-See [`PLAN.md`](./PLAN.md) for the authoritative design, architecture
-decisions, technology pins, and the phased implementation plan.
-
 ---
 
 ## Architecture overview
@@ -89,7 +86,7 @@ allowlist make the backend **safe even if the agent tries to misbehave**.
 ```sh
 # 1. Backend env (from chat/)
 cp .env.example .env             # fill OPENROUTER_API_KEY
-#    OPENROUTER_MODEL defaults to mistralai/mistral-small-2603 — see PLAN §7.1
+#    OPENROUTER_MODEL defaults to mistralai/mistral-small-2603
 #    DUCKDB_PATH defaults to ../data/nba.duckdb (relative to chat/)
 
 # 2. Backend deps
@@ -102,8 +99,7 @@ npm install
 
 The v1 default model is `mistralai/mistral-small-2603` (cheap and
 reliable enough for template-routing). Switch to `anthropic/claude-sonnet-4.6`
-or another before live testing — see PLAN §7.1 + the Phase 8 model-selection
-note.
+or another before live testing — see the Phase 8 model-selection note.
 
 ---
 
@@ -130,7 +126,7 @@ npm run dev
 
 Open **http://localhost:5173** in a browser.
 
-> **Concurrency note (PLAN §7.2 — important).** The DuckDB connection is
+> **Concurrency note (important).** The DuckDB connection is
 > **read-only** in this project, but the underlying file format forbids
 > mixing read-only and read-write handles in the same process family.
 > Multiple *read-only* connections coexist happily — the chatbot, the
@@ -245,12 +241,12 @@ to lock the answer shape against the live warehouse.
 
 ## Coverage (v1)
 
-The v1 template registry covers 18 of the 20 benchmark questions in
-`PLAN.md` §12 directly, with the remaining two handled as
+The v1 template registry covers 18 of the 20 benchmark questions
+directly, with the remaining two handled as
 **transparent not-answerable-with-evidence** responses:
 
 - **18 designed-to-be-answerable** — across the Simple / Medium / Heavy
-  latency tiers (PLAN §13). Each has a deterministic pytest fixture
+  latency tiers. Each has a deterministic pytest fixture
   against `data/nba.duckdb` and a Playwright smoke covering the happy
   path. Five of the Heavy-tier templates are spike-gated and may
   decline to not-answerable-with-evidence on warehouse cost.
@@ -286,7 +282,7 @@ The v1 template registry covers 18 of the 20 benchmark questions in
 - **Win shares** are not in `mart_player_season`; the
   `career_demographic.hs_draftee_career_ws` template pulls WS via
   `src_agg_player_season_advanced` (a BBR source-backed table — allowed
-  per PLAN §3 decision #3).
+  per the original §3 decision #3).
 - **Lineups** are stitched together from
   `fact_lineup_player` (canonical roster map) and
   `src_agg_lineup_efficiency` (lineup-stats source table) inside the
@@ -297,7 +293,6 @@ The v1 template registry covers 18 of the 20 benchmark questions in
 ## Project status
 
 v1 (Phase 6 template breadth + Phase 7 observability/error-UX polish)
-is the current target. See `PLAN.md` §15 for the full phase list and
-exit criteria. Phase 8 (hardening — adversarial prompt review, load
+is the current target. Phase 8 (hardening — adversarial prompt review, load
 testing, model-selection live test, final docs) is the shippable
 milestone.

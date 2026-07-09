@@ -1,4 +1,4 @@
-"""``team_coach`` template family (PLAN §11).
+"""``team_coach`` template family.
 
 Covers coach + franchise + season intersections and team-level offensive
 ratings, joining ``fact_coach_season`` + ``fact_player_game_advanced`` +

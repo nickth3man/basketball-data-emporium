@@ -1,6 +1,6 @@
 # Semantic catalog model: player_season
 #
-# PLAN §1 Phase 2 Lane A: fully grounded against the live warehouse.
+# Fully grounded against the live warehouse.
 # Every base_table column referenced in `dimensions` and `measures` below
 # was confirmed against the live warehouse via:
 #
@@ -28,7 +28,7 @@
 # Conventions (matching player_career.yml):
 # - All `expr` strings are written against the `ps.` alias declared in
 #   `base_table`.
-# - `additivity` follows the Cube.js recipes referenced in PLAN §6:
+# - `additivity` follows the canonical Cube.js recipes:
 #   `sum` for additive totals (gp, total_pts, total_reb, ...),
 #   `non_additive` for per-row averages and rates (avg_pts, fg_pct,
 #   avg_off_rating, ...) where re-summing across grains double-counts,

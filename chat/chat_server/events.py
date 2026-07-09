@@ -1,9 +1,9 @@
-"""SSE event union for the chat turn pipeline (PLAN §7.8).
+"""SSE event union for the chat turn pipeline.
 
 This module defines the **canonical 11-event discriminated union** that
 streams from ``POST /api/chat/stream`` (Phase 4). The same union is
 serialised to JSON Schema by ``export_json_schema()`` and consumed by
-the frontend drift guard (PLAN §9.2).
+the frontend drift guard.
 
 Why a Pydantic discriminated union
 ----------------------------------
@@ -34,7 +34,7 @@ Add/remove events = also update
 (c) the frontend reducer (Phase 5),
 (d) the JSONL log schema (Phase 7).
 
-The CI drift guard (PLAN §9.2) catches (a) and (b).
+The CI drift guard catches (a) and (b).
 """
 
 from __future__ import annotations
@@ -44,8 +44,6 @@ import json
 from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field, TypeAdapter
-
-# --- per-event Pydantic models -------------------------------------------
 
 
 class TurnStarted(BaseModel):
@@ -131,7 +129,7 @@ class Reasoning(BaseModel):
     """Structured reasoning summary for the UI's collapsible panel.
 
     NEVER includes the model's chain-of-thought — only the pipeline's
-    own description of what happened (PLAN §7.7 step 8 + §16).
+    own description of what happened.
     """
 
     event: Literal["reasoning"] = "reasoning"
@@ -180,15 +178,12 @@ class ChatError(BaseModel):
 
     Codes are short, machine-friendly tokens the UI can switch on. The
     ``message`` field is safe to render — any `sk-or-...` / CoT content
-    is redacted before it gets here (PLAN §7.10).
+    is redacted before it gets here.
     """
 
     event: Literal["error"] = "error"
     code: str
     message: str
-
-
-# --- discriminated union -------------------------------------------------
 
 
 ChatEvent = Annotated[
@@ -207,14 +202,7 @@ ChatEvent = Annotated[
 ]
 
 
-# Single TypeAdapter reused by both validation and schema export. Defined
-# at import time so the JSON Schema is available before any route is
-# built (the script that writes `sse-events.schema.json` may run as a
-# standalone CLI).
 ChatEventUnion: TypeAdapter = TypeAdapter(ChatEvent)
-
-
-# --- helpers -------------------------------------------------------------
 
 
 def export_json_schema() -> dict[str, Any]:

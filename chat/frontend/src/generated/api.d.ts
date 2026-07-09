@@ -37,7 +37,7 @@ export interface paths {
      * Chat
      * @description Run one chat turn end-to-end and return the final answer.
      *
-     *     The flow mirrors PLAN §7.7 (non-streaming subset) with explicit
+     *     The flow mirrors the canonical non-streaming subset with explicit
      *     not-answerable fallbacks so a bad plan / bad params / failed DB
      *     call never surfaces as a 500 stack trace to the UI.
      */
@@ -128,9 +128,8 @@ export interface paths {
      * List Sessions
      * @description Return every session's meta (no messages).
      *
-     *     Not explicitly in PLAN §7.9 but useful for the UI's session-list view;
-     *     kept here so the OpenAPI snapshot exposes the shape to the frontend
-     *     codegen.
+     *     Useful for the UI's session-list view; kept here so the
+     *     OpenAPI snapshot exposes the shape to the frontend codegen.
      */
     get: operations["list_sessions_api_sessions_get"];
     put?: never;
@@ -165,7 +164,7 @@ export interface paths {
     post?: never;
     /**
      * Delete Session
-     * @description Clear the visible history (PLAN §7.9 manual-clear).
+     * @description Clear the visible history (manual-clear).
      *
      *     The session's meta (title, id, created_at) is preserved so the UI can
      *     keep showing the empty session in its list. ``404`` if the meta is
@@ -229,7 +228,7 @@ export interface components {
      * ChatResponse
      * @description Response for ``POST /api/chat``.
      *
-     *     Mirrors the canonical turn response (PLAN §7.7): answer + citations +
+     *     Mirrors the canonical turn response: answer + citations +
      *     provenance fields. ``sql`` is non-null only on the happy path
      *     (``template_id`` resolved, query executed). ``not_answerable=True``
      *     short-circuits the SQL + row_count fields.
@@ -272,7 +271,7 @@ export interface components {
     };
     /**
      * CreateSessionRequest
-     * @description Body for `POST /api/sessions` (PLAN §7.9).
+     * @description Body for `POST /api/sessions`.
      *
      *     ``title`` is optional; the store falls back to ``"New chat"`` when
      *     the field is omitted, empty, or whitespace-only.
@@ -314,7 +313,7 @@ export interface components {
     };
     /**
      * LatencyTiers
-     * @description Latency budget per template complexity tier (PLAN §13).
+     * @description Latency budget per template complexity tier.
      */
     LatencyTiers: {
       /** Heavy Seconds */

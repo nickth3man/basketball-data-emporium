@@ -23,10 +23,7 @@ import datetime as _dt
 
 from pydantic import BaseModel, Field
 
-#: Default staleness window (seconds). After this, a pending
-#: clarification is treated as abandoned — the store discards it on
-#: read so the user is not trapped in a stale clarify loop.
-DEFAULT_MAX_AGE_SECONDS = 300  # 5 minutes
+DEFAULT_MAX_AGE_SECONDS = 300
 
 
 class ClarificationState(BaseModel):
@@ -80,9 +77,6 @@ class ClarificationState(BaseModel):
         if max_age_seconds <= 0:
             return False
         now = _dt.datetime.now(tz=_dt.UTC)
-        # ``created_at`` is set via ``datetime.now(UTC)`` so it is
-        # timezone-aware; coerce a naive value defensively in case a
-        # caller hands us a constructed datetime without tzinfo.
         created = self.created_at
         if created.tzinfo is None:
             created = created.replace(tzinfo=_dt.UTC)

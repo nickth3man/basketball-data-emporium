@@ -6,8 +6,6 @@ Visible sessions live at ``{chat_data_dir}/sessions/<session_id>.jsonl``
 message_count``. Messages are append-only; manual history clears
 (``DELETE /api/sessions/{id}``) truncate the messages file but keep the
 meta so the session remains discoverable.
-
-PLAN §6, §7.10.
 """
 
 from __future__ import annotations
@@ -36,7 +34,7 @@ class SessionMeta(BaseModel):
 
     id: str
     title: str
-    status: str = "active"  # active | archived
+    status: str = "active"
     created_at: _dt.datetime
     message_count: int = 0
 
@@ -65,7 +63,7 @@ class HistoryPage(BaseModel):
     offset: int
 
 
-class SessionNotFound(KeyError):  # noqa: N818 - name matches PLAN §7.10
+class SessionNotFound(KeyError):  # noqa: N818
     """Raised when a session id is unknown.
 
     Subclasses `KeyError` so plain ``except KeyError`` keeps working; the
@@ -90,14 +88,10 @@ class SessionStore:
     """File-backed JSONL session store. Thread-safe via a single lock."""
 
     def __init__(self, root: Path) -> None:
-        # Sessions always live in `<root>/sessions/` so a single data root
-        # can hold other derived artefacts (logs, caches) without colliding
-        # with the JSONL files.
         self._root = Path(root) / "sessions"
         self._lock = threading.Lock()
         self._root.mkdir(parents=True, exist_ok=True)
 
-    # -- path helpers -------------------------------------------------------
 
     def _msgs_path(self, session_id: str) -> Path:
         return self._root / f"{session_id}.jsonl"
@@ -133,7 +127,6 @@ class SessionStore:
         """
         return self._root / f"{session_id}.clarify.json"
 
-    # -- low-level meta helpers (caller holds the lock) ---------------------
 
     def _read_meta(self, session_id: str) -> SessionMeta:
         meta_path = self._meta_path(session_id)
@@ -166,7 +159,6 @@ class SessionStore:
                     messages.append(SessionMessage.model_validate_json(line))
         return messages
 
-    # -- public API ---------------------------------------------------------
 
     def create(self, title: str | None = None) -> SessionMeta:
         """Create a new session with a random id; return the meta."""
@@ -179,7 +171,6 @@ class SessionStore:
             message_count=0,
         )
         with self._lock:
-            # Create the empty messages file so list/history don't race.
             self._msgs_path(session_id).touch()
             self._write_meta(meta)
         return meta
@@ -238,7 +229,6 @@ class SessionStore:
         """
         with self._lock:
             meta = self._read_meta(session_id)
-            # ``open(..., "w")`` truncates and creates if missing.
             self._msgs_path(session_id).open("w", encoding="utf-8").close()
             meta = meta.model_copy(update={"message_count": 0})
             self._write_meta(meta)
@@ -257,25 +247,10 @@ class SessionStore:
                 try:
                     payload: dict[str, Any] = json.loads(meta_path.read_text(encoding="utf-8"))
                     results.append(SessionMeta.model_validate(payload))
-                except Exception:  # noqa: BLE001 - skip corrupt entries
+                except Exception:  # noqa: BLE001
                     continue
         return results
 
-    # -- model-history store (parallel to the visible JSONL store) -------
-    # The visible-JSONL contract above is UNCHANGED. These methods are a
-    # sibling store for Pydantic AI's ``ModelMessage`` history (the full
-    # agent transcript, tool calls and all), one atomic overwrite per
-    # turn. The filename ``<id>.model.jsonl`` is deliberately distinct
-    # from ``<id>.jsonl`` (visible) and ``<id>.meta.json`` (metadata) so
-    # the three siblings can coexist without collision.
-    #
-    # IO contract: both methods MAY raise. Callers in ``pipeline.py`` /
-    # ``routes/chat.py`` wrap them in try/except because a missing or
-    # unreadable history file is the expected path on a fresh session
-    # (``load_model_history`` returns ``[]`` for absent) and a failed
-    # write must not break the turn (mirrors the visible store's
-    # robustness pattern at the caller layer — see
-    # ``_safe_append_user`` in pipeline.py).
 
     def append_model_history(self, session_id: str, messages_json: bytes) -> None:
         """Atomically overwrite the model-history snapshot for one session.
@@ -296,8 +271,6 @@ class SessionStore:
             tmp.write_bytes(messages_json)
             os.replace(tmp, path)
         finally:
-            # Best-effort cleanup if the replace didn't run (write failed
-            # before rename, or os.replace itself blew up).
             with contextlib.suppress(Exception):
                 tmp.unlink()
 
@@ -321,30 +294,9 @@ class SessionStore:
         raw = path.read_bytes()
         payload: Any = json.loads(raw.decode("utf-8"))
         if not isinstance(payload, list):
-            # A previous turn wrote something other than a list — treat
-            # as corrupt; the caller will catch the validation error.
             raise ValueError(f"model history at {path} is not a JSON array")
         return payload
 
-    # -- pending-clarification store (Stage 3.6) ------------------------
-    # Companion to the model-history store above. The visible-JSONL
-    # contract and the 3.5 model-history methods are UNCHANGED. These
-    # three methods manage a side-channel for the clarification
-    # follow-up state machine: a single ``ClarificationState`` document
-    # per session, written atomically and read with strict "never
-    # raise" semantics so the pipeline / route can treat ``None`` as
-    # "no pending clarification" without a try/except ladder.
-    #
-    # IO contract:
-    # * ``get_pending_clarification`` NEVER raises (returns ``None`` on
-    #   any failure path: absent file, JSON decode error, validation
-    #   error, OSError, stale timestamp).
-    # * ``set_pending_clarification`` / ``clear_pending_clarification``
-    #   MAY raise (disk full, permissions, etc.) — callers in
-    #   ``pipeline.py`` / ``routes/chat.py`` wrap them in try/except
-    #   because a failed side-channel write must not break the turn
-    #   (mirrors the robustness pattern of the visible store at the
-    #   caller layer).
 
     def set_pending_clarification(
         self,
@@ -365,8 +317,6 @@ class SessionStore:
             tmp.write_text(state.model_dump_json(), encoding="utf-8")
             os.replace(tmp, path)
         finally:
-            # Best-effort cleanup if the replace didn't run (write failed
-            # before rename, or os.replace itself blew up).
             with contextlib.suppress(Exception):
                 tmp.unlink()
 
@@ -398,17 +348,10 @@ class SessionStore:
             raw = path.read_text(encoding="utf-8")
             state = ClarificationState.model_validate_json(raw)
         except (FileNotFoundError, json.JSONDecodeError, ValidationError, OSError):
-            # Best-effort: clear the corrupt/unreadable file so we
-            # don't keep tripping on it. Failures here are swallowed —
-            # we're already in a degraded path and the caller only
-            # cares about returning ``None``.
             with contextlib.suppress(Exception):
                 path.unlink()
             return None
         if state.is_stale():
-            # Stale pending clarification: discard and clear the file
-            # so the next turn starts fresh. Mirrors the corrupt-file
-            # best-effort cleanup above.
             with contextlib.suppress(Exception):
                 path.unlink()
             return None

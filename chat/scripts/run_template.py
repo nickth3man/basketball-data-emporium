@@ -1,6 +1,6 @@
 """Dev CLI: run a registered template with hard-coded params and print the QueryResult.
 
-Phase 1 exit criterion (PLAN §15): a developer-facing CLI that runs a
+Phase 1 exit criterion: a developer-facing CLI that runs a
 template directly against the warehouse, with no agent in the loop.
 
 Usage:

@@ -1,6 +1,6 @@
 """``season_thresholds.rookie_vs_final`` template metadata.
 
-PLAN §12 row 16: a single player's points-per-game and rebounds-per-game
+A single player's points-per-game and rebounds-per-game
 in their rookie season and final season of the given ``season_type``.
 
 Implementation notes
@@ -60,15 +60,11 @@ EXAMPLES = [
 ]
 TESTS = [
     {
-        # Tim Duncan: player_id=1495, rookie 1997-98, final 2015-16.
         "params": {"player_id": 1495, "season_type": "Regular"},
         "expect_min_rows": 2,
         "expect_contains_player": "Tim Duncan",
     },
     {
-        # Sanity check: an active legend (LeBron) — still playing, so
-        # rookie/final may coincide if the test is rerun later. Pin both
-        # edges explicitly to keep the test stable for now.
         "params": {"player_id": 2544, "season_type": "Regular"},
         "expect_min_rows": 2,
         "expect_contains_player": "LeBron James",

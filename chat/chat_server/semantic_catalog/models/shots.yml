@@ -1,6 +1,6 @@
 # Semantic catalog model: shots
 #
-# PLAN §1 Phase 2 Lane A: fully grounded against the live warehouse.
+# Fully grounded against the live warehouse.
 # Base table + every referenced column confirmed via:
 #
 #   duckdb ../data/nba.duckdb -readonly -list -c \

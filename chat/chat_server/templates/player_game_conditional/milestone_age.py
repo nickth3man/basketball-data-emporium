@@ -1,6 +1,6 @@
 """``player_game_conditional.milestone_age`` template metadata.
 
-PLAN §12 row 13: the youngest player to record a triple-double (PTS, REB,
+The youngest player to record a triple-double (PTS, REB,
 AST all >= 10) in a single game, expressed as age in days at game time.
 Joins ``fact_player_game_box`` to ``dim_player.birth_date`` and computes
 ``DATE_DIFF('day', birth_date, game_date)``.
@@ -20,7 +20,7 @@ class Params(BaseModel):
         ``"Regular"`` (default), ``"Playoffs"``, or ``"Cup"``.
     top_n
         How many of the youngest triple-doubles to return. Default 1
-        matches the PLAN §12 row 13 benchmark.
+        matches the canonical benchmark.
     """
 
     season_type: str = Field(default="Regular", description="Regular | Playoffs | Cup")

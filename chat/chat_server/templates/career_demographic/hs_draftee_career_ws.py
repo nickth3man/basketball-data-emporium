@@ -1,6 +1,6 @@
 """``career_demographic.hs_draftee_career_ws`` template metadata.
 
-PLAN §12 row 1: top-N career win shares among high-school-drafted players,
+Top-N career win shares among high-school-drafted players,
 with each draftee's drafting team.
 
 Source-backed
@@ -8,7 +8,7 @@ Source-backed
 Win shares are not exposed by any canonical mart; this template
 allowlists ``src_agg_player_season_advanced`` (the verified warehouse
 table — see chat_tests/fixtures/) per the source-backed extension
-described in PLAN §3.
+described in the catalog author notes.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ class Params(BaseModel):
     ----------
     top_n
         How many HS draftees to return, ordered by career WS DESC.
-        Default 3 matches the PLAN §12 row-1 benchmark.
+        Default 3 matches the canonical benchmark.
     """
 
     top_n: int = Field(default=3, ge=1, le=50, description="Number of HS draftees to return.")
@@ -52,13 +52,11 @@ EXAMPLES = [
 ]
 TESTS = [
     {
-        # PLAN §12 row 1: LeBron James is the all-time HS-draftee WS leader.
         "params": {"top_n": 3},
         "expect_min_rows": 3,
         "expect_contains_player": "LeBron James",
     },
     {
-        # Larger fan-out still includes the leader at #1.
         "params": {"top_n": 10},
         "expect_min_rows": 10,
         "expect_contains_player": "LeBron James",

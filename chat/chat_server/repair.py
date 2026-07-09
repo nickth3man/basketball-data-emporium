@@ -1,4 +1,4 @@
-"""Governed-SQL repair loop (PLAN §Guardrails / Stage 3.4).
+"""Governed-SQL repair loop (Stage 3.4).
 
 When the agent's first ``QueryPlan`` SQL passes the catalog gate but
 fails to actually resolve against the warehouse (stale column reference,
@@ -44,7 +44,7 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from .agent import AnswerMode, QueryPlan
 
@@ -55,21 +55,9 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-#: Maximum number of repair rounds. The PLAN says "reprompt once" so we
-#: cap the loop at one re-prompt -- a misbehaving model can't spin the
-#: turn indefinitely. Bumping this would require also revisiting the
-#: streaming-event ordering in the pipeline.
 MAX_ROUND: int = 1
 
 
-#: Instruction preamble appended to the refiner user message. The
-#: preamble tells the structured agent what shape its output must take
-#: (``answer_mode = execute_sql`` with a corrected ``sql`` field, OR
-#: ``answer_mode = not_answerable`` with a one-line note), then
-#: paraphrases the DIN-SQL 7-bullet fix-it rules so the model has a
-#: concrete checklist. The closing line ("do NOT guess") is the
-#: load-bearing safety valve: a refiner that can't recover from the
-#: schema alone must decline, not hallucinate.
 REFINER_PREAMBLE: str = (
     "The SQL below failed to dry-run against the warehouse. "
     "You are being asked to fix it. Emit a new QueryPlan whose "
@@ -98,11 +86,6 @@ REFINER_PREAMBLE: str = (
 )
 
 
-#: Lightweight regex for pulling base-table names out of a free-form
-#: SQL string. Used by :func:`build_refiner_message` to figure out
-#: which catalog models to surface in the condensed schema context.
-#: Matches ``FROM <ident>`` and ``JOIN <ident>`` (case-insensitive,
-#: tolerates whitespace).
 _BASE_TABLE_RE = re.compile(r"\b(?:FROM|JOIN)\s+([A-Za-z_][A-Za-z0-9_]*)", re.IGNORECASE)
 
 
@@ -143,7 +126,7 @@ def _models_for_sql(sql: str, catalog: SemanticCatalog) -> list[str]:
     return sorted(seen)
 
 
-def _render_model_card(model) -> str:  # type: ignore[no-untyped-def]  -- BusinessModel
+def _render_model_card(model) -> str:  # type: ignore[no-untyped-def]
     """Render one catalog model as a compact, refiner-friendly text block.
 
     Format (deliberately terse to keep the prompt budget tight):
@@ -294,21 +277,13 @@ async def repair_sql(
         log.warning("repair_sql: agent.run raised; degrading to not-answerable: %s", exc)
         return None
 
-    # The structured agent is built with ``output_type=QueryPlan``, so
-    # ``result.output`` is a QueryPlan at runtime; the cast documents
-    # the contract for the type checker (pydantic-ai's generic
-    # propagation has the same limitation flagged in ``agent.py``).
-    plan = cast(QueryPlan, result.output)
-    # Decline paths: clarification / not_answerable -> caller degrades.
+    plan = result.output
     if plan.answer_mode in (AnswerMode.CLARIFY, AnswerMode.NOT_ANSWERABLE):
         return None
-    # execute_sql but empty SQL -> not a usable repair.
     if plan.answer_mode == AnswerMode.EXECUTE_SQL:
         if not plan.sql or not plan.sql.strip():
             return None
         return plan
-    # TEMPLATE mode slipped through (model abandoned execute_sql) -> not
-    # usable for a governed-SQL repair.
     return None
 
 

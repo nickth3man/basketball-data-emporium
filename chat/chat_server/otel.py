@@ -1,7 +1,7 @@
 """Optional OpenTelemetry span hooks for the turn pipeline.
 
-PLAN §4.1#9 + §15 Phase 7: "File-first JSONL baseline + optional OTel
-span hooks." This module is **off by default** and **must not require
+"File-first JSONL baseline + optional OTel span hooks." This module
+is **off by default** and **must not require
 ``opentelemetry`` to be installed**.
 
 Enable by setting ``CHAT_OTEL_ENABLED=1`` in the environment and
@@ -47,14 +47,8 @@ from typing import Any
 
 log = logging.getLogger(__name__)
 
-#: Whether OTel span emission is enabled. Mirrors ``CHAT_OTEL_ENABLED=1``.
-#: Read once at import; tests can flip it after the fact by reassigning
-#: ``otel._ENABLED`` (module-private but the simplest way to exercise
-#: both paths without spawning a subprocess).
 _ENABLED: bool = os.environ.get("CHAT_OTEL_ENABLED", "") == "1"
 
-#: Initialised lazily; ``None`` when disabled or when the OTel import
-#: failed. The ``span()`` helper tolerates both cases.
 _tracer: Any = None
 
 if _ENABLED:
@@ -67,10 +61,6 @@ if _ENABLED:
         )
         _ENABLED = False
     else:
-        # Do NOT override any provider the host has configured. Just take
-        # whatever tracer the global provider gives us under the package
-        # name "chat_server" — operators searching for spans in their
-        # backend will find them grouped under this namespace.
         _tracer = _otel_trace.get_tracer("chat_server")
 
 
@@ -99,7 +89,6 @@ def span(name: str, attributes: dict[str, Any] | None = None):
     with _tracer.start_as_current_span(name) as s:
         if attributes:
             for key, value in attributes.items():
-                # A single bad attribute value must never crash the pipeline.
                 with contextlib.suppress(Exception):
                     s.set_attribute(key, value)
         yield s

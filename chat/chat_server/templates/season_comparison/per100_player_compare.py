@@ -1,6 +1,6 @@
 """``season_comparison.per100_player_compare`` template metadata.
 
-PLAN §12 row 7: head-to-head per-100 scoring between two named players in
+Head-to-head per-100 scoring between two named players in
 a single season. The warehouse's canonical ``mart_player_season`` does not
 expose per-100 metrics, so this template is source-backed against
 ``src_stg_bref_per_100_poss`` (BBR's per-100 player-season table).

@@ -1,4 +1,4 @@
-"""Turn orchestration: agent → template → DB → composer → SSE (PLAN §7.7).
+"""Turn orchestration: agent → template → DB → composer → SSE.
 
 This module owns the **end-to-end sequence** of a single chat turn:
 
@@ -52,7 +52,7 @@ from typing import Any
 from pydantic_ai.messages import ModelMessagesTypeAdapter
 
 from . import otel
-from .agent import (  # noqa: F401 — re-exported by tests via pipeline
+from .agent import (  # noqa: F401
     AnswerMode,
     Clarification,
     ResultContract,
@@ -87,27 +87,16 @@ from .validation import validate_template_sql
 
 log = logging.getLogger(__name__)
 
-#: Number of rows sent inline in a ``table_ready`` event. The full result
-#: stays in the query log on disk (Phase 2 stubbed the artifact fetch);
-#: the preview is what the UI renders immediately.
 _TABLE_PREVIEW_ROWS = 200
 
-#: Soft chunk size for ``AnswerDelta`` splitting. Final answers are
-#: short (1–3 sentences); we split by sentence first, then by these
-#: windows if a sentence is unreasonably long.
 _ANSWER_CHUNK_WINDOW = 80
 
-#: Code tokens for the structured ``error`` event. Keep stable — the UI
-#: switch is keyed on these.
 _ERR_TEMPLATE_NOT_FOUND = "template_not_found"
 _ERR_INVALID_PARAMS = "invalid_params"
 _ERR_DB_FAILED = "db_execute_failed"
 _ERR_QUERY_TIMEOUT = "query_timeout"
 _ERR_AGENT_FAILED = "agent_failed"
 _ERR_UNEXPECTED = "unexpected_error"
-
-
-# --- public surface -----------------------------------------------------
 
 
 async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
@@ -134,46 +123,25 @@ async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
 
     yield TurnStarted(session_id=session_id, turn_id=turn_id, ts=ts)
 
-    # --- session-store + user-message persistence (non-fatal IO) -------
     store = get_store()
     _safe_append_user(store, session_id, message)
 
-    # --- agent call ----------------------------------------------------
-    # Optional OTel span around the LLM call (PLAN §4.1#9 / §15 Phase 7).
-    # No-op when OTel is disabled (the default); event sequence unchanged.
     with otel.span("agent.run", attributes={"session_id": session_id}) as agent_span:
         try:
             agent = get_agent()
             deps = await make_deps()
-            # --- Stage 3.5: load + trim prior ModelMessage history -------
-            # Best-effort: a missing file is normal (fresh session); a
-            # corrupt file or schema-drift validation failure must not
-            # break the turn — we fall back to an empty history.
             history = _load_model_history(store, session_id)
-            # --- Stage 3.6: enrich prompt if a clarification is pending -
-            # Complements the model-history snapshot. The pending state
-            # is independent of the snapshot — even if the snapshot is
-            # absent / corrupt / trimmed, a pending clarification still
-            # reaches the agent via this enriched prompt. The raw user
-            # message still flows to the visible-JSONL store unchanged
-            # (so the user's literal reply is what the UI shows).
             pending = store.get_pending_clarification(session_id)
             user_message_text = message
             if pending is not None:
                 user_message_text = build_clarification_context_prefix(pending, message)
-            # Pass `message_history` ONLY when there is real history to
-            # forward — an empty list is semantically equivalent to
-            # omitting the kwarg (Pydantic AI treats both as "no prior
-            # context"), and conditional kwargs let test fakes with
-            # narrower signatures continue to work.
             run_kwargs: dict[str, Any] = {"deps": deps}
             if history:
                 run_kwargs["message_history"] = history
             result = await agent.run(user_message_text, **run_kwargs)
             plan = result.output
-            usage_obj = result.usage  # RunUsage dataclass
+            usage_obj = result.usage
             if agent_span is not None:
-                # Never crash on a bad attribute value.
                 with contextlib.suppress(Exception):
                     agent_span.set_attribute("template_id", plan.template_id or "")
         except Exception as exc:  # noqa: BLE001
@@ -182,23 +150,11 @@ async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
             _write_model_log(settings, session_id, turn_id, template_id=None, usage=None, error=exc)
             return
 
-    # --- Stage 3.5: persist the post-call history snapshot --------------
-    # Best-effort: a write failure must not break the turn.
     _safe_append_model_history(store, session_id, result)
 
-    # --- Stage 3.6: persist / clear the pending-clarification state ------
-    # Single block, runs for EVERY plan outcome (clarify / not-answerable
-    # / execute_sql / template). The legacy template branch is therefore
-    # auto-cleared too without any invasive branch-local wiring — the
-    # spec's "byte-for-byte unchanged legacy branch" is preserved by
-    # keeping all state-machine side-effects in this one block above
-    # the branching cascade.
     if plan.answer_mode == AnswerMode.CLARIFY and plan.clarification is not None:
         clar = plan.clarification
         if isinstance(clar, Clarification):
-            # Normalize the empty options list to ``None`` so the
-            # enrichment prefix omits the options clause for free-form
-            # clarifications.
             options_list: list[str] | None = list(clar.options) if clar.options else None
             state = ClarificationState(
                 original_question=message,
@@ -215,7 +171,6 @@ async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
         except Exception:  # noqa: BLE001
             log.exception("clear_pending_clarification failed; sid=%s", session_id)
 
-    # --- branch 1: clarification ---------------------------------------
     if plan.clarification is not None:
         clar = plan.clarification
         yield ClarificationNeeded(question=clar)
@@ -230,7 +185,6 @@ async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
         )
         return
 
-    # --- branch 2: not-answerable-note ---------------------------------
     if plan.not_answerable_note is not None:
         note = plan.not_answerable_note
         composed = compose_not_answerable(note)
@@ -252,7 +206,6 @@ async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
         )
         return
 
-    # --- branch 3: governed SQL (EXECUTE_SQL) --------------------------
     if plan.answer_mode == AnswerMode.EXECUTE_SQL and plan.sql:
         catalog = deps.catalog
         if catalog is None:
@@ -298,16 +251,6 @@ async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
             )
             return
 
-        # --- Stage 3.4: dry-run + single-shot repair ---------------------
-        # The catalog gate (above) only checks that the SQL is structurally
-        # legal and references allowlisted tables. A second class of bugs --
-        # stale column references after a warehouse rebuild, join keys that
-        # don't actually exist in the data, fabricated identifiers that
-        # slipped through the sqlglot optimizer's best-effort column
-        # extraction -- only surfaces when DuckDB tries to bind the query.
-        # We catch that with `EXPLAIN` (a planner walk that doesn't read
-        # rows) and give the agent one bounded re-prompt to fix it. This
-        # is the MAC-SQL Refiner pattern under MAX_ROUND=1.
         db = get_db()
         try:
             await db.dry_run(plan.sql)
@@ -325,8 +268,6 @@ async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
                 error=str(exc.original),
             )
             if repaired_plan is None or not repaired_plan.sql:
-                # Repair declined (clarify / not_answerable / empty SQL) ->
-                # not-answerable, surface the original dry-run error.
                 composed = compose_not_answerable(
                     f"I couldn't fix the query: {exc.original}",
                     attempted_sql=plan.sql,
@@ -348,8 +289,6 @@ async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
                     error=None,
                 )
                 return
-            # Re-validate the repaired SQL against the catalog (it must
-            # still be in the allowlist + free of fan-traps etc.).
             repaired_report = validate_governed_sql(repaired_plan.sql, catalog)
             if not repaired_report.valid:
                 repaired_errors = "; ".join(repaired_report.errors) or (
@@ -376,13 +315,8 @@ async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
                     error=None,
                 )
                 return
-            # Adopt the repaired SQL: update plan + report so the rest of
-            # this branch (sentinel, execute, compose) operates on the
-            # fixed query.
             plan = repaired_plan
             report = repaired_report
-            # Narrow `plan.sql` for the type checker: we already proved
-            # `repaired_plan.sql` is truthy above.
             assert plan.sql is not None, "repair_sql returned a plan with no SQL"
 
         model_sentinel = f"semantic:{next(iter(report.tables_referenced), 'unknown')}"
@@ -454,11 +388,9 @@ async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
         )
         return
 
-    # --- branch 4: full template path ----------------------------------
     template_id = plan.template_id
     yield IntentClassified(template_id=template_id, confidence=1.0)
 
-    # 3a. resolve template
     try:
         template = get_template(template_id)
     except TemplateNotFound:
@@ -478,7 +410,6 @@ async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
         )
         return
 
-    # 3b. validate params
     try:
         validated_params = template.params_model(**plan.params).model_dump()
     except Exception as exc:  # noqa: BLE001
@@ -511,7 +442,6 @@ async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
         )
         return
 
-    # 3c. defense-in-depth re-validation of the template SQL itself
     sql_report = validate_template_sql(template.sql, template.allowed_tables)
     if not sql_report.valid:
         log.error(
@@ -539,15 +469,11 @@ async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
         )
         return
 
-    # 3d. emit query_started + execute
     query_id = secrets.token_urlsafe(8)
     yield QueryStarted(query_id=query_id, template_id=template_id, sql=template.sql)
 
     db = get_db()
     timeout_seconds = template.timeout_seconds
-    # Optional OTel span around the DB execution (PLAN §4.1#9 / §15 Phase 7).
-    # The span stays open through the try/except so a timeout / exception
-    # still records its end time correctly. No-op when OTel is off.
     with otel.span(
         "db.execute",
         attributes={"template_id": template_id, "timeout_seconds": timeout_seconds},
@@ -558,7 +484,6 @@ async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
                 timeout=timeout_seconds,
             )
             if db_span is not None:
-                # Never crash on a bad attribute value.
                 with contextlib.suppress(Exception):
                     db_span.set_attribute("row_count", query_result.row_count)
                     db_span.set_attribute("duration_ms", query_result.duration_ms)
@@ -623,7 +548,6 @@ async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
             )
             return
 
-    # 3e. emit query_finished
     yield QueryFinished(
         query_id=query_id,
         duration_ms=query_result.duration_ms,
@@ -632,7 +556,6 @@ async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
         truncated=query_result.truncated,
     )
 
-    # 3f. emit table_ready (preview-capped)
     preview_rows = query_result.rows[:_TABLE_PREVIEW_ROWS]
     truncated = query_result.truncated or len(query_result.rows) > _TABLE_PREVIEW_ROWS
     yield TableReady(
@@ -642,7 +565,6 @@ async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
         truncated=truncated,
     )
 
-    # 3g. reasoning + composer + answer stream + citations
     composed = compose(template, query_result, template_id)
     yield Reasoning(
         summary=composed.reasoning_summary or f"executed {template_id}",
@@ -662,7 +584,6 @@ async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
     ):
         yield ev
 
-    # 3h. persist + logs
     _safe_append_assistant(store, session_id, composed.answer)
     _write_query_log(
         settings,
@@ -684,9 +605,6 @@ async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
     )
 
 
-# --- answer streaming ---------------------------------------------------
-
-
 def _stream_answer_chunks(answer: str) -> list[str]:
     """Split ``answer`` into chunks for ``AnswerDelta`` events.
 
@@ -698,7 +616,6 @@ def _stream_answer_chunks(answer: str) -> list[str]:
     """
     if not answer:
         return [""]
-    # Split on sentence boundaries; keep the punctuation with the chunk.
     parts = re.split(r"(?<=[.!?])\s+", answer)
     chunks: list[str] = []
     for part in parts:
@@ -707,14 +624,13 @@ def _stream_answer_chunks(answer: str) -> list[str]:
         if len(part) <= _ANSWER_CHUNK_WINDOW:
             chunks.append(part)
             continue
-        # Fall back to fixed-width windows.
         for i in range(0, len(part), _ANSWER_CHUNK_WINDOW):
             chunks.append(part[i : i + _ANSWER_CHUNK_WINDOW])
     return chunks or [""]
 
 
 async def _stream_composed_answer(
-    composed,  # type: ignore[no-untyped-def]  — composer.ComposedAnswer
+    composed,  # type: ignore[no-untyped-def]
     sql: str | None,
     result: QueryResult | None,
     template_title: str,
@@ -727,14 +643,11 @@ async def _stream_composed_answer(
     ``AnswerFinished`` so the reducer's "is streaming" flag works
     uniformly.
     """
-    del sql, result, template_title  # kept for API symmetry with future enhancements
+    del sql, result, template_title
     answer = composed.answer
     for chunk in _stream_answer_chunks(answer):
         yield AnswerDelta(delta=chunk)
     yield AnswerFinished(answer=answer)
-
-
-# --- helpers: session store ---------------------------------------------
 
 
 def _safe_append_user(store, session_id: str, content: str) -> None:
@@ -808,9 +721,6 @@ def _safe_append_model_history(store, session_id: str, result) -> None:
         log.exception("model history persist failed sid=%s", session_id)
 
 
-# --- helpers: log writers -----------------------------------------------
-
-
 def _utcnow() -> _dt.datetime:
     """Timezone-aware UTC now; centralised for testability."""
     return _dt.datetime.now(tz=_dt.UTC)
@@ -854,7 +764,7 @@ def _write_query_log(
 ) -> None:
     """Persist the rendered SQL + a result preview under logs/queries/.
 
-    Two sibling files (PLAN §6 layout):
+    Two sibling files:
         <turn_id>.<template_id>.sql         — the rendered SQL text
         <turn_id>.<template_id>.result.json — columns, row_count,
                                              first ~50 rows, duration
@@ -902,7 +812,7 @@ def _write_model_log(
 
     Carries: turn_id, ts, template_id, usage (RunUsage dataclass → dict),
     and an optional error marker. Full model CoT and request/response
-    bodies are NEVER included here (PLAN §7.10).
+    bodies are NEVER included here.
 
     `usage` may be a Pydantic AI ``RunUsage`` dataclass (or None);
     ``dataclasses.asdict`` handles both real dataclasses and the

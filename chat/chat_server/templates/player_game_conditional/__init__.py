@@ -1,4 +1,4 @@
-"""``player_game_conditional`` template family (PLAN §11).
+"""``player_game_conditional`` template family.
 
 Covers per-game conditional aggregations: win/loss margin splits, milestone
 ages (youngest triple-double), rare stat lines (quadruple-doubles), blocked-

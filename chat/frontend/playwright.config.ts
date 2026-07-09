@@ -1,5 +1,5 @@
 /**
- * Playwright config for the chat app (PLAN §8.4, §15 Phase 5 exit).
+ * Playwright config for the chat app.
  *
  * Brings up BOTH servers for an end-to-end smoke test:
  *
@@ -13,7 +13,7 @@
  * Locally (`!CI`) we `reuseExistingServer: true` so a manual dev session
  * doesn't get clobbered; in CI we always spawn fresh.
  *
- * Layout deviation from PLAN §6: the plan lists `chat/tests/e2e/`, but
+ * Layout deviation: the plan listed `chat/tests/e2e/`, but
  * `@playwright/test` lives under `chat/frontend/node_modules/` and the
  * Vite dev server expects to be run from `chat/frontend/`. Co-locating
  * the Playwright config + tests here is the practical choice; this

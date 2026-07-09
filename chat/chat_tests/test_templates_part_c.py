@@ -2,11 +2,11 @@
 
 Covers the 5 HEAVY templates owned by this fixer:
 
-* ``pbp_aggregate.largest_scoring_run`` (PLAN §12 row 10)
-* ``pbp_aggregate.fouls_by_period`` (PLAN §12 row 12)
-* ``clutch_terminal.clutch_ts_leader`` (PLAN §12 row 8)
-* ``clutch_terminal.buzzer_beaters`` (PLAN §12 row 18 — spike-gated, REAL)
-* ``lineup_court.fiveman_shared_court`` (PLAN §12 row 11 — spike-gated, REAL)
+* ``pbp_aggregate.largest_scoring_run``
+* ``pbp_aggregate.fouls_by_period``
+* ``clutch_terminal.clutch_ts_leader``
+* ``clutch_terminal.buzzer_beaters`` (spike-gated, REAL)
+* ``lineup_court.fiveman_shared_court`` (spike-gated, REAL)
 
 Heavy tier — each template sets ``TIMEOUT_SECONDS=300`` in its metadata,
 but every shipped query runs sub-second locally on the bounded
@@ -29,8 +29,7 @@ from chat_server.db import get_db
 from chat_server.templates import get_template
 from chat_tests.conftest import skip_no_db
 
-# Heavy-template ids owned by this batch (see chat/PLAN.md §12 rows 8, 10,
-# 11, 12, 18 and §11 family mapping).
+# Heavy-template ids owned by this batch.
 TEMPLATE_IDS: tuple[str, ...] = (
     "pbp_aggregate.largest_scoring_run",
     "pbp_aggregate.fouls_by_period",
@@ -49,7 +48,7 @@ def test_part_c_templates_registered() -> None:
     for tid in TEMPLATE_IDS:
         assert tid in registry, f"template {tid!r} missing from registry"
         t = registry[tid]
-        # Every heavy template must declare a 300s timeout per PLAN §13.
+        # Every heavy template must declare a 300s timeout.
         assert t.timeout_seconds == 300, f"{tid}: expected 300s timeout, got {t.timeout_seconds}s"
 
 
@@ -65,7 +64,7 @@ async def test_part_c_template_loop(template_id: str) -> None:
 
     Templates with ``NOT_ANSWERABLE=True`` are accepted as a pass
     (the SQL still runs but rows are allowed to be 0; see the spike
-    fallback contract in PLAN §15).  None of the shipped Batch-C
+    fallback contract.  None of the shipped Batch-C
     templates currently use that escape hatch.
     """
     tmpl = get_template(template_id)

@@ -1,4 +1,4 @@
-"""Compact trusted schema map for the Pydantic AI agent (PLAN §7.6).
+"""Compact trusted schema map for the Pydantic AI agent.
 
 Built once at startup, cached for the agent's lifetime. The agent receives
 this map as part of its system prompt so it can pick templates and name
@@ -41,13 +41,8 @@ from .db import DuckDBSingleton, get_db
 logger = logging.getLogger(__name__)
 
 
-#: Tables the agent is allowed to know about (PLAN §7.6). This is the
-#: agent's VIEW, separate from per-template SQL allowlists. Tables in
-#: `meta_table_fate` with fate `legacy_do_not_use`, `duplicate_superseded`,
-#: or `empty_endpoint_shell` are deliberately omitted.
 ALLOWED_TABLES_FOR_AGENT: frozenset[str] = frozenset(
     {
-        # Canonical marts (9).
         "mart_player_season",
         "mart_player_career",
         "mart_draft_value",
@@ -57,7 +52,6 @@ ALLOWED_TABLES_FOR_AGENT: frozenset[str] = frozenset(
         "mart_betting_summary",
         "mart_player_rolling",
         "mart_shot_zones",
-        # Dimensions.
         "dim_player",
         "dim_team",
         "dim_team_era",
@@ -65,7 +59,6 @@ ALLOWED_TABLES_FOR_AGENT: frozenset[str] = frozenset(
         "dim_official",
         "dim_arena",
         "dim_date",
-        # Selected facts.
         "fact_player_game_box",
         "fact_player_game_advanced",
         "fact_game_result",
@@ -76,7 +69,6 @@ ALLOWED_TABLES_FOR_AGENT: frozenset[str] = frozenset(
         "fact_draft",
         "fact_coach_season",
         "fact_official_assignment",
-        # Source-backed (allowlisted only via source-backed templates).
         "src_bref_advanced",
         "src_bref_per_100_poss",
         "src_fact_bref_team_season_summary",
@@ -84,18 +76,11 @@ ALLOWED_TABLES_FOR_AGENT: frozenset[str] = frozenset(
 )
 
 
-#: Fate values that exclude a table from the agent's view (PLAN §7.6).
-#: The agent sees their NAMES in the system prompt as a caveat, so it
-#: knows they exist but must not query them.
 _EXCLUDED_FATES: frozenset[str] = frozenset(
     {"legacy_do_not_use", "duplicate_superseded", "empty_endpoint_shell"}
 )
 
 
-#: Per-table one-line purpose hints. These are STATIC — the agent is told
-#: "this is what this table is for" without hitting the warehouse. The
-#: column list and grain come from `information_schema` at startup.
-#: Keep entries short; the prompt is compact by design.
 _TABLE_PURPOSES: dict[str, str] = {
     "mart_player_season": (
         "One row per (player, team, season_year, season_type). Player season aggregates."
@@ -259,7 +244,7 @@ async def _describe_tables(db: DuckDBSingleton) -> dict[str, str]:
             """,
             {"tables": list(ALLOWED_TABLES_FOR_AGENT)},
         )
-    except Exception as exc:  # pragma: no cover  - defensive
+    except Exception as exc:  # pragma: no cover
         logger.warning("schema_context: failed to read information_schema.columns: %s", exc)
         return {}
 
@@ -271,7 +256,6 @@ async def _describe_tables(db: DuckDBSingleton) -> dict[str, str]:
             by_table.setdefault(name, []).append(col)
 
     out: dict[str, str] = {}
-    # Stable ordering: the allowlist is a frozenset, so sort it.
     for tbl in sorted(ALLOWED_TABLES_FOR_AGENT):
         cols = by_table.get(tbl, [])
         if not cols:
@@ -286,7 +270,7 @@ async def _describe_tables(db: DuckDBSingleton) -> dict[str, str]:
 
 
 async def _load_metric_definitions(db: DuckDBSingleton) -> list[dict]:
-    """Load every row from `meta_metric_definition` (PLAN §7.6).
+    """Load every row from `meta_metric_definition`.
 
     Returns a list of dicts in arbitrary order; the caller sorts before
     rendering. Empty list if the table doesn't exist (older builds) or
@@ -299,17 +283,16 @@ async def _load_metric_definitions(db: DuckDBSingleton) -> list[dict]:
             FROM meta_metric_definition
             """
         )
-    except Exception as exc:  # pragma: no cover  - defensive
+    except Exception as exc:  # pragma: no cover
         logger.warning("schema_context: failed to read meta_metric_definition: %s", exc)
         return []
-    # Sort for stable prompt output.
     return sorted(result.rows, key=lambda r: str(r.get("metric_key", "")))
 
 
 async def _load_known_gaps(db: DuckDBSingleton) -> list[dict]:
     """Load unresolved + non-resolved gaps from `meta_known_gap`.
 
-    PLAN §7.6: surface only `status NOT IN ('resolved')` to the agent.
+    Surface only `status NOT IN ('resolved')` to the agent.
     Sorted by `gap_key` for determinism.
     """
     try:
@@ -321,7 +304,7 @@ async def _load_known_gaps(db: DuckDBSingleton) -> list[dict]:
             ORDER BY gap_key
             """
         )
-    except Exception as exc:  # pragma: no cover  - defensive
+    except Exception as exc:  # pragma: no cover
         logger.warning("schema_context: failed to read meta_known_gap: %s", exc)
         return []
     return list(result.rows)
@@ -330,9 +313,10 @@ async def _load_known_gaps(db: DuckDBSingleton) -> list[dict]:
 async def _load_excluded_fate_tables(db: DuckDBSingleton) -> set[str]:
     """Return names of tables whose `meta_table_fate` row is excluded.
 
-    PLAN §7.6: `legacy_do_not_use`, `duplicate_superseded`,
-    `empty_endpoint_shell`. The agent sees these as caveats so it knows
-    not to query them. Sorted set for determinism.
+    Tables whose `meta_table_fate` row is `legacy_do_not_use`,
+    `duplicate_superseded`, or `empty_endpoint_shell`. The agent sees
+    these as caveats so it knows not to query them. Sorted set for
+    determinism.
     """
     try:
         result = await db.execute(
@@ -343,7 +327,7 @@ async def _load_excluded_fate_tables(db: DuckDBSingleton) -> set[str]:
             """,
             {"fates": list(_EXCLUDED_FATES)},
         )
-    except Exception as exc:  # pragma: no cover  - defensive
+    except Exception as exc:  # pragma: no cover
         logger.warning("schema_context: failed to read meta_table_fate: %s", exc)
         return set()
     return {str(row.get("original_table")) for row in result.rows if row.get("original_table")}
@@ -363,9 +347,6 @@ async def build_schema_context(db: DuckDBSingleton | None = None) -> SchemaConte
     read-only warehouse calls.
     """
     handle = db if db is not None else get_db()
-    # Run the four independent reads concurrently — they touch separate
-    # tables and the connection is read-only, so there's no contention
-    # beyond what the DB pool already serializes.
     table_purposes, metric_definitions, known_gaps, table_fate_excluded = await asyncio.gather(
         _describe_tables(handle),
         _load_metric_definitions(handle),
@@ -380,8 +361,6 @@ async def build_schema_context(db: DuckDBSingleton | None = None) -> SchemaConte
     )
 
 
-# Module-level cache (cannot use `lru_cache` with async). The lock keeps
-# concurrent first-callers from racing on the build.
 _schema_context_cache: SchemaContext | None = None
 _schema_context_lock = asyncio.Lock()
 

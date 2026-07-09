@@ -1,4 +1,4 @@
-"""File-based loader for the template registry (PLAN §7.3).
+"""File-based loader for the template registry.
 
 Walks the ``chat_server/templates/`` package, pairs each ``<stem>.sql``
 file with its sibling ``<stem>.py`` metadata module, and registers the
@@ -6,7 +6,7 @@ resulting `Template` after running `validate_template_sql`.
 
 Imported for side effects from `chat_server.templates.__init__` so the
 registry is populated before any caller asks for it. A template that
-fails validation raises at import time — fail-fast per PLAN §7.3 and §14.1.
+fails validation raises at import time — fail-fast.
 """
 
 from __future__ import annotations
@@ -22,13 +22,8 @@ from chat_server.validation import validate_template_sql
 
 from ._registry import REGISTRY, Template
 
-#: Templates ship in subfolders of `chat_server/templates/`, one per
-#: analytical capability (see PLAN §11). A template's `capability` is set
-#: from its parent folder name.
 _PACKAGE_DIR = Path(__file__).resolve().parent
 
-#: Required module-level constants on every template metadata module.
-#: Optional ones (with defaults) are listed in `_DEFAULTS`.
 _REQUIRED_CONSTANTS: tuple[str, ...] = (
     "TEMPLATE_ID",
     "TITLE",
@@ -80,10 +75,6 @@ def _register_template(capability: str, sql_path: Path, py_path: Path) -> Templa
     """Build a `Template` from the SQL + sibling Python module, validate it, register it."""
     module = _load_metadata_module(capability, sql_path.stem, py_path)
 
-    # Explicit annotations narrow `getattr(...)`-typed values from `object`
-    # to the concrete shapes the `Template` dataclass expects; without
-    # these, ty reports "Invalid subscript of object of type `set[_T@set]`"
-    # / "found `object`" downstream.
     template_id: str = _read_required_constant(module, "TEMPLATE_ID", py_path)
     title: str = _read_required_constant(module, "TITLE", py_path)
     description: str = _read_required_constant(module, "DESCRIPTION", py_path)
@@ -95,12 +86,10 @@ def _register_template(capability: str, sql_path: Path, py_path: Path) -> Templa
     examples_raw: list[str] = _read_required_constant(module, "EXAMPLES", py_path)
     tests_raw: list[dict[str, Any]] = _read_required_constant(module, "TESTS", py_path)
 
-    # Optional fields with sane defaults (PLAN §13: heavy templates set 300).
     timeout_seconds: int = getattr(module, "TIMEOUT_SECONDS", 30)
 
     sql_text = sql_path.read_text(encoding="utf-8")
 
-    # Validate the SQL against the allowlist before exposing the template.
     report = validate_template_sql(sql_text, set(allowed_tables_raw))
     if not report.valid:
         raise RuntimeError(
@@ -134,15 +123,12 @@ def _register_template(capability: str, sql_path: Path, py_path: Path) -> Templa
 
 def _load_all() -> None:
     """Walk the package, registering every paired (`.sql`, `.py`) template."""
-    # Skip non-template entries: this loader module itself + private files.
     for entry in sorted(_PACKAGE_DIR.iterdir()):
         if not entry.is_dir():
             continue
         if entry.name.startswith("_") or entry.name.startswith("."):
-            # Private packages (`_loader` lives in the package root, not here).
             continue
         capability = entry.name
-        # Skip `__pycache__` etc.
         if not (entry / "__init__.py").exists():
             continue
         for sql_path in sorted(entry.glob("*.sql")):
@@ -155,6 +141,4 @@ def _load_all() -> None:
             _register_template(capability, sql_path, py_path)
 
 
-# Run the load eagerly on import. The `noqa: F401` re-export in
-# `chat_server.templates.__init__` ensures this module is always imported.
 _load_all()

@@ -1,11 +1,11 @@
-"""Pydantic AI agent for the basketball chatbot (PLAN §7.5).
+"""Pydantic AI agent for the basketball chatbot.
 
-Phase 3 exit criteria (PLAN §15):
+Phase 3 exit criteria:
 * Singleton `Agent` with native `OpenRouterModel`.
 * Typed `QueryPlan` output (Pydantic model).
 * Tools: `list_templates`, `get_template_detail`, `lookup_player`,
   `lookup_team`, `lookup_season`.
-* `retries={'output': 3, 'tools': 2}` per PLAN §7.5 (mitigates
+* `retries={'output': 3, 'tools': 2}` (mitigates
   pydantic-ai#822 where some OpenRouter models return plain text on
   structured output).
 
@@ -61,9 +61,6 @@ from .templates import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-# -- Output model -----------------------------------------------------------
 
 
 class AnswerMode(StrEnum):
@@ -130,7 +127,6 @@ class QueryPlan(BaseModel):
     answer_mode: AnswerMode = AnswerMode.TEMPLATE
     question_interpretation: str = ""
 
-    # --- legacy (answer_mode == TEMPLATE) ---
     template_id: str = Field(
         default="",
         description=(
@@ -143,7 +139,6 @@ class QueryPlan(BaseModel):
         description="Typed params validated against the template's Params model (legacy mode).",
     )
 
-    # --- governed (answer_mode == EXECUTE_SQL) ---
     sql: str | None = Field(
         default=None,
         description="Generated DuckDB SQL drawn only from catalog base tables (governed mode).",
@@ -153,8 +148,6 @@ class QueryPlan(BaseModel):
         description="Expected grain/columns/row-limit/answer-style (governed mode).",
     )
 
-    # --- clarify (answer_mode == CLARIFY) ---
-    # Union: legacy tests pass a bare str; new code passes Clarification.
     clarification: str | Clarification | None = Field(
         default=None,
         description=(
@@ -163,7 +156,6 @@ class QueryPlan(BaseModel):
         ),
     )
 
-    # --- not answerable (answer_mode == NOT_ANSWERABLE) ---
     not_answerable_note: str | None = Field(
         default=None,
         description="Set when the question cannot be answered; explains why with evidence.",
@@ -183,12 +175,9 @@ class QueryPlan(BaseModel):
         return self
 
 
-# -- Deps -------------------------------------------------------------------
-
-
 @dataclass
 class AgentDeps:
-    """Runtime deps carried by every agent run (PLAN §7.5).
+    """Runtime deps carried by every agent run.
 
     Attributes
     ----------
@@ -218,12 +207,6 @@ class AgentDeps:
     catalog: SemanticCatalog | None = None
 
 
-# -- System prompt ---------------------------------------------------------
-
-
-#: Template body for the agent's system prompt. The schema-context text
-#: is filled in at run time via the `@agent.system_prompt` decorator
-#: (see `_build_agent`).
 SYSTEM_PROMPT_TEMPLATE = """\
 You are a basketball analytics assistant. Answer NBA data questions ONLY by selecting a query
 template and extracting typed parameters. NEVER write SQL. If a user's question maps to a
@@ -239,14 +222,6 @@ Available warehouse tables and metrics:
 """
 
 
-#: Phase 3.7 governed-SQL system prompt. Active only when
-#: ``Settings.governed_sql_mode`` is True AND the semantic catalog loaded.
-#: Mirrors the legacy prompt's tone but permits the agent to write DuckDB
-#: SELECT SQL against the catalog's business models (``answer_mode =
-#: execute_sql``) instead of being template-only. The catalog summary is
-#: injected at run time so the agent knows which models exist without a
-#: ``list_models`` round-trip on turn one (the tool remains available for
-#: detail).
 SYSTEM_PROMPT_TEMPLATE_GOVERNED = """\
 You are a basketball analytics assistant with governed SQL access to an NBA
 DuckDB warehouse. Answer data questions by writing DuckDB SELECT queries that
@@ -317,14 +292,11 @@ def _catalog_summary(catalog: SemanticCatalog) -> str:
     return "\n".join(lines)
 
 
-# -- Model construction ----------------------------------------------------
-
-
 def _build_model() -> OpenRouterModel:
     """Construct the live `OpenRouterModel` from settings.
 
     The native `OpenRouterProvider` sets the required `HTTP-Referer` and
-    `X-Title` headers from `app_url` / `app_title` (PLAN §7.5). Building
+    `X-Title` headers from `app_url` / `app_title`. Building
     the model does NOT make a network call — only `agent.run()` does.
     """
     s = get_settings()
@@ -336,9 +308,6 @@ def _build_model() -> OpenRouterModel:
             app_title="Basketball Data Chatbot",
         ),
     )
-
-
-# -- Singleton agent -------------------------------------------------------
 
 
 _agent: Agent[AgentDeps, QueryPlan] | None = None
@@ -370,11 +339,6 @@ def _build_agent(
 ) -> Agent[AgentDeps, QueryPlan]:
     """Build a fresh agent (called by `get_agent` on first invocation)."""
     m = model if model is not None else _build_model()
-    # The `Agent` constructor's overloads don't propagate the `output_type=`
-    # generic argument (pydantic-ai typing limitation). Construct as
-    # `Agent[AgentDeps, str]` per ty's inference, then `cast` to the
-    # intended `Agent[AgentDeps, QueryPlan]` — runtime behaviour is
-    # unchanged (PLAN §7.5: `output_type=QueryPlan`).
     raw: Agent[AgentDeps, QueryPlan] = cast(
         "Agent[AgentDeps, QueryPlan]",
         Agent(
@@ -417,9 +381,6 @@ def reset_agent_for_tests() -> None:
         _agent = None
 
 
-# -- Tools -----------------------------------------------------------------
-
-
 def _summarize_params(model_cls: type[BaseModel]) -> list[dict[str, Any]]:
     """Render a `params_model`'s fields as a list of `{name, type, default?}`.
 
@@ -454,12 +415,12 @@ def _summarize_params(model_cls: type[BaseModel]) -> list[dict[str, Any]]:
 
 
 def _register_tools(agent: Agent[AgentDeps, QueryPlan]) -> None:
-    """Register all five agent tools on `agent` (PLAN §7.5).
+    """Register all five agent tools on `agent`.
 
     Tool bodies:
     * `list_templates` — sync; reads from `ctx.deps.registry`.
     * `get_template_detail` — sync; raises `ModelRetry` on unknown id
-      so the model self-corrects (PLAN §7.5: "Tool bodies may raise
+      so the model self-corrects ("Tool bodies may raise
       `ModelRetry` to feed errors back.").
     * `lookup_player`, `lookup_team`, `lookup_season` — async because
       `ctx.deps.db.execute` is async. All use parameterized queries
@@ -528,7 +489,7 @@ def _register_tools(agent: Agent[AgentDeps, QueryPlan]) -> None:
         ModelRetry
             If `template_id` is not in the registry. This feeds the
             error back to the model so it can call `list_templates`
-            and try again (PLAN §7.5 + pydantic-ai#822 mitigation).
+            and try again (pydantic-ai#822 mitigation).
         """
         try:
             t = get_template(template_id)
@@ -554,10 +515,6 @@ def _register_tools(agent: Agent[AgentDeps, QueryPlan]) -> None:
             "sql_preview": t.sql.strip()[:200],
         }
 
-    # --- Phase 3.7: governed-SQL catalog tools ------------------------------
-    # Available in both modes (harmless when the legacy prompt steers the
-    # model away from them); the governed prompt actively directs the model
-    # to call them. Both degrade gracefully when ``deps.catalog is None``.
 
     @agent.tool
     def list_models(ctx: RunContext[AgentDeps]) -> list[dict]:
@@ -756,25 +713,21 @@ def _register_tools(agent: Agent[AgentDeps, QueryPlan]) -> None:
         if not normalized:
             raise ModelRetry("Empty season phrase.")
 
-        # Exact short form.
         if re.fullmatch(r"\d{4}-\d{2}", normalized):
             return normalized
 
-        # Long form: fold "YYYY-YYYY" -> "YYYY-YY".
         m = re.fullmatch(r"(\d{4})-(\d{4})", normalized)
         if m:
             head, tail = m.group(1), m.group(2)
             short = f"{head}-{tail[-2:]}"
             return short
 
-        # Single year: NBA convention = the season that ENDS in that year.
         m = re.fullmatch(r"(\d{4})", normalized)
         if m:
             year = int(m.group(1))
             implied = f"{year - 1}-{str(year)[-2:]}"
             return implied
 
-        # Relative phrases.
         relative = normalized.lower()
         relative_set = {
             "last season",
@@ -807,9 +760,6 @@ def _register_tools(agent: Agent[AgentDeps, QueryPlan]) -> None:
         )
 
 
-# -- make_deps -------------------------------------------------------------
-
-
 async def make_deps() -> AgentDeps:
     """Build the default `AgentDeps` for a turn.
 
@@ -837,9 +787,6 @@ async def make_deps() -> AgentDeps:
         db=get_db(),
         catalog=catalog,
     )
-
-
-# -- One-shot helper (used by tests + the composer in Phase 4) -----------
 
 
 def keep_last_messages_with_tools(
@@ -896,14 +843,10 @@ def keep_last_messages_with_tools(
     if n <= 0:
         return []
     if len(messages) <= n:
-        # Copy so the caller never sees aliasing back into the input.
         return list(messages)
 
     cut = len(messages) - n
 
-    # Step 3: index every ToolCallPart by its tool_call_id so the
-    # boundary check is O(1) per part. Messages without tool parts are
-    # trivially non-orphan candidates.
     call_locations: dict[str, int] = {}
     for i, msg in enumerate(messages):
         parts = getattr(msg, "parts", ()) or ()
@@ -913,8 +856,6 @@ def keep_last_messages_with_tools(
                 if tool_call_id is not None:
                     call_locations[tool_call_id] = i
 
-    # Step 4: walk the boundary backward as long as it would orphan a
-    # ToolReturnPart from its preceding ToolCallPart.
     while cut > 0:
         boundary = messages[cut]
         parts = getattr(boundary, "parts", ()) or ()
