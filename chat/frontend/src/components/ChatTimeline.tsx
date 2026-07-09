@@ -81,12 +81,6 @@ export function ChatTimeline({
   const liveAnswerLen = liveTurn?.answer.length ?? 0;
   const liveStatus = liveTurn?.status;
   useEffect(() => {
-    const len = messages.length;
-    const ansLen = liveAnswerLen;
-    const st = liveStatus;
-    void len;
-    void ansLen;
-    void st;
     const el = bottomRef.current;
     if (!el) return;
     const id = window.requestAnimationFrame(() => {
@@ -124,9 +118,7 @@ export function ChatTimeline({
         <MessageBubble
           key="live-turn"
           speaker="assistant"
-          content={
-            liveTurn.answer.length > 0 ? liveTurn.answer : liveTurn.status === "error" ? "" : ""
-          }
+          content={liveTurn.answer}
           turn={liveTurn}
         />
       )}
