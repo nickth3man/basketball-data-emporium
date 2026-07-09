@@ -59,7 +59,12 @@ select = ["E", "F", "I", "UP", "B", "SIM", "N"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-testpaths = ["chat_tests"]
+testpaths = ["chat_tests", "evals"]
+markers = [
+    # Eval-suite marker (EVALS.md §5): nightly runs only; CI excludes via
+    # ``pytest -m "not live_llm"``. Apply to tests that hit OpenRouter.
+    "live_llm: marks tests that make live OpenRouter calls (nightly only)",
+]
 
 [tool.ty.src]
 # Phase 8: include the test package so `ty check chat_server chat_tests`
