@@ -18,79 +18,71 @@
 @plugin "@tailwindcss/typography";
 
 @theme inline {
-  /* Distinctive, characterful type — avoid generic system defaults. */
+  /*
+   * Baller Design System — dark-only scoreboard aesthetic.
+   * Display = Oswald (condensed); body = DM Sans; mono = JetBrains Mono.
+   * Single accent: basketball orange. Canvas = charcoal court.
+   * See .plans/design-system/tokens/*.css for the canonical token set.
+   */
   --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Code", "SFMono-Regular", monospace;
+  --font-display: "Oswald", "Arial Narrow", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
+
+  /* --- Surfaces (charcoal court ramp; depth via tint, not shadow) ------ */
+  --color-background: #1a1a1e; /* BRAND canvas (--ink-850) */
+  --color-foreground: #f5f2ec; /* off-white cream primary text (--cream-50) */
+  --color-card: #212127; /* card / panel surface (--ink-800) */
+  --color-card-foreground: #f5f2ec;
+
+  /* --- The one accent: basketball orange ------------------------------- */
+  --color-primary: #e8632b; /* BRAND accent (--orange-500) */
+  /* Ink text on orange — clears WCAG AA at 5.4:1 (--text-on-accent). */
+  --color-primary-foreground: #16161a;
+  /* Decorative orange (glows, accent lines, chart highlight) — same hue. */
+  --color-accent-orange: #e8632b;
+  /* Court blue — a chart complement ONLY (multi-series), never a 2nd accent. */
+  --color-accent: #4a9fd4;
+  --color-accent-foreground: #f5f2ec;
+
+  /* --- Muted surface + secondary text ---------------------------------- */
+  --color-muted: #26262c; /* input / secondary surface (--ink-750) */
+  --color-muted-foreground: #a39e93; /* secondary text/labels (--cream-400) */
+
+  /* --- Court-line dividers (thin, low-opacity cream) -------------------- */
+  --color-border: rgba(245, 242, 236, 0.12); /* --line */
+  --color-ring: #e8632b; /* focus ring = accent */
 
   /*
-   * Token pairs via light-dark(). Each token resolves from the
-   * `color-scheme` set on :root / .dark below, so a single utility
-   * (`bg-card`, `text-muted-foreground`, …) is correct in both themes.
-   *
-   * Aesthetic: a confident NBA orange primary against warm neutrals in
-   * light mode, and a deep blue-charcoal canvas in dark mode. The
-   * primary fill is tuned so its foreground clears WCAG AA in BOTH
-   * themes (light: white on brick-orange ≈ 5.4:1; dark: ink on vivid
-   * orange ≈ 5.8:1).
+   * Status hues — kept subtle (single-accent system). Foreground values
+   * are brightened past the literal badge dots so small banner text
+   * clears WCAG AA on charcoal (a documented deviation from the badge
+   * token values, which are tuned for dots/pills, not body text).
    */
-  --color-background: light-dark(oklch(0.985 0.003 75), oklch(0.165 0.012 264));
-  --color-foreground: light-dark(oklch(0.21 0.012 60), oklch(0.96 0.004 70));
-  --color-card: light-dark(oklch(1 0 0), oklch(0.208 0.012 264));
-  --color-card-foreground: light-dark(oklch(0.21 0.012 60), oklch(0.96 0.004 70));
+  --color-danger-bg: rgba(229, 84, 77, 0.14);
+  --color-danger-fg: #f26b62; /* brightened red for AA text on dark */
+  --color-danger-border: rgba(229, 84, 77, 0.35);
+  --color-warn-bg: rgba(224, 161, 60, 0.14);
+  --color-warn-fg: #ecb14e; /* brightened amber for AA text on dark */
+  --color-warn-border: rgba(224, 161, 60, 0.35);
+  --color-ok-fg: #5bc890; /* brightened green for AA text on dark */
 
-  --color-primary: light-dark(oklch(0.57 0.18 45), oklch(0.72 0.17 45));
-  --color-primary-foreground: light-dark(oklch(0.995 0 0), oklch(0.165 0.012 264));
-  /* A brighter orange for decorative accents (left borders, glows, chart
-   * highlights) where small-text contrast does not apply. */
-  --color-accent-orange: light-dark(oklch(0.7 0.19 48), oklch(0.75 0.17 50));
-  /* Complementary indigo — second chart series / secondary emphasis. */
-  --color-accent: light-dark(oklch(0.5 0.2 258), oklch(0.66 0.17 258));
-  --color-accent-foreground: light-dark(oklch(0.995 0 0), oklch(0.995 0 0));
+  /* --- Chart palette (orange-led, cool complements for multi-series) ---- */
+  --color-chart-1: #e8632b; /* primary orange */
+  --color-chart-2: #4a9fd4; /* court blue */
+  --color-chart-3: #d6d1c6; /* cream */
+  --color-chart-4: #b06fd6; /* violet */
+  --color-chart-5: #46b17e; /* green */
 
-  --color-muted: light-dark(oklch(0.965 0.004 70), oklch(0.243 0.01 264));
-  /*
-   * muted-foreground: target ≥4.5:1 contrast on --color-muted AND on
-   * --color-background. The previous oklch(0.556 0 0) (#737373) measured
-   * 4.34:1 and failed axe color-contrast on small uppercase tracking-wide
-   * text (e.g. EvidenceCard header).
-   *   - light: oklch(0.45 0.012 60) ≈ #5e5b54 → ~5.9:1 on muted, ~6.1:1 on bg
-   *   - dark:  oklch(0.70 0.012 70) ≈ #aaa39a → ~6.8:1 on dark muted/bg
-   * Both clear AA with room to spare.
-   */
-  --color-muted-foreground: light-dark(oklch(0.45 0.012 60), oklch(0.7 0.012 70));
-  --color-border: light-dark(oklch(0.908 0.005 70), oklch(0.295 0.012 264));
-  --color-ring: light-dark(oklch(0.57 0.18 45), oklch(0.7 0.17 45));
-
-  /* Semantic surface tints for status banners (kept AA-safe). */
-  --color-danger-bg: light-dark(oklch(0.96 0.025 22), oklch(0.3 0.05 22));
-  --color-danger-fg: light-dark(oklch(0.34 0.13 22), oklch(0.8 0.1 22));
-  --color-danger-border: light-dark(oklch(0.82 0.06 22), oklch(0.4 0.07 22));
-  --color-warn-bg: light-dark(oklch(0.96 0.035 80), oklch(0.3 0.05 75));
-  --color-warn-fg: light-dark(oklch(0.36 0.1 70), oklch(0.84 0.11 80));
-  --color-warn-border: light-dark(oklch(0.88 0.06 80), oklch(0.4 0.06 75));
-  --color-ok-fg: light-dark(oklch(0.4 0.12 150), oklch(0.74 0.15 150));
-
-  /*
-   * Chart palette — five distinct hues for multi-series rendering. Tuned
-   * for distinguishability on both the light and dark canvases. Consumed
-   * by Recharts via `var(--color-chart-*)`.
-   */
-  --color-chart-1: light-dark(oklch(0.57 0.18 45), oklch(0.73 0.16 45));
-  --color-chart-2: light-dark(oklch(0.5 0.2 258), oklch(0.68 0.16 258));
-  --color-chart-3: light-dark(oklch(0.58 0.14 155), oklch(0.74 0.14 155));
-  --color-chart-4: light-dark(oklch(0.62 0.15 300), oklch(0.72 0.15 300));
-  --color-chart-5: light-dark(oklch(0.7 0.15 85), oklch(0.8 0.14 85));
-
-  --radius: 0.75rem;
+  --radius: 0.875rem; /* 14px — stat-card / panel corner (--radius-card) */
 }
 
-/* `color-scheme` drives native scrollbars, form controls, and the
- * light-dark() token pairs above. next-themes flips the `.dark` class. */
+/*
+ * Dark-only: next-themes forces the `.dark` class (forcedTheme="dark"),
+ * and color-scheme is dark at the root so native controls + scrollbars
+ * match. The `dark:` variant below is retained so utilities like
+ * `dark:prose-invert` resolve (the class is always present).
+ */
 :root {
-  color-scheme: light;
-}
-.dark {
   color-scheme: dark;
 }
 
@@ -104,35 +96,59 @@ body {
   margin: 0;
   font-family: var(--font-sans);
   color: var(--color-foreground);
-  background-color: var(--color-background);
   /*
-   * Atmospheric gradient mesh — subtle, premium, theme-aware. A warm
-   * orange glow off the top-left corner + a cool indigo wash bottom-right;
-   * fixed so it stays anchored while the timeline scrolls.
+   * Flat charcoal court — the canvas stays clean so stat numbers and the
+   * orange accent pop. No gradient meshes, no imagery washes (Baller
+   * non-negotiable). Depth comes from surface tint, not big shadows.
    */
-  background-image:
-    radial-gradient(
-      60rem 32rem at 12% -8%,
-      light-dark(oklch(0.92 0.05 55 / 0.55), oklch(0.3 0.06 45 / 0.45)),
-      transparent 70%
-    ),
-    radial-gradient(
-      48rem 28rem at 105% 108%,
-      light-dark(oklch(0.92 0.04 260 / 0.4), oklch(0.26 0.05 260 / 0.4)),
-      transparent 70%
-    );
-  background-attachment: fixed;
+  background-color: var(--color-background);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
-/* Headings lean on the display face for character. */
+/*
+ * Headings + stat numbers lean on the condensed display face (Oswald).
+ * Uppercase labels ride on .scoreboard-label (defined below).
+ */
 h1,
 h2,
 h3,
 .font-display {
   font-family: var(--font-display);
   letter-spacing: -0.018em;
+}
+
+/* --- Baller brand motifs (from tokens/base.css) ------------------------- */
+
+/* The recurring thin, low-opacity court-line divider. Use between chat
+ * sessions, stat groups, or timeline days. */
+.court-line {
+  border: 0;
+  height: 1px;
+  background: var(--color-border);
+  margin: 1rem 0;
+}
+/* Dashed variant echoes a painted court boundary. */
+.court-line--dashed {
+  height: 0;
+  background: none;
+  border-top: 1px dashed rgba(245, 242, 236, 0.2);
+}
+
+/* Scoreboard label — the uppercase tracked micro-caption used above stats. */
+.scoreboard-label {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.75rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-muted-foreground);
+}
+
+/* Tabular figures helper for aligned stat columns. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
 }
 
 /* Thin, themed scrollbars for the timeline + table panels. */

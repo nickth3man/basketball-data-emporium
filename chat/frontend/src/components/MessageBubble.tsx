@@ -19,7 +19,7 @@
  */
 import { memo, useCallback, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
-import { Check, Copy, Sparkles } from "lucide-react";
+import { Check, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { useCopyToClipboard } from "usehooks-ts";
 import type { ReactNode } from "react";
@@ -103,7 +103,7 @@ const AssistantBubble = memo(function AssistantBubble({
 
   return (
     <BubbleRow reduce={reduce} align="start">
-      {/* Bot avatar — a small accent square with the Sparkles mark. */}
+      {/* Bot avatar — a small accent square with the Baller "B" monogram. */}
       <div
         aria-hidden="true"
         className={cn(
@@ -112,7 +112,7 @@ const AssistantBubble = memo(function AssistantBubble({
           "ring-1 ring-inset ring-[color:var(--color-primary)]/20",
         )}
       >
-        <Sparkles className="h-4 w-4" />
+        <span className="font-display text-sm font-bold leading-none">B</span>
       </div>
 
       <article
@@ -204,7 +204,7 @@ function TypingDots() {
       {[0, 1, 2].map((i) => (
         <span
           key={i}
-          className="typing-dot h-1.5 w-1.5 rounded-full bg-[color:var(--color-muted-foreground)]"
+          className="typing-dot h-1.5 w-1.5 rounded-full bg-[color:var(--color-primary)]"
         />
       ))}
     </div>

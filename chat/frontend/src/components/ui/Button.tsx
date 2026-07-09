@@ -29,7 +29,7 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   primary:
     "bg-[color:var(--color-primary)] text-[color:var(--color-primary-foreground)] " +
     "shadow-sm shadow-[color:var(--color-primary)]/20 " +
-    "hover:brightness-110 active:brightness-95 disabled:opacity-50",
+    "hover:brightness-110 hover:shadow-[0_6px_20px_rgba(232,99,43,0.28)] active:brightness-95 disabled:opacity-50",
   subtle:
     "border border-[color:var(--color-border)] bg-[color:var(--color-card)] " +
     "text-[color:var(--color-foreground)] hover:bg-[color:var(--color-muted)] " +
@@ -50,7 +50,7 @@ const SIZE_CLASSES: Record<NonNullable<ButtonProps["size"]>, string> = {
 };
 
 const BASE_CLASSES =
-  "inline-flex select-none items-center justify-center rounded-lg font-medium " +
+  "inline-flex select-none items-center justify-center rounded-full font-medium " +
   "transition-[filter,background-color,color,border-color] duration-150 " +
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-ring)] " +
   "focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-background)] " +

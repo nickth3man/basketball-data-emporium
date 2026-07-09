@@ -3,7 +3,6 @@
  *
  * Surfaces:
  *   - Example questions (drop straight into the composer via onPickQuestion)
- *   - Theme cycling (light / dark / system) via next-themes
  *   - "Copy last answer" (ChatView owns the last assistant text)
  *   - "Clear history" (ChatView owns the session id)
  *
@@ -23,8 +22,7 @@ import {
   CommandSeparator,
 } from "cmdk";
 import { useCallback, useEffect, useState } from "react";
-import { Clipboard, Command, Eraser, Moon, Monitor, Sun, TrendingUp } from "lucide-react";
-import { useTheme } from "next-themes";
+import { Clipboard, Command, Eraser, TrendingUp } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -61,7 +59,6 @@ export function CommandMenu({
     },
     [onOpenChange],
   );
-  const { theme, setTheme } = useTheme();
 
   // Global ⌘K / Ctrl+K toggles the palette (works whether the parent
   // controls the state or not — both paths route through `setOpen`).
@@ -129,38 +126,6 @@ export function CommandMenu({
 
         <CommandSeparator className="my-1 h-px bg-[color:var(--color-border)]" />
 
-        <CommandGroup heading="Appearance" className={cmdkGroupClass}>
-          <CommandItem
-            value="theme light"
-            onSelect={run(() => setTheme("light"))}
-            className={cmdkItemClass}
-          >
-            <Sun className="mr-2 h-4 w-4 shrink-0" />
-            Light theme
-            {theme === "light" && <ActiveDot />}
-          </CommandItem>
-          <CommandItem
-            value="theme dark"
-            onSelect={run(() => setTheme("dark"))}
-            className={cmdkItemClass}
-          >
-            <Moon className="mr-2 h-4 w-4 shrink-0" />
-            Dark theme
-            {theme === "dark" && <ActiveDot />}
-          </CommandItem>
-          <CommandItem
-            value="theme system auto"
-            onSelect={run(() => setTheme("system"))}
-            className={cmdkItemClass}
-          >
-            <Monitor className="mr-2 h-4 w-4 shrink-0" />
-            System theme
-            {theme === "system" && <ActiveDot />}
-          </CommandItem>
-        </CommandGroup>
-
-        <CommandSeparator className="my-1 h-px bg-[color:var(--color-border)]" />
-
         <CommandGroup heading="Actions" className={cmdkGroupClass}>
           <CommandItem
             value="copy last answer clipboard"
@@ -205,12 +170,3 @@ const cmdkGroupClass = cn(
   "[&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase",
   "[&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:text-[color:var(--color-muted-foreground)]",
 );
-
-function ActiveDot() {
-  return (
-    <span
-      aria-hidden="true"
-      className="ml-auto h-1.5 w-1.5 rounded-full bg-[color:var(--color-primary)]"
-    />
-  );
-}

@@ -22,6 +22,7 @@ import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import rehypeHighlight from "rehype-highlight";
+import type { PluggableList } from "unified";
 
 import { cn } from "@/lib/utils";
 
@@ -34,7 +35,13 @@ function MarkdownContentImpl({ content, className }: MarkdownContentProps) {
   // Plugins are stable across renders (module-level would be even better,
   // but a memoized array avoids re-creating the pipeline each render).
   const remarkPlugins = useMemo(() => [remarkGfm], []);
-  const rehypePlugins = useMemo(() => [rehypeRaw, [rehypeHighlight, { ignoreMissing: true }]], []);
+  // `PluggableList` (from unified) is the contextual type react-markdown's
+  // `rehypePlugins` prop expects; annotating it makes TS read the
+  // `[plugin, options]` pair as a tuple rather than widening to an array.
+  const rehypePlugins = useMemo<PluggableList>(
+    () => [rehypeRaw, [rehypeHighlight, { ignoreMissing: true }]],
+    [],
+  );
 
   return (
     <div

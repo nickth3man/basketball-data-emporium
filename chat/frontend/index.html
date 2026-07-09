@@ -7,28 +7,24 @@
       name="description"
       content="Ask grounded questions about NBA stats. Every answer is backed by the warehouse — never model memory."
     />
-    <meta name="color-scheme" content="light dark" />
+    <meta name="color-scheme" content="dark" />
     <!--
-      next-themes flashes the resolved theme class onto <html> before paint
-      via an injected script (attribute="class"). Set a background here so
-      the very first frame matches whichever theme wins, avoiding a white
-      flash in dark mode. The inline style is intentionally minimal.
+      Baller Design System is dark-only. Set the charcoal canvas here so
+      the very first frame matches the brand (no white flash). next-themes
+      forces the `.dark` class before paint via attribute="class".
     -->
     <style>
       html {
-        background-color: #fdfcfa;
-      }
-      html.dark {
-        background-color: #23262f;
+        background-color: #1a1a1e;
       }
     </style>
     <title>Basketball Data Chatbot</title>
-    <!-- Distinctive, characterful type: Space Grotesk (display) +
-         DM Sans (body) + JetBrains Mono (code). -->
+    <!-- Condensed scoreboard type: Oswald (display) + DM Sans (body) +
+         JetBrains Mono (code). -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;500;600&family=Oswald:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
   </head>

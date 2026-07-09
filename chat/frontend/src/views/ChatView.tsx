@@ -40,7 +40,6 @@ import { ClarifyPrompt } from "@/components/ClarifyPrompt";
 import { ClearHistoryButton } from "@/components/ClearHistoryButton";
 import { CommandMenu } from "@/components/CommandMenu";
 import { Button } from "@/components/ui/Button";
-import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { deleteSession, getSessionHistory, type SessionMessage } from "@/api/client";
 import { useChatTurn, type ChatTurnError, type ChatTurnState } from "@/hooks/useChatTurn";
 import { useSessions, type HealthStatus } from "@/hooks/useSessions";
@@ -482,17 +481,8 @@ function Header({ health, sessionId, onCleared, onOpenPalette }: HeaderProps) {
           aria-hidden="true"
           className="flex h-9 w-9 items-center justify-center rounded-xl bg-[color:var(--color-primary)]/12 text-[color:var(--color-primary)] ring-1 ring-inset ring-[color:var(--color-primary)]/25"
         >
-          {/* A simple basketball-ish glyph: a circle with seams. */}
-          <svg
-            viewBox="0 0 24 24"
-            className="h-5 w-5"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-          >
-            <circle cx="12" cy="12" r="9" />
-            <path d="M3 12h18M12 3v18M5.6 5.6c4 3 4 9.8 0 12.8M18.4 5.6c-4 3-4 9.8 0 12.8" />
-          </svg>
+          {/* Baller brand mark — bold Oswald "B" monogram tile. */}
+          <span className="font-display text-base font-bold leading-none">B</span>
         </div>
         <div className="flex flex-col">
           <h1 className="font-display text-base font-semibold leading-tight tracking-tight">
@@ -520,7 +510,6 @@ function Header({ health, sessionId, onCleared, onOpenPalette }: HeaderProps) {
           <CommandIcon className="h-3.5 w-3.5" aria-hidden="true" />
           <kbd className="font-sans text-[0.7rem]">⌘K</kbd>
         </button>
-        <ThemeToggle />
         {sessionId !== null && <ClearHistoryButton sessionId={sessionId} onCleared={onCleared} />}
       </div>
     </header>

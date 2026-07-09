@@ -207,7 +207,7 @@ function EmptyState({ examples, onPickExample }: EmptyStateProps) {
         variants={item}
         className="inline-flex items-center gap-1.5 text-[0.7rem] text-[color:var(--color-muted-foreground)]"
       >
-        <ShieldCheck className="h-3.5 w-3.5 text-[color:var(--color-ok-fg)]" aria-hidden="true" />
+        <ShieldCheck className="h-3.5 w-3.5 text-[color:var(--color-primary)]" aria-hidden="true" />
         Grounded · cited · auditable
       </motion.div>
     </motion.div>
