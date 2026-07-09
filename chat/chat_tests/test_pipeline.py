@@ -315,6 +315,63 @@ def test_pipeline_timeout_emits_error(monkeypatch, tmp_path):
     assert "answer_finished" not in names
 
 
+def test_pipeline_governed_timeout_emits_error(monkeypatch, tmp_path):
+    """A ``QueryTimeoutError`` from the watchdog on the governed path
+    becomes a ``ChatError(code="query_timeout", ...)`` event.
+
+    No warehouse needed — the fake DB dry-runs clean and raises the
+    watchdog error on execute.
+    """
+    from chat_server import config as config_module
+    from chat_server import pipeline as pipeline_module
+    from chat_server.db import QueryTimeoutError
+    from chat_server.semantic_catalog import load_catalog
+
+    sql = "SELECT player_id FROM mart_player_career LIMIT 1"
+    tm, agent = _make_test_agent(
+        {
+            "answer_mode": "execute_sql",
+            "sql": sql,
+            "result_contract": {"grain": "one row per player", "answer_style": "prose"},
+        }
+    )
+    monkeypatch.setattr(pipeline_module, "get_agent", lambda: agent)
+
+    async def _fake_make_deps() -> AgentDeps:
+        return AgentDeps(
+            registry={},
+            schema_context=SchemaContext(),
+            db=None,  # ty: ignore[invalid-argument-type]  - pipeline uses get_db() below
+            catalog=load_catalog(),
+        )
+
+    monkeypatch.setattr(pipeline_module, "make_deps", _fake_make_deps)
+    monkeypatch.setattr(config_module.get_settings(), "chat_log_dir", str(tmp_path))
+
+    class _TimeoutDB:
+        async def dry_run(self, sql: str) -> None:
+            return None
+
+        async def execute(self, sql, params=None, *, limit=None, timeout_seconds=None):
+            raise QueryTimeoutError(sql=sql, timeout_seconds=float(timeout_seconds or 0))
+
+    monkeypatch.setattr(pipeline_module, "get_db", lambda: _TimeoutDB())
+
+    temp_store = SessionStore(tmp_path / "sessions")
+    monkeypatch.setattr(pipeline_module, "get_store", lambda: temp_store)
+
+    sid = temp_store.create(title="governed timeout").id
+    events = asyncio.run(_collect(run_turn(sid, "force a governed timeout")))
+    names = _event_names(events)
+
+    assert "query_started" in names
+    err = next((e for e in events if isinstance(e, ChatError)), None)
+    assert err is not None, names
+    assert err.code == "query_timeout"
+    assert "narrower" in err.message
+    assert "answer_finished" not in names
+
+
 # --- 5. ChatEvent union: round-trip via JSON Schema ---------------------
 
 

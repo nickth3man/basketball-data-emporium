@@ -63,7 +63,7 @@ from .agent import (  # noqa: F401
 from .clarify import ClarificationState, build_clarification_context_prefix
 from .composer import compose, compose_governed, compose_not_answerable
 from .config import get_settings
-from .db import DryRunError, QueryResult, get_db
+from .db import DryRunError, QueryResult, QueryTimeoutError, get_db
 from .events import (
     AnswerDelta,
     AnswerFinished,
@@ -327,7 +327,33 @@ async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
 
         row_limit = plan.result_contract.row_limit if plan.result_contract else None
         try:
-            query_result: QueryResult = await db.execute(plan.sql, limit=row_limit)
+            query_result: QueryResult = await db.execute(
+                plan.sql,
+                limit=row_limit,
+                timeout_seconds=settings.query_timeout_seconds,
+            )
+        except QueryTimeoutError as exc:
+            log.warning(
+                "pipeline: governed query timeout sid=%s timeout=%ds",
+                session_id,
+                settings.query_timeout_seconds,
+            )
+            yield ChatError(
+                code=_ERR_QUERY_TIMEOUT,
+                message=(
+                    f"Query exceeded the {settings.query_timeout_seconds}s limit. "
+                    "Try a narrower question (fewer seasons, one player, or a specific team)."
+                ),
+            )
+            _write_model_log(
+                settings,
+                session_id,
+                turn_id,
+                template_id=model_sentinel,
+                usage=usage_obj,
+                error=exc,
+            )
+            return
         except Exception as exc:  # noqa: BLE001
             log.exception("pipeline: governed db.execute failed sid=%s err=%s", session_id, exc)
             yield ChatError(

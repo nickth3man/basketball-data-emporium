@@ -57,7 +57,8 @@ from chat_server.agent import (  # noqa: E402, F401
 )
 from chat_server.clarify import ClarificationState, build_clarification_context_prefix
 from chat_server.composer import compose, compose_governed, compose_not_answerable
-from chat_server.db import DryRunError, get_db
+from chat_server.config import get_settings
+from chat_server.db import DryRunError, QueryTimeoutError, get_db
 from chat_server.events import ChatError, to_sse_dict
 from chat_server.pipeline import _load_model_history, _safe_append_model_history, run_turn
 from chat_server.repair import repair_sql
@@ -323,7 +324,29 @@ async def chat(req: ChatRequest) -> ChatResponse:
         model_sentinel = f"semantic:{next(iter(report.tables_referenced), 'unknown')}"
         row_limit = plan.result_contract.row_limit if plan.result_contract else None
         try:
-            query_result = await db.execute(plan.sql, limit=row_limit)
+            query_result = await db.execute(
+                plan.sql,
+                limit=row_limit,
+                timeout_seconds=get_settings().query_timeout_seconds,
+            )
+        except QueryTimeoutError:
+            timeout_s = get_settings().query_timeout_seconds
+            note = (
+                f"Query exceeded the {timeout_s}s limit. "
+                "Try a narrower question (fewer seasons, one player, or a specific team)."
+            )
+            composed = compose_not_answerable(note, attempted_sql=plan.sql)
+            store.append_message(sid, "assistant", composed.answer)
+            return ChatResponse(
+                session_id=sid,
+                answer=composed.answer,
+                citations=[],
+                not_answerable=True,
+                not_answerable_note=composed.not_answerable_note,
+                template_id=model_sentinel,
+                sql=plan.sql,
+                reasoning_summary=composed.reasoning_summary,
+            )
         except Exception as exc:
             log.exception("chat turn: governed db.execute failed sid=%s err=%s", sid, exc)
             note = f"Query execution failed: {type(exc).__name__}"

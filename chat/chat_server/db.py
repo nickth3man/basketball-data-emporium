@@ -56,6 +56,31 @@ from .config import get_settings
 from .json_safe import convert_rows
 
 
+class QueryTimeoutError(Exception):
+    """Raised by :meth:`DuckDBSingleton.execute` when a query exceeds its
+    wall-clock budget and is interrupted.
+
+    The gate validates *correctness*, not *cost*: an expensive-but-valid
+    query passes every validation layer, so the bound has to be a runtime
+    mechanism. A watchdog timer calls ``interrupt()`` on the executing
+    cursor once the budget elapses; the resulting engine error is
+    translated into this exception so callers can branch on it without
+    importing ``duckdb``.
+
+    Attributes
+    ----------
+    sql
+        The SQL string that was interrupted.
+    timeout_seconds
+        The wall-clock budget that was exceeded.
+    """
+
+    def __init__(self, sql: str, timeout_seconds: float) -> None:
+        super().__init__(f"query exceeded {timeout_seconds:g}s timeout")
+        self.sql = sql
+        self.timeout_seconds = timeout_seconds
+
+
 class DryRunError(Exception):
     """Raised by :meth:`DuckDBSingleton.dry_run` when the warehouse rejects a
     query at plan / bind time (catalog resolution, unknown column, ambiguous
@@ -160,6 +185,10 @@ class DuckDBSingleton:
         Fallback row cap applied to queries whose SQL has no explicit
         `LIMIT` clause. Set to `None` to disable the cap (templates should
         almost always have one).
+    memory_limit
+        Optional DuckDB ``memory_limit`` value (e.g. ``"8GB"``) applied via
+        ``SET`` right after connect, sized to leave the host usable if a
+        runaway query slips past the gate. ``None`` keeps DuckDB's default.
     """
 
     def __init__(
@@ -167,6 +196,7 @@ class DuckDBSingleton:
         db_path: str,
         pool_size: int = 3,
         default_limit: int | None = 5000,
+        memory_limit: str | None = None,
     ) -> None:
         if pool_size < 1:
             raise ValueError("pool_size must be >= 1")
@@ -174,6 +204,10 @@ class DuckDBSingleton:
         self._pool_size = pool_size
         self._default_limit = default_limit
         self._conn: duckdb.DuckDBPyConnection = duckdb.connect(db_path, read_only=True)
+        if memory_limit:
+            # Session setting; legal on a read-only connection. The value is
+            # operator config, never user input — safe to inline.
+            self._conn.execute(f"SET memory_limit = '{memory_limit}'")
         self._cursors: list[duckdb.DuckDBPyConnection] = [
             self._conn.cursor() for _ in range(pool_size)
         ]
@@ -196,6 +230,7 @@ class DuckDBSingleton:
         params: dict[str, Any] | None = None,
         *,
         limit: int | None = None,
+        timeout_seconds: float | None = None,
     ) -> QueryResult:
         """Run `sql` (optionally with `$name` params) and return a `QueryResult`.
 
@@ -215,8 +250,14 @@ class DuckDBSingleton:
             clause, the runner appends `LIMIT N` and marks the result
             `truncated=True`. If `None`, falls back to the singleton's
             `default_limit`.
+        timeout_seconds
+            Optional wall-clock budget. When set, a watchdog timer calls
+            ``interrupt()`` on the executing cursor once the budget
+            elapses and the call raises :class:`QueryTimeoutError`.
+            ``None`` (the default) runs unbounded — internal callers
+            (lookups, schema introspection) stay untouched.
         """
-        return await asyncio.to_thread(self._execute_sync, sql, params, limit)
+        return await asyncio.to_thread(self._execute_sync, sql, params, limit, timeout_seconds)
 
     async def dry_run(self, sql: str) -> None:
         """Validate ``sql`` resolves cleanly without executing it.
@@ -284,6 +325,7 @@ class DuckDBSingleton:
         sql: str,
         params: dict[str, Any] | None,
         limit: int | None,
+        timeout_seconds: float | None = None,
     ) -> QueryResult:
         """Synchronous execution body. Always called via `asyncio.to_thread`."""
         effective_limit = limit if limit is not None else self._default_limit
@@ -297,12 +339,41 @@ class DuckDBSingleton:
                 rendered_sql = f"{sql.rstrip().rstrip(';').rstrip()} LIMIT {int(effective_limit)}"
                 injected_limit = True
 
+            # Watchdog: `interrupt()` must target the cursor driving the
+            # query (each cursor is a sibling DuckDBPyConnection) and must be
+            # called from another thread — hence the Timer. The `fired` flag
+            # distinguishes a genuine timeout from an unrelated engine error
+            # and covers duckdb versions that surface the interrupt as a
+            # generic Error instead of InterruptException.
+            fired = threading.Event()
+            timer: threading.Timer | None = None
+            if timeout_seconds is not None:
+
+                def _interrupt() -> None:
+                    fired.set()
+                    with contextlib.suppress(Exception):
+                        cur.interrupt()
+
+                timer = threading.Timer(timeout_seconds, _interrupt)
+                timer.daemon = True
+                timer.start()
+
             t0 = time.perf_counter()
-            if params:
-                cur.execute(rendered_sql, params)
-            else:
-                cur.execute(rendered_sql)
-            raw_rows = cur.fetchall()
+            try:
+                if params:
+                    cur.execute(rendered_sql, params)
+                else:
+                    cur.execute(rendered_sql)
+                raw_rows = cur.fetchall()
+            except duckdb.Error as exc:
+                if fired.is_set() or isinstance(exc, duckdb.InterruptException):
+                    raise QueryTimeoutError(
+                        sql=sql, timeout_seconds=float(timeout_seconds or 0)
+                    ) from None
+                raise
+            finally:
+                if timer is not None:
+                    timer.cancel()
             duration_ms = (time.perf_counter() - t0) * 1000.0
 
         columns: list[str] = [str(col[0]) for col in (cur.description or ()) if col and col[0]]
@@ -346,7 +417,11 @@ def get_db() -> DuckDBSingleton:
         return _singleton
     with _singleton_lock:
         if _singleton is None:
-            _singleton = DuckDBSingleton(get_settings().duckdb_path)
+            settings = get_settings()
+            _singleton = DuckDBSingleton(
+                settings.duckdb_path,
+                memory_limit=settings.chat_memory_limit,
+            )
     return _singleton
 
 
@@ -388,6 +463,7 @@ __all__ = [
     "DuckDBSingleton",
     "QueryResult",
     "DryRunError",
+    "QueryTimeoutError",
     "get_db",
     "reset_singleton_for_tests",
     "check_connection",
