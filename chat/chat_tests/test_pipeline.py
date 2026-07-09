@@ -85,6 +85,7 @@ def test_pipeline_emits_full_event_sequence(monkeypatch, tmp_path):
     # 1. TestModel emits a valid fifty_forty_ninety plan.
     tm, agent = _make_test_agent(
         {
+            "answer_mode": "template",
             "template_id": "season_thresholds.fifty_forty_ninety",
             "params": {"min_ppg": 25.0},
         }
@@ -176,10 +177,8 @@ def test_pipeline_clarification_path(monkeypatch, tmp_path):
 
     tm, agent = _make_test_agent(
         {
-            "template_id": "",
-            "params": {},
+            "answer_mode": "clarify",
             "clarification": "Which season should I look at?",
-            "not_answerable_note": None,
         }
     )
     monkeypatch.setattr(pipeline_module, "get_agent", lambda: agent)
@@ -214,10 +213,9 @@ def test_pipeline_unknown_template_not_answerable(monkeypatch, tmp_path):
 
     tm, agent = _make_test_agent(
         {
+            "answer_mode": "template",
             "template_id": "does.not.exist",
             "params": {},
-            "clarification": None,
-            "not_answerable_note": None,
         }
     )
     monkeypatch.setattr(pipeline_module, "get_agent", lambda: agent)
@@ -257,6 +255,7 @@ def test_pipeline_timeout_emits_error(monkeypatch, tmp_path):
 
     tm, agent = _make_test_agent(
         {
+            "answer_mode": "template",
             "template_id": "season_thresholds.fifty_forty_ninety",
             "params": {"min_ppg": 25.0},
         }
@@ -426,6 +425,7 @@ def test_pipeline_does_not_leak_api_key_into_debug_logs(monkeypatch, tmp_path):
 
     tm, agent = _make_test_agent(
         {
+            "answer_mode": "template",
             "template_id": "season_thresholds.fifty_forty_ninety",
             "params": {"min_ppg": 25.0},
         }

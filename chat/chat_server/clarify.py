@@ -3,7 +3,7 @@
 Complements the Stage 3.5 model-history persistence. While 3.5 keeps the
 Pydantic AI ``ModelMessage`` history intact across turns, 3.6 keeps a
 *side-channel* alive across turns: when the agent ends a turn in
-``AnswerMode.CLARIFY``, the structured disambiguation is persisted to
+a ``ClarifyPlan``, the structured disambiguation is persisted to
 disk; on the next turn the prompt is enriched so the agent knows the
 user is answering a clarification (not asking a fresh question).
 
@@ -113,7 +113,7 @@ def build_clarification_context_prefix(
         f'You asked for clarification: "{state.clarification_question}".'
         f"{options_clause} "
         f'The user has now replied: "{user_reply}". '
-        f"Using this reply, produce a complete QueryPlan for the original question."
+        f"Using this reply, produce a complete plan for the original question."
     )
 
 

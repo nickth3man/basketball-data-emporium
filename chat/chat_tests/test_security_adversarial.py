@@ -197,7 +197,7 @@ async def test_non_streaming_chat_enforces_template_timeout(monkeypatch, tmp_pat
     from fastapi.testclient import TestClient
 
     import chat_server.routes.chat as chat_routes
-    from chat_server.agent import QueryPlan
+    from chat_server.agent import TemplatePlan
     from chat_server.db import QueryResult
     from chat_server.templates import get_template
 
@@ -210,7 +210,7 @@ async def test_non_streaming_chat_enforces_template_timeout(monkeypatch, tmp_pat
     class _FakeAgent:
         async def run(self, message, deps=None):
             return _FakeResult(
-                QueryPlan(
+                TemplatePlan(
                     template_id="season_thresholds.fifty_forty_ninety",
                     params={"min_ppg": 25.0},
                 )

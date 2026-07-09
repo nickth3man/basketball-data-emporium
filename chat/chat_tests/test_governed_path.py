@@ -302,6 +302,7 @@ def test_legacy_template_path_still_works(monkeypatch, tmp_path):
 
     tm, agent = _make_test_agent(
         {
+            "answer_mode": "template",
             "template_id": "season_thresholds.fifty_forty_ninety",
             "params": {"min_ppg": 25.0},
         }

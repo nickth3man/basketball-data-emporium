@@ -35,7 +35,9 @@ from pydantic_ai.models.test import TestModel  # noqa: E402
 
 from chat_server.agent import (  # noqa: E402
     AgentDeps,
-    QueryPlan,
+    ClarifyPlan,
+    NotAnswerablePlan,
+    TemplatePlan,
     get_agent,
     make_deps,
     reset_agent_for_tests,
@@ -70,17 +72,7 @@ def fresh_agent():
     tm = TestModel(call_tools=[], custom_output_args=None)
     from chat_server import agent as agent_module
 
-    if hasattr(agent_module, "_build_agent"):
-        agent = agent_module._build_agent(tm)
-    else:  # pragma: no cover  - defensive; _build_agent is documented as the contract
-        from pydantic_ai import Agent
-
-        agent = Agent(
-            tm,
-            output_type=QueryPlan,
-            deps_type=AgentDeps,
-            retries={"output": 3, "tools": 2},
-        )
+    agent = agent_module._build_agent(tm)
     return agent, tm
 
 
@@ -98,61 +90,57 @@ def _noop_deps() -> AgentDeps:
     )
 
 
-# --- QueryPlan output validation ----------------------------------------
+# --- Plan output validation ----------------------------------------------
 
 
-def test_queryplan_validates_template_id(fresh_agent):
+def test_plan_validates_template_id(fresh_agent):
     """A TestModel that emits a known template id is round-tripped."""
     agent, tm = fresh_agent
     tm.custom_output_args = {
+        "answer_mode": "template",
         "template_id": "season_thresholds.fifty_forty_ninety",
         "params": {"min_ppg": 25.0},
     }
     result = asyncio.run(agent.run("50-40-90 with 25 ppg", deps=_noop_deps()))
+    assert isinstance(result.output, TemplatePlan)
     assert result.output.template_id == "season_thresholds.fifty_forty_ninety"
     assert result.output.params["min_ppg"] == 25.0
-    assert result.output.clarification is None
-    assert result.output.not_answerable_note is None
 
 
-def test_queryplan_passes_through_clarification(fresh_agent):
+def test_plan_passes_through_clarification(fresh_agent):
     """A clarification-only plan is preserved end-to-end."""
     agent, tm = fresh_agent
     tm.custom_output_args = {
-        "template_id": "",
-        "params": {},
+        "answer_mode": "clarify",
         "clarification": "Which season?",
-        "not_answerable_note": None,
     }
     result = asyncio.run(agent.run("?", deps=_noop_deps()))
-    assert result.output.clarification == "Which season?"
-    assert result.output.not_answerable_note is None
-    assert result.output.template_id == ""
+    assert isinstance(result.output, ClarifyPlan)
+    assert result.output.clarification.question == "Which season?"
 
 
-def test_queryplan_passes_through_not_answerable_note(fresh_agent):
+def test_plan_passes_through_not_answerable_note(fresh_agent):
     """A not-answerable-only plan is preserved end-to-end."""
     agent, tm = fresh_agent
     tm.custom_output_args = {
-        "template_id": "",
-        "params": {},
-        "clarification": None,
+        "answer_mode": "not_answerable",
         "not_answerable_note": "no template fits",
     }
     result = asyncio.run(agent.run("?", deps=_noop_deps()))
+    assert isinstance(result.output, NotAnswerablePlan)
     assert result.output.not_answerable_note == "no template fits"
-    assert result.output.clarification is None
 
 
 def test_run_returns_property_output_and_usage(fresh_agent):
-    """`result.output` is the typed QueryPlan; `result.usage` is the RunUsage property."""
+    """`result.output` is the typed plan; `result.usage` is the RunUsage property."""
     agent, tm = fresh_agent
     tm.custom_output_args = {
+        "answer_mode": "template",
         "template_id": "season_thresholds.fifty_forty_ninety",
         "params": {"min_ppg": 30.0},
     }
     result = asyncio.run(agent.run("test", deps=_noop_deps()))
-    assert isinstance(result.output, QueryPlan)
+    assert isinstance(result.output, TemplatePlan)
     assert result.usage is not None  # property, not method
     # `all_messages` is a method that returns the full message history.
     msgs = result.all_messages()
@@ -293,6 +281,7 @@ def test_chat_route_end_to_end_with_testmodel(monkeypatch, tmp_path):
     tm = TestModel(
         call_tools=[],
         custom_output_args={
+            "answer_mode": "template",
             "template_id": "season_thresholds.fifty_forty_ninety",
             "params": {"min_ppg": 25.0},
         },
@@ -347,6 +336,7 @@ def test_chat_route_creates_session_when_id_omitted(monkeypatch, tmp_path):
     tm = TestModel(
         call_tools=[],
         custom_output_args={
+            "answer_mode": "template",
             "template_id": "season_thresholds.fifty_forty_ninety",
             "params": {"min_ppg": 25.0},
         },
@@ -395,10 +385,8 @@ def test_chat_route_handles_clarification_plan(monkeypatch, tmp_path):
     tm = TestModel(
         call_tools=[],
         custom_output_args={
-            "template_id": "",
-            "params": {},
+            "answer_mode": "clarify",
             "clarification": "Which season?",
-            "not_answerable_note": None,
         },
     )
     test_agent = agent_module._build_agent(tm)
@@ -434,9 +422,7 @@ def test_chat_route_handles_not_answerable_plan(monkeypatch, tmp_path):
     tm = TestModel(
         call_tools=[],
         custom_output_args={
-            "template_id": "",
-            "params": {},
-            "clarification": None,
+            "answer_mode": "not_answerable",
             "not_answerable_note": "no template fits the question",
         },
     )
@@ -475,6 +461,7 @@ def test_chat_route_handles_invalid_params(monkeypatch, tmp_path):
     tm = TestModel(
         call_tools=[],
         custom_output_args={
+            "answer_mode": "template",
             "template_id": "season_thresholds.fifty_forty_ninety",
             "params": {"min_ppg": "not-a-number"},
         },
@@ -511,10 +498,9 @@ def test_chat_route_handles_unknown_template(monkeypatch, tmp_path):
     tm = TestModel(
         call_tools=[],
         custom_output_args={
+            "answer_mode": "template",
             "template_id": "does.not.exist",
             "params": {},
-            "clarification": None,
-            "not_answerable_note": None,
         },
     )
     test_agent = agent_module._build_agent(tm)

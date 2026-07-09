@@ -53,9 +53,11 @@ from pydantic_ai.messages import ModelMessagesTypeAdapter
 
 from . import otel
 from .agent import (  # noqa: F401
-    AnswerMode,
-    Clarification,
+    ClarifyPlan,
+    NotAnswerablePlan,
     ResultContract,
+    SqlPlan,
+    TemplatePlan,
     get_agent,
     keep_last_messages_with_tools,
     make_deps,
@@ -143,7 +145,8 @@ async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
             usage_obj = result.usage
             if agent_span is not None:
                 with contextlib.suppress(Exception):
-                    agent_span.set_attribute("template_id", plan.template_id or "")
+                    agent_span.set_attribute("answer_mode", plan.answer_mode)
+                    agent_span.set_attribute("template_id", getattr(plan, "template_id", ""))
         except Exception as exc:  # noqa: BLE001
             log.exception("agent.run failed; sid=%s turn_id=%s", session_id, turn_id)
             yield ChatError(code=_ERR_AGENT_FAILED, message=f"agent failed: {type(exc).__name__}")
@@ -152,29 +155,35 @@ async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
 
     _safe_append_model_history(store, session_id, result)
 
-    if plan.answer_mode == AnswerMode.CLARIFY and plan.clarification is not None:
+    # Clarify-state side effect: runs in one block above the dispatch so
+    # every non-clarify outcome auto-clears stale state.
+    if isinstance(plan, ClarifyPlan):
         clar = plan.clarification
-        if isinstance(clar, Clarification):
-            options_list: list[str] | None = list(clar.options) if clar.options else None
-            state = ClarificationState(
-                original_question=message,
-                clarification_question=clar.question,
-                options=options_list,
-            )
-            try:
-                store.set_pending_clarification(session_id, state)
-            except Exception:  # noqa: BLE001
-                log.exception("set_pending_clarification failed; sid=%s", session_id)
+        options_list: list[str] | None = list(clar.options) if clar.options else None
+        state = ClarificationState(
+            original_question=message,
+            clarification_question=clar.question,
+            options=options_list,
+        )
+        try:
+            store.set_pending_clarification(session_id, state)
+        except Exception:  # noqa: BLE001
+            log.exception("set_pending_clarification failed; sid=%s", session_id)
     else:
         try:
             store.clear_pending_clarification(session_id)
         except Exception:  # noqa: BLE001
             log.exception("clear_pending_clarification failed; sid=%s", session_id)
 
-    if plan.clarification is not None:
+    # Dispatch on the plan's type — each branch is exclusive, so there is
+    # no ordering contract to document or violate.
+    if isinstance(plan, ClarifyPlan):
         clar = plan.clarification
-        yield ClarificationNeeded(question=clar)
-        _safe_append_assistant(store, session_id, clar)
+        yield ClarificationNeeded(
+            question=clar.question,
+            options=list(clar.options) if clar.options else None,
+        )
+        _safe_append_assistant(store, session_id, clar.question)
         _write_model_log(
             settings,
             session_id,
@@ -185,14 +194,14 @@ async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
         )
         return
 
-    if plan.not_answerable_note is not None:
+    if isinstance(plan, NotAnswerablePlan):
         note = plan.not_answerable_note
         composed = compose_not_answerable(note)
         async for ev in _stream_composed_answer(
             composed=composed,
             sql=None,
             result=None,
-            template_title=plan.template_id or "(no template)",
+            template_title="(no template)",
         ):
             yield ev
         _safe_append_assistant(store, session_id, composed.answer)
@@ -200,13 +209,13 @@ async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
             settings,
             session_id,
             turn_id,
-            template_id=plan.template_id or None,
+            template_id=None,
             usage=usage_obj,
             error=None,
         )
         return
 
-    if plan.answer_mode == AnswerMode.EXECUTE_SQL and plan.sql:
+    if isinstance(plan, SqlPlan):
         catalog = deps.catalog
         if catalog is None:
             note = "The semantic catalog is not loaded, so I can't run governed queries yet."
@@ -317,7 +326,6 @@ async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
                 return
             plan = repaired_plan
             report = repaired_report
-            assert plan.sql is not None, "repair_sql returned a plan with no SQL"
 
         model_sentinel = f"semantic:{next(iter(report.tables_referenced), 'unknown')}"
 
@@ -414,6 +422,8 @@ async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
         )
         return
 
+    # Only TemplatePlan remains (legacy path; deleted in §9 step 7).
+    assert isinstance(plan, TemplatePlan), f"unhandled plan type: {type(plan).__name__}"
     template_id = plan.template_id
     yield IntentClassified(template_id=template_id, confidence=1.0)
 

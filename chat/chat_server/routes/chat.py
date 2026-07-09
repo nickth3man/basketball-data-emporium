@@ -49,9 +49,11 @@ from fastapi.sse import EventSourceResponse
 from pydantic import BaseModel, Field
 
 from chat_server.agent import (  # noqa: E402, F401
-    AnswerMode,
-    Clarification,
+    ClarifyPlan,
+    NotAnswerablePlan,
     ResultContract,
+    SqlPlan,
+    TemplatePlan,
     get_agent,
     make_deps,
 )
@@ -180,54 +182,55 @@ async def chat(req: ChatRequest) -> ChatResponse:
             template_id=None,
         )
 
-    if plan.answer_mode == AnswerMode.CLARIFY and plan.clarification is not None:
+    # Clarify-state side effect: one block above the dispatch so every
+    # non-clarify outcome auto-clears stale state.
+    if isinstance(plan, ClarifyPlan):
         clar = plan.clarification
-        if isinstance(clar, Clarification):
-            options_list: list[str] | None = list(clar.options) if clar.options else None
-            state = ClarificationState(
-                original_question=req.message,
-                clarification_question=clar.question,
-                options=options_list,
-            )
-            try:
-                store.set_pending_clarification(sid, state)
-            except Exception:  # noqa: BLE001
-                log.exception("set_pending_clarification failed; sid=%s", sid)
+        options_list: list[str] | None = list(clar.options) if clar.options else None
+        state = ClarificationState(
+            original_question=req.message,
+            clarification_question=clar.question,
+            options=options_list,
+        )
+        try:
+            store.set_pending_clarification(sid, state)
+        except Exception:  # noqa: BLE001
+            log.exception("set_pending_clarification failed; sid=%s", sid)
     else:
         try:
             store.clear_pending_clarification(sid)
         except Exception:  # noqa: BLE001
             log.exception("clear_pending_clarification failed; sid=%s", sid)
 
-    if plan.clarification is not None:
-        clarification_text: str = plan.clarification
+    if isinstance(plan, ClarifyPlan):
+        clarification_text = plan.clarification.question
         store.append_message(sid, "assistant", clarification_text)
-        log.info("chat turn: clarification sid=%s template_id=%r", sid, plan.template_id)
+        log.info("chat turn: clarification sid=%s", sid)
         return ChatResponse(
             session_id=sid,
             answer=clarification_text,
             citations=[],
             not_answerable=False,
-            template_id=plan.template_id,
+            template_id=None,
             reasoning_summary="Clarification needed before query.",
         )
 
-    if plan.not_answerable_note is not None:
+    if isinstance(plan, NotAnswerablePlan):
         note: str = plan.not_answerable_note
         composed = compose_not_answerable(note)
         store.append_message(sid, "assistant", composed.answer)
-        log.info("chat turn: not-answerable sid=%s template_id=%r", sid, plan.template_id)
+        log.info("chat turn: not-answerable sid=%s", sid)
         return ChatResponse(
             session_id=sid,
             answer=composed.answer,
             citations=[],
             not_answerable=True,
             not_answerable_note=composed.not_answerable_note,
-            template_id=plan.template_id,
+            template_id=None,
             reasoning_summary=composed.reasoning_summary,
         )
 
-    if plan.answer_mode == AnswerMode.EXECUTE_SQL and plan.sql:
+    if isinstance(plan, SqlPlan):
         catalog = deps.catalog
         if catalog is None:
             note = "The semantic catalog is not loaded, so I can't run governed queries yet."
@@ -319,7 +322,6 @@ async def chat(req: ChatRequest) -> ChatResponse:
                 )
             plan = repaired_plan
             report = repaired_report
-            assert plan.sql is not None, "repair_sql returned a plan with no SQL"
 
         model_sentinel = f"semantic:{next(iter(report.tables_referenced), 'unknown')}"
         row_limit = plan.result_contract.row_limit if plan.result_contract else None
@@ -391,6 +393,8 @@ async def chat(req: ChatRequest) -> ChatResponse:
             duration_ms=query_result.duration_ms,
         )
 
+    # Only TemplatePlan remains (legacy path; deleted in §9 step 7).
+    assert isinstance(plan, TemplatePlan), f"unhandled plan type: {type(plan).__name__}"
     try:
         template = get_template(plan.template_id)
     except TemplateNotFound:

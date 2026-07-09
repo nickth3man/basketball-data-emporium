@@ -46,7 +46,7 @@ import logging
 import re
 from typing import TYPE_CHECKING
 
-from .agent import AnswerMode, QueryPlan
+from .agent import Plan, SqlPlan
 
 if TYPE_CHECKING:
     from .agent import Agent, AgentDeps
@@ -218,13 +218,13 @@ def build_refiner_message(
 
 
 async def repair_sql(
-    agent: Agent[AgentDeps, QueryPlan],
+    agent: Agent[AgentDeps, Plan],
     deps: AgentDeps,
     *,
     question: str,
     broken_sql: str,
     error: str,
-) -> QueryPlan | None:
+) -> SqlPlan | None:
     """One-shot repair round: re-prompt the structured agent with the failure.
 
     Mirrors the initial plan call (see ``chat_server.pipeline.run_turn``
@@ -236,11 +236,11 @@ async def repair_sql(
 
     Returns
     -------
-    QueryPlan | None
-        ``None`` when the model declined (``answer_mode`` is
-        ``clarify`` / ``not_answerable``, or the ``sql`` field is
-        empty after a successful execute_sql) -- the caller degrades
-        to a not-answerable response.
+    SqlPlan | None
+        ``None`` when the model declined (it produced a clarify /
+        not-answerable / template plan instead of SQL, or the ``sql``
+        field is blank) -- the caller degrades to a not-answerable
+        response.
 
         ``None`` also when the model call itself blows up (network
         error, validation crash on the structured output, ...). A
@@ -250,8 +250,7 @@ async def repair_sql(
         None) -- the refiner cannot build a meaningful schema context
         and we'd rather degrade to not-answerable than guess.
 
-        Otherwise: a fresh ``QueryPlan`` with
-        ``answer_mode == execute_sql`` and a non-empty ``sql``.
+        Otherwise: a fresh ``SqlPlan`` with a non-empty ``sql``.
 
     Notes
     -----
@@ -278,11 +277,7 @@ async def repair_sql(
         return None
 
     plan = result.output
-    if plan.answer_mode in (AnswerMode.CLARIFY, AnswerMode.NOT_ANSWERABLE):
-        return None
-    if plan.answer_mode == AnswerMode.EXECUTE_SQL:
-        if not plan.sql or not plan.sql.strip():
-            return None
+    if isinstance(plan, SqlPlan) and plan.sql.strip():
         return plan
     return None
 

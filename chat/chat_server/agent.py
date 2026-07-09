@@ -2,7 +2,8 @@
 
 Phase 3 exit criteria:
 * Singleton `Agent` with native `OpenRouterModel`.
-* Typed `QueryPlan` output (Pydantic model).
+* Typed `Plan` output — a discriminated union on `answer_mode`
+  (`ClarifyPlan | NotAnswerablePlan | SqlPlan | TemplatePlan`).
 * Tools: `list_templates`, `get_template_detail`, `lookup_player`,
   `lookup_team`, `lookup_season`.
 * `retries={'output': 3, 'tools': 2}` (mitigates
@@ -21,7 +22,7 @@ text comes from `ctx.deps.schema_context` at run time. Pros:
   materialized once via the cached `await get_schema_context()`.
 
 Public surface (re-exported from this module):
-* `QueryPlan` — the typed output model.
+* `Plan` and its members — the typed output union.
 * `AgentDeps` — the deps dataclass (registry + schema_context + db + catalog).
 * `get_agent(model=None)` — lazy singleton with optional model override
   (used by tests to inject `TestModel` and avoid live OpenRouter calls).
@@ -35,11 +36,10 @@ import logging
 import re
 import threading
 from dataclasses import dataclass
-from enum import StrEnum
-from typing import Any, Literal, cast
+from typing import Annotated, Any, Literal, cast
 
-from pydantic import BaseModel, Field, model_validator
-from pydantic_ai import Agent, RunContext
+from pydantic import BaseModel, Field, field_validator
+from pydantic_ai import Agent, RunContext, ToolOutput
 from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.messages import ToolCallPart, ToolReturnPart
 from pydantic_ai.models import Model
@@ -63,32 +63,12 @@ from .templates import (
 logger = logging.getLogger(__name__)
 
 
-class AnswerMode(StrEnum):
-    """How the agent intends to handle this turn.
-
-    TEMPLATE is the legacy compatibility mode: the plan carries
-    ``template_id`` + ``params`` and the existing template execution
-    path runs. Kept so the 50 sample conversations and the fixture
-    regression suite keep passing while the governed-SQL path rolls out.
-
-    EXECUTE_SQL is the governed path: the plan carries ``sql`` +
-    ``result_contract``; the server validates, dry-runs, and executes
-    read-only. CLARIFY and NOT_ANSWERABLE short-circuit execution.
-    """
-
-    TEMPLATE = "template"
-    EXECUTE_SQL = "execute_sql"
-    CLARIFY = "clarify"
-    NOT_ANSWERABLE = "not_answerable"
-
-
 class Clarification(BaseModel):
-    """A structured disambiguation question (governed path).
+    """A structured disambiguation question.
 
-    The free-text legacy form (a bare ``str``) is still accepted on
-    ``QueryPlan.clarification`` for backward compatibility; new code
-    constructs this structured form so the clarification-state layer
-    can route the user's reply back to the right model.
+    ``ClarifyPlan.clarification`` coerces a bare ``str`` (the form
+    smaller models sometimes emit) into this structured shape, so the
+    rest of the system only ever sees ``question`` / ``options``.
     """
 
     question: str = Field(..., min_length=1)
@@ -109,70 +89,80 @@ class ResultContract(BaseModel):
     answer_style: Literal["ranked_list", "single_value", "count", "prose", "table"] = "prose"
 
 
-class QueryPlan(BaseModel):
-    """Typed output the agent produces on every turn.
+class ClarifyPlan(BaseModel):
+    """The question is too ambiguous to act on; ask before querying."""
 
-    Discriminated union on ``answer_mode``. To preserve backward
-    compatibility with the template-driven era, ``answer_mode`` defaults
-    to ``TEMPLATE`` and the legacy fields retain their current types.
-
-    Branching order in the pipeline / route (load-bearing):
-
-    1. ``clarification is not None`` -> clarify (accepts str OR Clarification).
-    2. ``not_answerable_note is not None`` -> not-answerable.
-    3. ``answer_mode == EXECUTE_SQL and sql`` -> governed-SQL branch.
-    4. else -> legacy template path (unchanged fallthrough).
-    """
-
-    answer_mode: AnswerMode = AnswerMode.TEMPLATE
+    answer_mode: Literal["clarify"] = "clarify"
     question_interpretation: str = ""
-
-    template_id: str = Field(
-        default="",
-        description=(
-            "Template id that exists in the registry (legacy mode). "
-            "Empty when answer_mode != TEMPLATE."
-        ),
-    )
-    params: dict[str, Any] = Field(
-        default_factory=dict,
-        description="Typed params validated against the template's Params model (legacy mode).",
+    clarification: Clarification = Field(
+        ...,
+        description="The specific disambiguation question (plus options where useful).",
     )
 
-    sql: str | None = Field(
-        default=None,
-        description="Generated DuckDB SQL drawn only from catalog base tables (governed mode).",
+    @field_validator("clarification", mode="before")
+    @classmethod
+    def _coerce_bare_str(cls, value: object) -> object:
+        """Accept a bare question string and lift it into `Clarification`."""
+        if isinstance(value, str) and value.strip():
+            return Clarification(question=value)
+        return value
+
+
+class NotAnswerablePlan(BaseModel):
+    """The question cannot be answered from the warehouse; explain why."""
+
+    answer_mode: Literal["not_answerable"] = "not_answerable"
+    question_interpretation: str = ""
+    not_answerable_note: str = Field(
+        ...,
+        min_length=1,
+        description="Why the question cannot be answered, with the evidence checked.",
+    )
+
+
+class SqlPlan(BaseModel):
+    """The governed path: validated, dry-run, and executed read-only."""
+
+    answer_mode: Literal["execute_sql"] = "execute_sql"
+    question_interpretation: str = ""
+    sql: str = Field(
+        ...,
+        min_length=1,
+        description="Generated DuckDB SELECT SQL drawn from approved warehouse tables.",
     )
     result_contract: ResultContract | None = Field(
         default=None,
-        description="Expected grain/columns/row-limit/answer-style (governed mode).",
+        description="Expected grain/columns/row-limit/answer-style.",
     )
 
-    clarification: str | Clarification | None = Field(
-        default=None,
-        description=(
-            "Set when the question is too ambiguous to act on. Accepts a "
-            "free-text str (legacy) or a structured Clarification (governed)."
-        ),
+
+class TemplatePlan(BaseModel):
+    """Legacy template mode. Temporary union member — deleted with the
+    template subsystem (ARCHITECTURE.md §9 step 7)."""
+
+    answer_mode: Literal["template"] = "template"
+    question_interpretation: str = ""
+    template_id: str = Field(
+        default="",
+        description="Template id that exists in the registry.",
+    )
+    params: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Typed params validated against the template's Params model.",
     )
 
-    not_answerable_note: str | None = Field(
-        default=None,
-        description="Set when the question cannot be answered; explains why with evidence.",
-    )
 
-    @model_validator(mode="after")
-    def _check_mode_consistency(self) -> QueryPlan:
-        """Enforce field presence per mode. Lenient on TEMPLATE mode."""
-        if self.answer_mode == AnswerMode.EXECUTE_SQL:
-            if not self.sql:
-                raise ValueError("execute_sql mode requires `sql`")
-        elif self.answer_mode == AnswerMode.CLARIFY:
-            if self.clarification is None:
-                raise ValueError("clarify mode requires `clarification`")
-        elif self.answer_mode == AnswerMode.NOT_ANSWERABLE and not self.not_answerable_note:
-            raise ValueError("not_answerable mode requires `not_answerable_note`")
-        return self
+Plan = Annotated[
+    ClarifyPlan | NotAnswerablePlan | SqlPlan | TemplatePlan,
+    Field(discriminator="answer_mode"),
+]
+"""Typed output the agent produces on every turn.
+
+A Pydantic discriminated union on ``answer_mode``: a plan carrying both
+``sql`` and ``clarification`` is unrepresentable, and the pipeline
+dispatch is an exhaustive ``match`` on the member type instead of a
+documented check order.
+"""
 
 
 @dataclass
@@ -210,10 +200,10 @@ class AgentDeps:
 SYSTEM_PROMPT_TEMPLATE = """\
 You are a basketball analytics assistant. Answer NBA data questions ONLY by selecting a query
 template and extracting typed parameters. NEVER write SQL. If a user's question maps to a
-template, call list_templates / get_template_detail to inspect it, then return a QueryPlan
-with the template_id and validated params. If params are missing or ambiguous, set
-QueryPlan.clarification to a specific question. If NO template fits, set
-QueryPlan.not_answerable_note explaining why (with the evidence). Use lookup_player /
+template, call list_templates / get_template_detail to inspect it, then return a plan with
+answer_mode = template, the template_id, and validated params. If params are missing or
+ambiguous, return answer_mode = clarify with a specific question. If NO template fits,
+return answer_mode = not_answerable explaining why (with the evidence). Use lookup_player /
 lookup_team / lookup_season to resolve free-text names to canonical ids — never guess ids.
 The warehouse is the only source of truth for data.
 
@@ -241,7 +231,7 @@ Rules for every governed SQL answer:
 1. SELECT only. No INSERT / UPDATE / DELETE / CREATE / DROP / PRAGMA / ATTACH.
 2. FROM and JOIN only the catalog models' base tables. Never query a table
    that is not in the catalog. If a question needs a table the catalog does
-   not cover, decline with QueryPlan.not_answerable_note citing the gap.
+   not cover, decline with answer_mode = not_answerable citing the gap.
 3. Always return answer_mode = execute_sql with a non-empty sql string AND a
    filled result_contract (grain, columns you expect, row_limit, answer_style).
    The composer uses result_contract to format the answer.
@@ -310,11 +300,11 @@ def _build_model() -> OpenRouterModel:
     )
 
 
-_agent: Agent[AgentDeps, QueryPlan] | None = None
+_agent: Agent[AgentDeps, Plan] | None = None
 _agent_lock = threading.Lock()
 
 
-def get_agent(model: Model | None = None) -> Agent[AgentDeps, QueryPlan]:
+def get_agent(model: Model | None = None) -> Agent[AgentDeps, Plan]:
     """Return the lazy singleton `Agent`.
 
     Parameters
@@ -336,14 +326,20 @@ def get_agent(model: Model | None = None) -> Agent[AgentDeps, QueryPlan]:
 
 def _build_agent(
     model: Model | None = None,
-) -> Agent[AgentDeps, QueryPlan]:
-    """Build a fresh agent (called by `get_agent` on first invocation)."""
+) -> Agent[AgentDeps, Plan]:
+    """Build a fresh agent (called by `get_agent` on first invocation).
+
+    ``output_type`` is the plan union wrapped in a single ``ToolOutput``
+    so the model sees exactly one output tool (``final_result``) whose
+    schema is the discriminated union — the discriminator picks the
+    member at validation time.
+    """
     m = model if model is not None else _build_model()
-    raw: Agent[AgentDeps, QueryPlan] = cast(
-        "Agent[AgentDeps, QueryPlan]",
+    raw: Agent[AgentDeps, Plan] = cast(
+        "Agent[AgentDeps, Plan]",
         Agent(
             m,
-            output_type=QueryPlan,
+            output_type=ToolOutput(Plan, name="final_result"),  # type: ignore[arg-type]
             deps_type=AgentDeps,
             retries={"output": 3, "tools": 2},
             system_prompt=(),
@@ -414,7 +410,7 @@ def _summarize_params(model_cls: type[BaseModel]) -> list[dict[str, Any]]:
     return out
 
 
-def _register_tools(agent: Agent[AgentDeps, QueryPlan]) -> None:
+def _register_tools(agent: Agent[AgentDeps, Plan]) -> None:
     """Register all five agent tools on `agent`.
 
     Tool bodies:
@@ -880,8 +876,8 @@ async def run_agent(
     deps: AgentDeps | None = None,
     model: Model | None = None,
     message_history: list | None = None,
-) -> QueryPlan:
-    """Run the agent on `user_prompt` and return the typed `QueryPlan`.
+) -> Plan:
+    """Run the agent on `user_prompt` and return the typed `Plan`.
 
     Convenience helper used by tests and (in Phase 4) the chat route.
     `deps` and `model` default to the live production wiring; tests
@@ -908,8 +904,11 @@ async def run_agent(
 
 
 __all__ = [
-    "QueryPlan",
-    "AnswerMode",
+    "Plan",
+    "ClarifyPlan",
+    "NotAnswerablePlan",
+    "SqlPlan",
+    "TemplatePlan",
     "Clarification",
     "ResultContract",
     "AgentDeps",
