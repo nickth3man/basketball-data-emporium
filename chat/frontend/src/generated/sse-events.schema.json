@@ -41,7 +41,7 @@
       "type": "object"
     },
     "ChatError": {
-      "description": "A non-recoverable turn-level error.\n\nCodes are short, machine-friendly tokens the UI can switch on. The\n``message`` field is safe to render \u2014 any `sk-or-...` / CoT content\nis redacted before it gets here (PLAN \u00a77.10).",
+      "description": "A non-recoverable turn-level error.\n\nCodes are short, machine-friendly tokens the UI can switch on. The\n``message`` field is safe to render \u2014 any `sk-or-...` / CoT content\nis redacted before it gets here.",
       "properties": {
         "code": {
           "title": "Code",
@@ -274,7 +274,7 @@
       "type": "object"
     },
     "Reasoning": {
-      "description": "Structured reasoning summary for the UI's collapsible panel.\n\nNEVER includes the model's chain-of-thought \u2014 only the pipeline's\nown description of what happened (PLAN \u00a77.7 step 8 + \u00a716).",
+      "description": "Structured reasoning summary for the UI's collapsible panel.\n\nNEVER includes the model's chain-of-thought \u2014 only the pipeline's\nown description of what happened.",
       "properties": {
         "event": {
           "const": "reasoning",
