@@ -270,3 +270,80 @@ def test_compose_failure_becomes_error_event(monkeypatch, tmp_path):
     assert error.code == "compose_failed"
     # QueryFinished IS present because the query executed before compose failed.
     assert any(isinstance(event, QueryFinished) for event in events)
+
+
+async def test_concurrent_turns_on_same_session_are_serialized(monkeypatch, tmp_path):
+    """Two run_turn calls on the same session must not interleave.
+
+    Turn A's agent blocks on an asyncio.Event. While A is blocked,
+    turn B starts but must wait for A's lock. B produces no events
+    until A completes.
+    """
+
+    from chat_server import config, pipeline
+    from chat_server.schema_context import SchemaContext
+    from chat_server.sessions import SessionStore
+
+    # Ensure a clean lock registry for the test so prior tests don't leak locks.
+    pipeline._session_turn_locks.clear()
+
+    gate = asyncio.Event()
+    started = asyncio.Event()
+
+    inner_agent = _build_agent(
+        TestModel(
+            call_tools=[],
+            custom_output_args={
+                "answer_mode": "not_answerable",
+                "question_interpretation": "blocked turn",
+                "not_answerable_note": "test",
+            },
+        )
+    )
+
+    class GatedAgent:
+        """Blocks on `gate` until the test releases it."""
+
+        async def run(self, *args, **kwargs):
+            started.set()
+            await gate.wait()
+            return await inner_agent.run(*args, **kwargs)
+
+    monkeypatch.setattr(pipeline, "get_agent", lambda: GatedAgent())
+
+    async def make_deps() -> AgentDeps:
+        return AgentDeps(schema_context=SchemaContext(), db=cast(DuckDBSingleton, None))
+
+    monkeypatch.setattr(pipeline, "make_deps", make_deps)
+    monkeypatch.setattr(config.get_settings(), "chat_log_dir", str(tmp_path))
+    store = SessionStore(tmp_path / "sessions")
+    monkeypatch.setattr(pipeline, "get_store", lambda: store)
+
+    sid = store.create(title="concurrent").id
+
+    # Start turn A — it will block inside GatedAgent.run
+    task_a = asyncio.ensure_future(_collect(run_turn(sid, "message A")))
+    await asyncio.wait_for(started.wait(), timeout=2.0)
+
+    # Start turn B on the SAME session — it should block on the lock
+    task_b = asyncio.ensure_future(_collect(run_turn(sid, "message B")))
+
+    await asyncio.sleep(0.2)
+
+    # B must not have completed (it's waiting for A's lock)
+    assert not task_b.done(), "turn B should be blocked waiting for turn A's lock"
+
+    # Release A
+    gate.set()
+
+    events_a = await asyncio.wait_for(task_a, timeout=2.0)
+    events_b = await asyncio.wait_for(task_b, timeout=2.0)
+
+    # Both turns completed with valid event sequences
+    assert events_a[0].event == "turn_started"
+    assert events_b[0].event == "turn_started"
+    # Each turn has its own turn_id (proves they didn't merge)
+    assert events_a[0].turn_id != events_b[0].turn_id
+
+    # Cleanup lock registry
+    pipeline._session_turn_locks.clear()

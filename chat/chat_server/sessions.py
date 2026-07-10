@@ -85,7 +85,6 @@ def _utcnow() -> _dt.datetime:
 
 
 class SessionStore:
-    # TODO: pipeline-level per-session asyncio.Lock for full turn serialization
     """File-backed JSONL session store. Thread-safe via a single lock."""
 
     def __init__(self, root: Path) -> None:
