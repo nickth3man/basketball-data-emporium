@@ -202,8 +202,8 @@ function reducer(state: ChatTurnState, action: Action): ChatTurnState {
 
 export interface UseChatTurnResult {
   state: ChatTurnState;
-  /** Start a new turn. Resets prior state. Throws if `sessionId` is null. */
-  send: (message: string) => Promise<void>;
+  /** Start a new turn. Resets prior state. Throws if `sessionId` is null and no override provided. */
+  send: (message: string, sessionIdOverride?: string) => Promise<void>;
   /** Abort the in-flight turn (no-op when nothing is running). */
   cancel: () => void;
   /** Clear state back to `idle` without sending anything. */
@@ -215,8 +215,9 @@ export function useChatTurn(sessionId: string | null): UseChatTurnResult {
   const abortRef = useRef<AbortController | null>(null);
 
   const send = useCallback(
-    async (message: string): Promise<void> => {
-      if (!sessionId) {
+    async (message: string, sessionIdOverride?: string): Promise<void> => {
+      const effectiveSessionId = sessionIdOverride ?? sessionId;
+      if (!effectiveSessionId) {
         // Caller responsibility (per the contract): the UI must create a
         // session via `useSessions` before invoking `send`.
         throw new Error("useChatTurn: no session id (create one via useSessions first)");
@@ -227,7 +228,7 @@ export function useChatTurn(sessionId: string | null): UseChatTurnResult {
       dispatch({ type: "running" });
       try {
         for await (const ev of streamChat({
-          sessionId,
+          sessionId: effectiveSessionId,
           message,
           signal: ac.signal,
         })) {
@@ -258,3 +259,24 @@ export function useChatTurn(sessionId: string | null): UseChatTurnResult {
 
   return { state, send, cancel, reset };
 }
+
+// --- Testing-only exports --------------------------------------------------
+/** @internal Exported for useChatTurn.test.tsx reducer tests. */
+export type ChatTurnAction =
+  | { type: "reset" }
+  | { type: "running" }
+  | { type: "event"; ev: ChatEvent }
+  | { type: "error"; code: string; message: string }
+  | { type: "cancelled" }
+  | { type: "done" };
+
+/** @internal Exported for useChatTurn.test.tsx reducer tests. */
+export function chatTurnReducer(
+  state: ChatTurnState,
+  action: ChatTurnAction,
+): ChatTurnState {
+  return reducer(state, action as Action);
+}
+
+/** @internal Exported for useChatTurn.test.tsx reducer tests. */
+export const chatTurnInitialState: ChatTurnState = initialState;

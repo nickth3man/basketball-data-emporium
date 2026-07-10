@@ -74,7 +74,7 @@ export default defineConfig({
     // Vite proxies `/api/*` to :8787 (see vite.config.ts), so the
     // browser hits 5173 only and the SSE stream is forwarded.
     {
-      command: "npm run dev",
+      command: "npm run dev:web",
       url: "http://localhost:5173",
       reuseExistingServer: !process.env.CI,
       timeout: 60_000,

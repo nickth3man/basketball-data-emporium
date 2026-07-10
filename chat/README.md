@@ -1,14 +1,11 @@
 # Basketball Data Chatbot
 
 A local-web chat interface over the project's existing DuckDB warehouse
-(`data/nba.duckdb`): **read-only, no auth, OpenRouter-backed, and
-ground-truth answers only** — every numeric claim comes from a query against
-the warehouse, never from model memory.
-
-The agent **writes SQL** (a governed-SQL pipeline), but nothing executes
-without passing a three-layer validation gate. v2 ships with a
-**semantic catalog** of 8 business models, a **Plan discriminated union**
-(ClarifyPlan | NotAnswerablePlan | SqlPlan), inline citations, collapsible
+(`data/nba.duckdb`): read-only, no auth, OpenRouter-backed, and
+ground-truth answers only — every numeric claim comes from a query against
+the warehouse, never from model memory. v1 ships with **20 predefined SQL
+templates** organized into **10 analytical families**, an agent that picks a
+template (never writes SQL), SSE streaming, inline citations, collapsible
 SQL + reasoning panels, and a transparent "not answerable with evidence"
 path for questions the warehouse can't support.
 
@@ -19,44 +16,28 @@ path for questions the warehouse can't support.
 Two processes, one immutable warehouse:
 
 ```
-┌────────────────────────────────┐        ┌───────────────────────────────────────┐
-│  Frontend  (chat/frontend/)    │  SSE   │  Backend  (chat/chat_server/)          │
-│  Vite + React 19 + TS +        │ ──────▶│  FastAPI :8787                         │
-│  Tailwind v4 + shadcn-style    │        │        │                               │
-│                                │        │        ▼                               │
-│  ChatTimeline · MessageBubble  │        │  Pydantic AI agent (OpenRouter)         │
-│  SqlPanel · ReasoningPanel     │        │        │                               │
-│  ResultTable · EvidenceCard    │        │        ▼  ┌─────────────────────┐      │
-│  ClarifyPrompt                 │        │  Plan ──▶ │ ClarifyPlan         │      │
-│                                │        │  union    │ NotAnswerablePlan   │      │
-│                                │        │           │ SqlPlan ◀── repair  │      │
-│                                │        │           └─────────┬───────────┘      │
-│                                │        │                     │                   │
-│                                │        │                     ▼                   │
-│                                │        │  ═══ 3-layer gate (sqlgate.py) ═══     │
-│                                │        │  Layer1: validate_select_sql()         │
-│                                │        │    - single read-only SELECT           │
-│                                │        │    - reject INSERT/UPDATE/DELETE/etc   │
-│                                │        │    - reject dangerous TVFs             │
-│                                │        │    - restrict to dim_/fact_/mart_      │
-│                                │        │      /analytics_ prefixes              │
-│                                │        │  Layer2: sqlglot optimizer pass        │
-│                                │        │    - live information_schema resolve   │
-│                                │        │    - catch unknown/ambiguous columns   │
-│                                │        │  Layer3: catalog fan/chasm detection   │
-│                                │        │    - one_to_many joins + additive      │
-│                                │        │      SUM → requires GROUP BY           │
-│                                │        └───────────┬───────────────────────────┘
-│                                │                    │  (dry-run + execute)
-│                                │                    ▼
-│                                │           DuckDBSingleton (read-only)
-│                                │                    │
-│                                │                    ▼
-│                                │            data/nba.duckdb (~21.5 GB)
-│                                │            + Answer Composer (composer.py)
-│                                │            + Semantic Catalog (8 YAML models)
-│                                │            + JSONL log store
-│                                └──────────────────────────────────────────────────┘
+┌────────────────────────────────┐         ┌─────────────────────────────────┐
+│  Frontend  (chat/frontend/)    │  SSE    │  Backend  (chat/chat_server/)    │
+│  Vite + React 19 + TS +        │ ──────▶ │  FastAPI :8787                  │
+│  Tailwind v4 + shadcn-style    │         │       │                         │
+│                                │         │       ▼                         │
+│  ChatTimeline · MessageBubble  │         │  Pydantic AI agent (OpenRouter) │
+│  SqlPanel · ReasoningPanel     │         │       │   ↓ (template + params) │
+│  ResultTable · EvidenceCard    │         │       ▼                         │
+│                                │         │  Template registry (20 .sql     │
+│                                │         │   + .py pairs, 10 families)    │
+│                                │         │       │   ↓ (render + validate) │
+│                                │         │       ▼                         │
+│                                │         │  SQLGlot allowlist gate         │
+│                                │         │       │   ↓ (single SELECT)     │
+└────────────────────────────────┘         │       ▼                         │
+                                            │  DuckDBSingleton (read-only)    │
+                                            │       │                         │
+                                            │       ▼                         │
+                                            │  data/nba.duckdb (~21.5 GB)     │
+                                            │  + Answer Composer (Pydantic)   │
+                                            │  + JSONL log store              │
+                                            └─────────────────────────────────┘
 ```
 
 **Data flow (UI → DB → UI):**
@@ -65,54 +46,22 @@ Two processes, one immutable warehouse:
 2. The frontend POSTs to `POST /api/chat/stream`. `useChatTurn`
    consumes the SSE stream via `fetch`/`ReadableStream` (`api/sse.ts`)
    — `EventSource` is the wrong fit because turns are POSTs.
-3. The backend (`pipeline.py`) kicks off a turn: agent receives the
-   message plus session history and any pending clarification state.
-4. **Agent** (Pydantic AI / OpenRouter) explores the semantic catalog
-   via tools (`list_models`, `get_model_detail`, `list_warehouse_tables`,
-   `describe_table`, `preview`, `lookup_player`, `lookup_team`,
-   `lookup_season`) and produces a **Plan** — a discriminated union on
-   `answer_mode`:
-   - **`ClarifyPlan`**: question is ambiguous; emits
-     `ClarificationNeeded` event and the frontend `ClarifyPrompt`
-     round-trips the answer back via a clarification prefix.
-   - **`NotAnswerablePlan`**: question genuinely can't be answered;
-     emits a transparent "not answerable with evidence" response.
-   - **`SqlPlan`**: the governed path — includes generated SQL +
-     `ResultContract` (grain, columns, row_limit, answer_style).
-5. **`SqlPlan`** enters `validate_governed_sql()` (`sqlgate.py`) —
-   a three-layer gate:
-   - **Layer 1**: `validate_select_sql()` — parse one read-only SELECT,
-     reject INSERT/UPDATE/DELETE/CREATE/DROP/PRAGMA/ATTACH and
-     dangerous TVFs (`read_csv`, `read_parquet`, etc.), restrict tables
-     to approved prefixes (`dim_`, `fact_`, `mart_`, `analytics_`).
-   - **Layer 2**: sqlglot optimizer pass against the live warehouse
-     `information_schema` — catches unknown or ambiguous column/table
-     references.
-   - **Layer 3**: catalog-scoped fan/chasm detection — one-to-many
-     joins with additive SUM measures must carry a GROUP BY that
-     collapses on the join key (deliberately conservative; ambiguous
-     cases are skipped rather than false-positive).
-6. **Repair loop** (`repair.py`): if validation fails, the agent gets
-   one model-driven repair pass (bounded to 2 rounds). If repair
-   succeeds, the repaired SQL goes back through the gate; if not, a
-   transparent not-answerable response is returned with the broken SQL
-   as evidence.
-7. **Dry-run + execute**: validated SQL gets a dry-run (syntax check
-   against the live schema), then executes read-only against the
-   warehouse. `DuckDBSingleton` enforces a single `SELECT` with no
-   side effects. A DB watchdog enforces `CHAT_QUERY_TIMEOUT` (default
-   300 s).
-8. **Composer** (`composer.py`) turns the `QueryResult` into a streamed
-   answer with citations, reasoning summary, and optionally a table
-   preview. Everything flows as SSE `ChatEvent` events:
-   `TurnStarted` → `IntentClassified` → `QueryStarted` →
-   `QueryFinished` → `TableReady` → `Reasoning` → `Citation` →
-   `AnswerDelta`* → `AnswerFinished` (or `ClarificationNeeded` /
-   `ChatError`).
+3. The backend (`pipeline.py`) walks the turn:
+   **agent (Pydantic AI / OpenRouter) → template lookup → SQL render
+   → SQLGlot validation → DuckDB read-only execute → composer
+   (Pydantic response models) → SSE event stream**.
+4. The composer attaches inline citations (per table / metric / gap),
+   produces a transparent `not-answerable-with-evidence` answer when no
+   template fits, and emits `chat` events: `turn_started`,
+   `intent_classified`, `query_started`/`query_finished`, `table_ready`,
+   `reasoning`, `citation`, `answer_delta`/`answer_finished`, `error`.
+5. Everything goes to `chat/logs/{sessions,queries,model}/<date>/...` as
+   JSONL (7-day rolling retention; secrets redacted by
+   `loggingredactor`).
 
-All queries, model usage, and assistant messages go to
-`chat/logs/{sessions,queries,model}/<date>/...` as JSONL
-(7-day rolling retention; secrets redacted by `loggingredactor`).
+The agent **never** emits SQL. `validate_template_sql()`
+(`chat_server/validation.py`) plus a per-template `ALLOWED_TABLES`
+allowlist make the backend **safe even if the agent tries to misbehave**.
 
 ---
 
@@ -148,10 +97,9 @@ cd frontend
 npm install
 ```
 
-The default model is `mistralai/mistral-small-2603` (cheap and
-reliable enough for structured-output routing). Switch to
-`anthropic/claude-sonnet-4.6` or another before live testing — see
-the `OPENROUTER_MODEL` env var in `.env.example`.
+The v1 default model is `mistralai/mistral-small-2603` (cheap and
+reliable enough for template-routing). Switch to `anthropic/claude-sonnet-4.6`
+or another before live testing — see the Phase 8 model-selection note.
 
 ---
 
@@ -223,9 +171,7 @@ git diff --exit-code frontend/openapi.json frontend/src/generated/sse-events.sch
 ```
 
 If either diff is non-empty the contract drifted — update the generated
-files (or the source) until they match. The committed JSON snapshots are
-the frontend's typed contract (`npm run gen:types` regenerates
-`src/generated/api.d.ts`).
+files (or the source) until they match.
 
 ---
 
@@ -235,10 +181,9 @@ the frontend's typed contract (`npm run gen:types` regenerates
 | --- | --- | --- |
 | Backend | Lint + format | `uv run ruff check chat_server` / `uv run ruff format --check chat_server` |
 | Backend | Type check | `uv run ty check chat_server` |
-| Backend | Unit + integration | `uv run pytest` (DB-backed skips cleanly) |
+| Backend | Unit + integration | `uv run pytest` |
+| Backend | SQL lint | `uv run sqlfluff lint --dialect duckdb chat_server/templates` |
 | Backend | Unused deps | `uv run deptry chat` |
-| Backend | Drift guard — OpenAPI | `uv run python scripts/export_openapi.py` + `git diff --exit-code` |
-| Backend | Drift guard — SSE schema | `uv run python scripts/export_sse_schema.py` + `git diff --exit-code` |
 | Backend | JSONL log shape | `check-jsonschema` against exported schemas (CI) |
 | Frontend | Type check | `npx tsc --noEmit` |
 | Frontend | Lint | `npx eslint .` |
@@ -254,132 +199,100 @@ hook set.
 
 ---
 
-## Semantic catalog
+## Template authoring
 
-The **semantic catalog** is the governed-SQL pipeline's business-knowledge
-layer: a set of YAML files under `chat_server/semantic_catalog/models/`
-that declare the tables, dimensions, measures, joins, and caveats the
-agent may use when writing SQL. The catalog feeds both the system prompt
-(via `schema_context.py`) and the third layer of `sqlgate.py`
-(fan/chasm detection).
+Add a new query capability by dropping **one file pair** under
+`chat_server/templates/<family>/`:
 
-Each YAML model defines:
+- `<template_id>.sql` — parameterized SQL using DuckDB `$name`
+  placeholders. Reads **only** from the template's `ALLOWED_TABLES`.
+- `<template_id>.py` — module-level constants:
 
-- **`base_table`** — the primary DuckDB table.
-- **`dimensions`** — attributes for filtering / grouping / labelling.
-- **`measures`** — numeric metrics with `expr` (how to compute),
-  `additivity` (sum / non_additive / count_distinct), and optional
-  `default_aggregation`.
-- **`joins`** — declared relationships to other models (type, keys,
-  cardinality).
-- **`caveats`** — human-readable warnings the agent should consider.
+```python
+from pydantic import BaseModel, Field
 
-### Catalog models (8)
+class Params(BaseModel):
+    min_ppg: float = Field(default=25.0, ge=0)
 
-| Model | Base table | Purpose |
+TEMPLATE_ID  = "season_thresholds.fifty_forty_ninety"
+TITLE        = "50-40-90 seasons with minimum PPG"
+DESCRIPTION  = "Players who shot >=50% FG, >=40% 3P, >=90% FT in a season."
+ALLOWED_TABLES = {"mart_player_season"}
+RESULT_SCHEMA  = {"player_id": int, "full_name": str, ...}
+ANSWER_POLICY  = "ranked_list"
+DEFAULT_LIMIT  = 50
+EXAMPLES  = ["50-40-90 seasons with at least 25 PPG"]
+TESTS     = [{"params": {"min_ppg": 25.0}, "expect_min_rows": 1,
+              "expect_contains_player": "Stephen Curry"}]
+```
+
+The registry loader (`chat_server/templates/__init__.py` + `_loader.py`)
+discovers every `.sql` / `.py` pair, validates the rendered SQL via
+SQLGlot at import time (fail-fast — a template that doesn't validate is
+a build error), and registers it under `TEMPLATE_ID`. Group files under
+one of the family subdirectories so the dotted template id matches the
+folder. See `templates/season_thresholds/fifty_forty_ninety.{sql,py}`
+for the canonical pattern.
+
+Add a pytest fixture under `chat_tests/test_templates.py` (parameterised)
+to lock the answer shape against the live warehouse.
+
+---
+
+## Coverage (v1)
+
+The v1 template registry covers 18 of the 20 benchmark questions
+directly, with the remaining two handled as
+**transparent not-answerable-with-evidence** responses:
+
+- **18 designed-to-be-answerable** — across the Simple / Medium / Heavy
+  latency tiers. Each has a deterministic pytest fixture
+  against `data/nba.duckdb` and a Playwright smoke covering the happy
+  path. Five of the Heavy-tier templates are spike-gated and may
+  decline to not-answerable-with-evidence on warehouse cost.
+- **1 outright not-answerable-with-evidence:**
+  `season_comparison.player_team_split` returns the attempted SQL +
+  the evidence query that proves why the Harden 2022-23 PHI-vs-BKN
+  trade split can't be answered (the warehouse only canonicalizes the
+  post-trade team-roster rows).
+- **1 conditional not-answerable-with-evidence:**
+  `lineup_court.fiveman_shared_court` may fall back when the
+  possession-stitched net-rating computation exceeds the 300 s Heavy
+  budget — the registry emits the attempted SQL + an evidence query.
+
+**Template families — 10:**
+
+| Family | Templates | Covers |
 | --- | --- | --- |
-| `player_season` | `mart_player_season` | Per-season totals, per-game averages, and advanced metrics per (player, team, year, season_type) |
-| `player_career` | `mart_player_career` | Career totals, per-game averages for every player |
-| `games` | `mart_games` | Game-level results: scores, teams, dates, margins, locations |
-| `team_season` | `mart_team_season` | Per-season team totals, averages, and advanced metrics |
-| `standings` | `mart_standings` | Win/loss records, standings positions, playoff indicators by season |
-| `shots` | `mart_shot_detail` | Shot-level data: zone, distance, outcome, defender context |
-| `head_to_head` | `mart_head_to_head` | Head-to-head matchups: per-game or per-season aggregates between two teams |
-| `awards` | `mart_award_winners` | Award winners by season: MVP, ROY, DPOY, All-NBA, All-Star selections |
+| `season_thresholds` | 2 | 50-40-90, rookie-vs-final slices |
+| `career_demographic` | 2 | country + GP thresholds, draft value |
+| `season_comparison` | 3 | per-100, era pace, team-split |
+| `player_game_conditional` | 5 | margin split, streak / rare stat lines, milestone age, career aggregates |
+| `team_coach` | 1 | franchise-final-season ORtg |
+| `teammate_overlap` | 1 | two-player shared team-seasons |
+| `shot_zones` | 1 | corner-3 / zone splits |
+| `pbp_aggregate` | 2 | largest scoring run, fouls by period |
+| `clutch_terminal` | 2 | clutch TS%, buzzer-beaters |
+| `lineup_court` | 1 | 5-man shared-court minutes + net rating |
 
-### How to add a new capability
+**Total: 20 templates / 10 families.**
 
-1. **Write a YAML model** under
-   `chat_server/semantic_catalog/models/<name>.yml` following the
-   existing patterns (e.g. `player_season.yml`).
-2. **Define** `base_table`, `dimensions`, `measures`, `joins`, and
-   `caveats`. Join targets must resolve to existing catalog models.
-3. The model is auto-discovered by the `load_catalog()` function
-   (`semantic_catalog/loader.py`) — no manifest registration needed.
-4. **Preview** the context the agent will see: run the agent locally
-   and inspect the system prompt's `{catalog_summary}` block, or call
-   `get_model_detail` through the agent's tools.
-5. **Test** against the live warehouse: ensure dimensions and measure
-   expressions reference real columns in the base table. The
-   `schema_context.py` module caches the catalog and regenerates
-   the prompt context at run time.
+**Warehouse adaptations** worth knowing when extending the registry:
 
----
-
-## Coverage
-
-Coverage is **catalog-based**, not template-count-based. The semantic
-catalog's 8 models cover the major analytical domains of the NBA
-warehouse: player stats (season and career), team stats, game results,
-standings, shot tracking, head-to-head matchups, and awards.
-
-The agent can combine models via declared joins and compose questions
-that span any supported domain. Warehouse-level trust gates are
-published in `meta_quality_check` (query the live warehouse for the
-current pass/fail state):
-
-```sh
-duckdb data/nba.duckdb -readonly -list -c \
-  "SELECT check_name, status FROM meta_quality_check"
-```
-
-Known data gaps are registered in `meta_known_gap` with a `status`
-field — always check this table before "fixing" something:
-
-```sh
-duckdb data/nba.duckdb -readonly -list -c \
-  "SELECT gap_key, status FROM meta_known_gap ORDER BY gap_key"
-```
-
-The agent's `clarify` path handles ambiguous questions, and
-`not_answerable` provides transparent explanations when a question
-can't be answered from the available data.
-
----
-
-## SSE event vocabulary
-
-The chat turn streams an 11-event discriminated union (defined in
-`events.py`, serialised to JSON Schema by `export_sse_schema.py`):
-
-| Event | Direction | Payload | Purpose |
-| --- | --- | --- | --- |
-| `turn_started` | server → client | `session_id`, `turn_id`, `ts` | First event on every turn |
-| `intent_classified` | server → client | `query_ref`, `confidence` | Agent committed to a governed query |
-| `clarification_needed` | server → client | `question`, `options` | Question is ambiguous; frontend shows `ClarifyPrompt` |
-| `query_started` | server → client | `query_id`, `query_ref`, `sql` | Validated SQL about to execute |
-| `query_finished` | server → client | `query_id`, `duration_ms`, `row_count`, `columns`, `truncated` | Query returned |
-| `table_ready` | server → client | `columns`, `rows`, `row_count`, `truncated` | Result rows for the evidence table (preview window) |
-| `reasoning` | server → client | `summary`, `execution_plan` | Structured reasoning summary (not model CoT) |
-| `citation` | server → client | `table_name`, `metric_key`, `gap_key` | One provenance citation |
-| `answer_delta` | server → client | `delta` | One chunk of the streaming answer |
-| `answer_finished` | server → client | `answer` | Full composed answer after all deltas |
-| `error` | server → client | `code`, `message` | Non-recoverable turn-level error |
-
-The canonical schema snapshot lives at
-`frontend/src/generated/sse-events.schema.json` — regenerate after
-changing `events.py` (see Drift guards under Tests).
+- **Win shares** are not in `mart_player_season`; the
+  `career_demographic.hs_draftee_career_ws` template pulls WS via
+  `src_agg_player_season_advanced` (a BBR source-backed table — allowed
+  per the original §3 decision #3).
+- **Lineups** are stitched together from
+  `fact_lineup_player` (canonical roster map) and
+  `src_agg_lineup_efficiency` (lineup-stats source table) inside the
+  `lineup_court` family.
 
 ---
 
 ## Project status
 
-**v2 (governed-SQL pipeline)** is shipping. The agent writes SQL via a
-Plan discriminated union; every SQL statement passes a three-layer
-validation gate before read-only execution against the warehouse.
-The semantic catalog covers 8 business models with declared dimensions,
-measures, and joins. The SSE event vocabulary and REST API are frozen
-behind drift guards in CI.
-
-Key components:
-
-- `pipeline.py` — end-to-end turn orchestration (agent → gate → DB → composer → SSE).
-- `agent.py` — Pydantic AI agent with Plan union and exploration tools.
-- `sqlgate.py` — three-layer validation gate (syntax, schema, fan-out).
-- `repair.py` / `clarify.py` — automatic SQL repair and clarification round-trips.
-- `composer.py` — answer composition from query results.
-- `events.py` — 11-event SSE discriminated union.
-- `semantic_catalog/` — 8 YAML business models + schema context.
-- `schema_context.py` — runtime system-prompt builder from the catalog.
-- `sessions.py` — JSONL session persistence.
-- `log_retention.py` — 7-day rolling log retention.
+v1 (Phase 6 template breadth + Phase 7 observability/error-UX polish)
+is the current target. Phase 8 (hardening — adversarial prompt review, load
+testing, model-selection live test, final docs) is the shippable
+milestone.

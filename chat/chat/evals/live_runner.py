@@ -18,7 +18,7 @@ from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import Any
 
-from pydantic_ai.exceptions import ModelHTTPError, UnexpectedModelBehavior
+from pydantic_ai.exceptions import ModelHTTPError
 
 from .loader import EvalRow
 from .replay import ReplayResult
@@ -56,11 +56,6 @@ def _status_code(exc: BaseException) -> int | None:
 def _is_retryable(exc: BaseException) -> bool:
     """Return whether an exception is a transient provider failure."""
     if isinstance(exc, (TimeoutError, ConnectionError, asyncio.TimeoutError)):
-        return True
-    # UnexpectedModelBehavior covers IncompleteToolCall (subclass); these are
-    # transient LLM-side truncation errors where the model ran out of output
-    # tokens mid-JSON and should be retried with more concise prompting.
-    if isinstance(exc, UnexpectedModelBehavior):
         return True
     status = _status_code(exc)
     return isinstance(exc, ModelHTTPError) and (

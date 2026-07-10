@@ -123,11 +123,20 @@ jobs:
       - name: Lint (eslint)
         run: npm run lint
 
+      - name: Dead-code scan (knip)
+        run: npm run knip
+
       - name: Format check (prettier)
         run: npm run format:check
 
       - name: Unit tests (vitest)
         run: npx vitest run
+
+      - name: Production build
+        run: npm run build
+
+      - name: Bundle size check (size-limit)
+        run: npm run size
 
   drift:
     # Regenerate the two committed snapshots (OpenAPI + SSE event JSON
@@ -186,3 +195,61 @@ jobs:
           git diff --exit-code -- frontend/src/generated/sse-events.schema.json
           # Guard #3 (vitest-side) lives in the `frontend` job; this
           # CI job covers only the byte-identical snapshots.
+
+  e2e:
+    name: Playwright e2e (mocked SSE)
+    runs-on: ubuntu-latest
+    needs: [frontend]
+    env:
+      CHAT_SKIP_DB_TESTS: "1"
+      DUCKDB_PATH: "./data/nba.duckdb"
+    defaults:
+      run:
+        working-directory: chat/frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: latest
+          working-directory: chat
+
+      - name: Install backend dependencies
+        run: uv sync --dev
+        working-directory: chat
+
+      - name: Install frontend dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run e2e tests (deterministic mocked-SSE specs only)
+        run: npx playwright test e2e/chat.notanswerable.spec.ts e2e/chat.clarification.spec.ts e2e/chat.error.ts --project=chromium
+
+      - name: Upload test results on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: |
+            chat/frontend/test-results/
+            chat/frontend/playwright-report/
+          if-no-files-found: warn
+          retention-days: 3

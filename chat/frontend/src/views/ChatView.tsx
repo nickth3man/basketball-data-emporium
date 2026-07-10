@@ -201,7 +201,7 @@ export function ChatView() {
 
       setMessages((prev) => [...prev, { role: "user", content: trimmed }]);
       setComposer("");
-      await send(trimmed);
+      await send(trimmed, sid);
     },
     [sessionId, create, send],
   );

@@ -1,10 +1,11 @@
 """Pydantic AI agent for the basketball chatbot.
 
-Typed `Plan` output — a discriminated union on `answer_mode`
-(`ClarifyPlan | NotAnswerablePlan | SqlPlan`).
-Tools: `list_models`, `get_model_detail`, `list_warehouse_tables`,
-`describe_table`, `preview`, `lookup_player`,
-`lookup_team`, `lookup_season`.
+Phase 3 exit criteria:
+* Singleton `Agent` with native `OpenRouterModel`.
+* Typed `Plan` output — a discriminated union on `answer_mode`
+  (`ClarifyPlan | NotAnswerablePlan | SqlPlan | TemplatePlan`).
+* Tools: `list_templates`, `get_template_detail`, `lookup_player`,
+  `lookup_team`, `lookup_season`.
 * `retries={'output': 3, 'tools': 2}` (mitigates
   pydantic-ai#822 where some OpenRouter models return plain text on
   structured output).
@@ -42,7 +43,7 @@ from pydantic_ai import Agent, NativeOutput, RunContext, ToolOutput
 from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.messages import ToolCallPart, ToolReturnPart
 from pydantic_ai.models import Model
-from pydantic_ai.models.openrouter import OpenRouterModel
+from pydantic_ai.models.openrouter import OpenRouterModel, OpenRouterModelSettings
 from pydantic_ai.providers.openrouter import OpenRouterProvider
 from pydantic_core import PydanticUndefined
 
@@ -146,6 +147,11 @@ class AgentDeps:
 
     Attributes
     ----------
+    registry
+        The live template registry dict (from `get_registry()`). The
+        `list_templates` / `get_template_detail` tools use this rather
+        than re-importing the templates package — keeps tool bodies
+        testable in isolation.
     schema_context
         The compact schema context for this run. Built once at startup
         via `get_schema_context()` and reused.
@@ -153,10 +159,12 @@ class AgentDeps:
         The process-wide `DuckDBSingleton`. `lookup_player` /
         `lookup_team` / `lookup_season` hit the read-only warehouse.
     catalog
-        The semantic catalog. Populated by ``make_deps()`` via
-        :func:`load_catalog`; ``None`` when the catalog failed to load
-        (treated by the governed-SQL branch as a "catalog not loaded" /
-        not-answerable signal).
+        The semantic catalog (Phase 3 Lane B). Populated by
+        ``make_deps()`` via :func:`load_catalog`; ``None`` when the
+        catalog failed to load (treated by the governed-SQL branch as
+        a "catalog not loaded" / not-answerable signal). Defaults to
+        ``None`` so every existing ``AgentDeps(registry=..., schema_context=...,
+        db=...)`` construction in the test suite keeps working unchanged.
     """
 
     schema_context: SchemaContext

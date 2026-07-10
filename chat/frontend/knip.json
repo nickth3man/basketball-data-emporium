@@ -4,6 +4,5 @@
   "project": ["src/**/*.{ts,tsx}!"],
   "ignore": ["src/generated/**", "src/test/**"],
   "vite": true,
-  "vitest": true,
-  "react": true
+  "vitest": true
 }

@@ -47,7 +47,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from pydantic_ai.exceptions import UnexpectedModelBehavior
 from pydantic_ai.messages import ModelMessagesTypeAdapter
 
 from . import otel
@@ -71,11 +70,13 @@ from .events import (
     ChatEvent,
     Citation,
     ClarificationNeeded,
+    ColumnSpec,
     IntentClassified,
     QueryFinished,
     QueryRef,
     QueryStarted,
     Reasoning,
+    TableReady,
     TurnStarted,
 )
 from .repair import repair_sql
@@ -85,6 +86,7 @@ from .sqlgate import ValidationReport, validate_governed_sql
 log = logging.getLogger(__name__)
 
 _ANSWER_CHUNK_WINDOW = 80
+_TABLE_PREVIEW_ROWS = 200
 
 _ERR_DB_FAILED = "db_execute_failed"
 _ERR_QUERY_TIMEOUT = "query_timeout"
@@ -174,28 +176,7 @@ async def run_turn(
             run_kwargs: dict[str, Any] = {"deps": deps}
             if history:
                 run_kwargs["message_history"] = history
-            # One retry on UnexpectedModelBehavior (covers IncompleteToolCall as a
-            # subclass). This fixes tool-call JSON truncation — the model ran out of
-            # output tokens mid-JSON on the first attempt but succeeds on the second
-            # with a concise hint.
-            _agent_result = None
-            for _attempt in range(2):
-                try:
-                    _agent_result = await agent.run(user_message_text, **run_kwargs)
-                    break
-                except UnexpectedModelBehavior:
-                    if _attempt == 1:
-                        raise
-                    log.warning(
-                        "agent.run UnexpectedModelBehavior (possible truncation); "
-                        "retrying with hint sid=%s",
-                        session_id,
-                    )
-                    user_message_text = (
-                        f"{user_message_text}\n\nNote: Your previous response was "
-                        "truncated. Keep tool call arguments concise."
-                    )
-            agent_result = _agent_result
+            agent_result = await agent.run(user_message_text, **run_kwargs)
             plan = agent_result.output
             usage_obj = agent_result.usage
             if agent_span is not None:
@@ -412,6 +393,13 @@ async def run_turn(
             row_count=query_result.row_count,
             columns=list(query_result.columns),
             truncated=query_result.truncated,
+        )
+
+        yield TableReady(
+            columns=[ColumnSpec(name=col, dtype=None) for col in query_result.columns],
+            rows=query_result.rows[:_TABLE_PREVIEW_ROWS],
+            row_count=query_result.row_count,
+            truncated=len(query_result.rows) > _TABLE_PREVIEW_ROWS,
         )
 
         composed = compose_governed(

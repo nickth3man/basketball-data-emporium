@@ -10,7 +10,7 @@ from pydantic_ai.models.test import TestModel
 
 from chat_server.agent import AgentDeps, _build_agent
 from chat_server.db import DuckDBSingleton, QueryResult
-from chat_server.events import AnswerFinished, ChatEvent, IntentClassified, QueryStarted
+from chat_server.events import AnswerFinished, ChatEvent, IntentClassified, QueryStarted, TableReady
 from chat_server.pipeline import _query_ref, run_turn
 from chat_server.schema_context import SchemaContext
 from chat_server.semantic_catalog import load_catalog
@@ -119,6 +119,11 @@ def test_governed_sql_is_validated_dry_run_and_executed(monkeypatch, tmp_path):
     assert db.dry_runs == [sql]
     assert db.executed == [sql]
     assert next(event for event in events if isinstance(event, AnswerFinished)).answer
+    table_event = next(event for event in events if isinstance(event, TableReady))
+    assert table_event.row_count == 1
+    assert len(table_event.rows) == 1
+    assert table_event.columns[0].name == "player_id"
+    assert table_event.truncated is False
     assert "error" not in [event.event for event in events]
     query_logs = list((tmp_path / "queries").rglob("*.sql"))
     result_logs = list((tmp_path / "queries").rglob("*.result.json"))

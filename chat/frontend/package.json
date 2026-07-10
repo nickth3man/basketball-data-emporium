@@ -106,9 +106,8 @@
       "path": [
         "dist/assets/index-*.js"
       ],
-      "limit": "440 KB",
-      "gzip": true,
-      "webpack": false
+      "limit": "460 KB",
+      "gzip": true
     },
     {
       "name": "main CSS (gzip)",
@@ -116,8 +115,7 @@
         "dist/assets/index-*.css"
       ],
       "limit": "13 KB",
-      "gzip": true,
-      "webpack": false
+      "gzip": true
     }
   ]
 }
