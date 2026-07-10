@@ -1,0 +1,188 @@
+# Semantic catalog model: draft
+#
+# Fully grounded against the live warehouse via:
+#
+#   duckdb ../data/nba.duckdb -readonly -list -c \
+#     "SELECT column_name, data_type FROM information_schema.columns
+#      WHERE table_name = 'fact_draft' ORDER BY ordinal_position"
+#   duckdb ../data/nba.duckdb -readonly -list -c \
+#     "SELECT DISTINCT draft_type FROM fact_draft ORDER BY 1"
+#   duckdb ../data/nba.duckdb -readonly -list -c \
+#     "SELECT DISTINCT organization_type FROM fact_draft ORDER BY 1"
+#
+# Confirmed schema (fact_draft):
+#   player_id BIGINT, player_name VARCHAR, draft_year VARCHAR,
+#   round_number BIGINT, round_pick BIGINT, overall_pick BIGINT,
+#   draft_type VARCHAR (Draft / Territorial),
+#   team_id BIGINT, team_city VARCHAR, team_name VARCHAR,
+#   team_abbreviation VARCHAR, organization VARCHAR,
+#   organization_type VARCHAR (College/University / High School / Other Team/Club),
+#   player_profile_flag VARCHAR, draft_slot_status VARCHAR,
+#   canonical_source VARCHAR.
+#
+# Conventions (matching player_season.yml / awards.yml):
+# - All `expr` strings are written against the `d.` alias declared in
+#   `base_table`.
+# - `additivity` follows the Cube.js recipes:
+#   `sum` for counts of picks (total_picks, first_round_picks, ...),
+#   `count_distinct` for distinct-player counts usable in cross-grain
+#   aggregates.
+# - The join to `player_career` is the only cross-model reference, matching
+#   the awards pattern (awards -> player_career).
+
+model: draft
+
+description: >
+  NBA Draft picks by year, round, and team. One row per draft pick with
+  the player's name, draft position, team, and organization (college /
+  high school / international club). Use for questions like "who was the
+  #1 pick in 2003", "which college had the most first-round picks in a
+  draft class", or "show the 1996 draft class".
+
+grain: one row per (draft_year, overall_pick, team_id)
+
+base_table:
+  name: fact_draft
+  alias: d
+
+dimensions:
+  - name: player_id
+    expr: d.player_id
+    description: Canonical player_id; joins to player_career.player_id and dim_player.player_id.
+
+  - name: player_name
+    expr: d.player_name
+    description: Player full name as recorded at draft time.
+
+  - name: draft_year
+    expr: d.draft_year
+    description: Draft year as VARCHAR (e.g. "2003").
+
+  - name: round_number
+    expr: d.round_number
+    description: Draft round (1 or 2).
+
+  - name: round_pick
+    expr: d.round_pick
+    description: Pick number within the round.
+
+  - name: overall_pick
+    expr: d.overall_pick
+    description: Overall pick number across all rounds.
+
+  - name: draft_type
+    expr: d.draft_type
+    description: >
+      Type of draft selection. 'Draft' for regular picks, 'Territorial'
+      for territorial picks (pre-1966 rule allowing teams to claim local
+      college players without forfeiting a pick).
+
+  - name: team_id
+    expr: d.team_id
+    description: Canonical team_id of the drafting team.
+
+  - name: team_abbreviation
+    expr: d.team_abbreviation
+    description: Team abbreviation at time of draft (e.g. "LAL").
+
+  - name: team_city
+    expr: d.team_city
+    description: City of the drafting team.
+
+  - name: team_name
+    expr: d.team_name
+    description: Team name at time of draft.
+
+  - name: organization
+    expr: d.organization
+    description: Player's organization at time of draft (college name, high school name, or club name).
+
+  - name: organization_type
+    expr: d.organization_type
+    description: >
+      Type of organization: 'College/University', 'High School', or
+      'Other Team/Club'. NULL for picks with unknown background.
+
+  - name: player_profile_flag
+    expr: d.player_profile_flag
+    description: Flag indicating whether the player has an NBA profile.
+
+  - name: draft_slot_status
+    expr: d.draft_slot_status
+    description: Status of the draft slot (e.g. 'Unresolved' for picks unmatched to a known player).
+
+measures:
+  - name: total_picks
+    expr: COUNT(*)
+    description: Total number of draft picks in the selection.
+    additivity: sum
+
+  - name: distinct_players_drafted
+    expr: COUNT(DISTINCT d.player_id)
+    description: Number of distinct players drafted (excludes unresolved picks with NULL player_id).
+    additivity: count_distinct
+
+  - name: first_round_picks
+    expr: SUM(CASE WHEN d.round_number = 1 THEN 1 ELSE 0 END)
+    description: Count of first-round draft picks.
+    additivity: sum
+
+  - name: second_round_picks
+    expr: SUM(CASE WHEN d.round_number = 2 THEN 1 ELSE 0 END)
+    description: Count of second-round draft picks.
+    additivity: sum
+
+  - name: territorial_picks
+    expr: SUM(CASE WHEN d.draft_type = 'Territorial' THEN 1 ELSE 0 END)
+    description: Count of territorial picks (pre-1966).
+    additivity: sum
+
+joins:
+  - name: career_lookup
+    model: player_career
+    type: many_to_one
+    left_on: d.player_id
+    right_on: pc.player_id
+    description: >
+      Look up career totals for a drafted player. Each draft pick joins
+      to one player_career row (many draft picks -> one career per player).
+      Use for "best career value by draft position" or "highest-scoring
+      2nd-round pick" cross-model questions.
+
+caveats:
+  - >
+    Grain is one row per (draft_year, overall_pick, team_id). In rare
+    cases a pick is traded on draft night; the team_id reflects the
+    drafting team, not necessarily the team the player first appeared
+    for in the NBA.
+  - >
+    player_id may be NULL for picks that could not be resolved to a
+    known warehouse player (e.g. early BAA picks). Joins to player_career
+    silently exclude unresolved rows -- use total_picks vs
+    distinct_players_drafted to detect the gap.
+  - >
+    Territorial picks (draft_type = 'Territorial') have no round_number
+    or round_pick (they were assigned outside the normal draft order)
+    but do carry an overall_pick. Do not filter on round_number for
+    pre-1966 drafts without also accounting for Territorial picks.
+  - >
+    organization_type can be NULL for early-era picks (1940s-50s) where
+    draft records are sparse. 'Other Team/Club' covers international
+    clubs, minor-league teams, and military teams.
+
+synonyms:
+  - draft
+  - draft picks
+  - draft class
+  - draft history
+  - NBA draft
+  - draft selections
+
+example_questions:
+  - Who was drafted first overall in 2003?
+  - Which college had the most first-round picks in the 2010s?
+  - Show all first-round picks from the 1996 draft class.
+  - How many players were drafted in 2019?
+  - What was the overall pick number for Nikola Jokic?
+  - List the top 5 picks from the 1984 draft.
+  - Which teams had the most draft picks in 2000?

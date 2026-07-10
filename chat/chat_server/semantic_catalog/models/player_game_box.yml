@@ -1,0 +1,341 @@
+# Semantic catalog model: player_game_box
+#
+# Fully grounded against the live warehouse via:
+#
+#   duckdb ../data/nba.duckdb -readonly -list -c \
+#     "SELECT column_name, data_type FROM information_schema.columns
+#      WHERE table_name = 'fact_player_game_box' ORDER BY ordinal_position"
+#   duckdb ../data/nba.duckdb -readonly -list -c \
+#     "SELECT DISTINCT season_type FROM fact_player_game_box ORDER BY 1"
+#
+# Confirmed schema (fact_player_game_box):
+#   game_id VARCHAR, player_id BIGINT, team_id BIGINT,
+#   opponent_team_id BIGINT, is_home BOOLEAN, is_win BOOLEAN,
+#   season_year VARCHAR, season_type VARCHAR, game_date DATE,
+#   starting_position VARCHAR, comment VARCHAR,
+#   min DOUBLE, pts INTEGER, ast INTEGER, blk INTEGER, stl INTEGER,
+#   tov INTEGER, fga INTEGER, fgm INTEGER, fg_pct DOUBLE,
+#   fg3a INTEGER, fg3m INTEGER, fg3_pct DOUBLE,
+#   fta INTEGER, ftm INTEGER, ft_pct DOUBLE,
+#   oreb INTEGER, dreb INTEGER, reb INTEGER, pf INTEGER,
+#   plus_minus INTEGER,
+#   off_rating DOUBLE, def_rating DOUBLE, net_rating DOUBLE,
+#   ast_pct DOUBLE, ast_to_turnover_ratio DOUBLE, ast_ratio DOUBLE,
+#   oreb_pct DOUBLE, dreb_pct DOUBLE, reb_pct DOUBLE,
+#   tov_pct DOUBLE, efg_pct DOUBLE, ts_pct DOUBLE, usg_pct DOUBLE,
+#   pace DOUBLE, pie DOUBLE,
+#   canonical_source VARCHAR.
+#
+# Conventions (matching player_season.yml / awards.yml):
+# - All `expr` strings are written against the `bg.` alias declared in
+#   `base_table`.
+# - `additivity` follows the Cube.js recipes:
+#   `sum` for additive counting/accumulation stats (points, assists,
+#   rebounds, ...), `non_additive` for per-game averages and rates
+#   (avg_fg_pct, avg_plus_minus) where re-summing across grains
+#   double-counts.
+# - The joins to `games` and `player_career` mirror the cross-model
+#   join patterns established by awards.yml and player_season.yml.
+
+model: player_game_box
+
+description: >
+  Per-player, per-game box-score statistics. One row per (player, game)
+  with points, rebounds, assists, steals, blocks, shooting percentages,
+  plus-minus, and per-game advanced stats. Use for questions like "what
+  was Kobe's highest scoring game", "most rebounds in a single game this
+  season", or "LeBron's stats against the Celtics in the 2012 playoffs".
+  For game-level details (scores, attendance, arena) join to the games
+  model via game_id.
+
+grain: one row per (game_id, player_id)
+
+base_table:
+  name: fact_player_game_box
+  alias: bg
+
+dimensions:
+  - name: game_id
+    expr: bg.game_id
+    description: Canonical 10-char zero-padded game_id (VARCHAR); joins to games.game_id.
+
+  - name: player_id
+    expr: bg.player_id
+    description: Canonical player_id (BIGINT); joins to player_career.player_id and dim_player.player_id.
+
+  - name: team_id
+    expr: bg.team_id
+    description: Team id for the player's team in this game.
+
+  - name: opponent_team_id
+    expr: bg.opponent_team_id
+    description: Opponent team id for this game.
+
+  - name: is_home
+    expr: bg.is_home
+    description: Whether the player's team was the home team (BOOLEAN).
+
+  - name: is_win
+    expr: bg.is_win
+    description: Whether the player's team won the game (BOOLEAN).
+
+  - name: season_year
+    expr: bg.season_year
+    description: Season year string (e.g. "2023-24").
+
+  - name: season_type
+    expr: bg.season_type
+    description: >
+      Competition type: 'Regular', 'Playoffs', 'Preseason', 'Cup' (NBA
+      Emirates Cup), 'All-Star', or NULL for older games without a label.
+
+  - name: game_date
+    expr: bg.game_date
+    description: Calendar date of the game (DATE).
+
+  - name: starting_position
+    expr: bg.starting_position
+    description: >
+      Player's starting position abbreviation (e.g. "G", "F", "C"); NULL
+      if the player did not start.
+
+  - name: comment
+    expr: bg.comment
+    description: Free-text game note (e.g. "DNP - Coach's Decision", "Inactive", "Did Not Dress").
+
+  - name: minutes_played
+    expr: bg.min
+    description: Minutes played in the game (DOUBLE); fractional minutes for partial quarters.
+
+  - name: plus_minus
+    expr: bg.plus_minus
+    description: Plus-minus for the player in this game (INTEGER); NULL before 2000-01.
+
+  - name: field_goal_pct
+    expr: bg.fg_pct
+    description: Field-goal percentage for the game (DOUBLE); NULL if no FGA.
+
+  - name: three_point_pct
+    expr: bg.fg3_pct
+    description: Three-point percentage for the game (DOUBLE); NULL if no 3PA.
+
+  - name: free_throw_pct
+    expr: bg.ft_pct
+    description: Free-throw percentage for the game (DOUBLE); NULL if no FTA.
+
+  - name: effective_fg_pct
+    expr: bg.efg_pct
+    description: Effective FG% (DOUBLE) adjusted for three-pointers being worth more.
+
+  - name: true_shooting_pct
+    expr: bg.ts_pct
+    description: True-shooting percentage (DOUBLE) accounting for 2PT, 3PT, and FTs.
+
+  - name: usage_pct
+    expr: bg.usg_pct
+    description: Usage percentage (DOUBLE); estimate of team possessions used while on floor.
+
+  - name: canonical_source
+    expr: bg.canonical_source
+    description: Provenance tag for the canonical source system (warehouse-managed).
+
+measures:
+  - name: games_played
+    expr: COUNT(*)
+    description: Number of game appearances in the selection.
+    additivity: sum
+
+  - name: points
+    expr: SUM(bg.pts)
+    description: Total points scored across the game selection.
+    additivity: sum
+
+  - name: assists
+    expr: SUM(bg.ast)
+    description: Total assists.
+    additivity: sum
+
+  - name: rebounds
+    expr: SUM(bg.reb)
+    description: Total rebounds (offensive + defensive).
+    additivity: sum
+
+  - name: offensive_rebounds
+    expr: SUM(bg.oreb)
+    description: Total offensive rebounds.
+    additivity: sum
+
+  - name: defensive_rebounds
+    expr: SUM(bg.dreb)
+    description: Total defensive rebounds.
+    additivity: sum
+
+  - name: steals
+    expr: SUM(bg.stl)
+    description: Total steals.
+    additivity: sum
+
+  - name: blocks
+    expr: SUM(bg.blk)
+    description: Total blocks.
+    additivity: sum
+
+  - name: turnovers
+    expr: SUM(bg.tov)
+    description: Total turnovers.
+    additivity: sum
+
+  - name: field_goals_made
+    expr: SUM(bg.fgm)
+    description: Total field goals made.
+    additivity: sum
+
+  - name: field_goals_attempted
+    expr: SUM(bg.fga)
+    description: Total field goals attempted.
+    additivity: sum
+
+  - name: three_pointers_made
+    expr: SUM(bg.fg3m)
+    description: Total three-pointers made.
+    additivity: sum
+
+  - name: three_pointers_attempted
+    expr: SUM(bg.fg3a)
+    description: Total three-pointers attempted.
+    additivity: sum
+
+  - name: free_throws_made
+    expr: SUM(bg.ftm)
+    description: Total free throws made.
+    additivity: sum
+
+  - name: free_throws_attempted
+    expr: SUM(bg.fta)
+    description: Total free throws attempted.
+    additivity: sum
+
+  - name: personal_fouls
+    expr: SUM(bg.pf)
+    description: Total personal fouls.
+    additivity: sum
+
+  - name: total_minutes
+    expr: SUM(bg.min)
+    description: Total minutes played.
+    additivity: sum
+
+  - name: avg_points
+    expr: AVG(bg.pts)
+    description: Average points per game (per-game mean, not weighted by minutes).
+    additivity: non_additive
+
+  - name: avg_rebounds
+    expr: AVG(bg.reb)
+    description: Average rebounds per game.
+    additivity: non_additive
+
+  - name: avg_assists
+    expr: AVG(bg.ast)
+    description: Average assists per game.
+    additivity: non_additive
+
+  - name: avg_field_goal_pct
+    expr: AVG(bg.fg_pct)
+    description: Average field-goal percentage across games (per-game mean, not attempt-weighted).
+    additivity: non_additive
+
+  - name: avg_three_point_pct
+    expr: AVG(bg.fg3_pct)
+    description: Average three-point percentage across games.
+    additivity: non_additive
+
+  - name: avg_free_throw_pct
+    expr: AVG(bg.ft_pct)
+    description: Average free-throw percentage across games.
+    additivity: non_additive
+
+  - name: avg_plus_minus
+    expr: AVG(bg.plus_minus)
+    description: Average plus-minus per game.
+    additivity: non_additive
+
+  - name: avg_minutes
+    expr: AVG(bg.min)
+    description: Average minutes per game.
+    additivity: non_additive
+
+  - name: distinct_players
+    expr: COUNT(DISTINCT bg.player_id)
+    description: Distinct player count in the selection.
+    additivity: count_distinct
+
+joins:
+  - name: game_lookup
+    model: games
+    type: many_to_one
+    left_on: bg.game_id
+    right_on: g.game_id
+    description: >
+      Look up game-level details (scores, attendance, arena, teams) for
+      each box-score row. Many player-game rows join to one game row;
+      use for "average attendance for Kobe's 40-point games" or "winning
+      percentage by arena" cross-model questions.
+
+  - name: career_lookup
+    model: player_career
+    type: many_to_one
+    left_on: bg.player_id
+    right_on: pc.player_id
+    description: >
+      Look up career totals/averages for the player. Many game-box rows
+      join to one player_career row; use for "highest scoring game by a
+      player with 25k+ career points" queries.
+
+caveats:
+  - >
+    Grain is one row per (player, game). A player who did not appear in
+    a game has no row in this table (no zero-fill for DNPs). Use
+    games_played vs expected game count to detect inactive games.
+  - >
+    season_type can be NULL for older games (pre-1950 incomplete labels).
+    Filter on season_year when spanning early eras if season_type
+    filtering is needed.
+  - >
+    Per-game percentages (fg_pct, fg3_pct, ft_pct) are NULL when the
+    player attempted zero of that shot type. AVG silently skips NULL
+    rows; use SUM(fgm)/SUM(fga) for a true aggregate percentage across
+    games.
+  - >
+    plus_minus is NULL for games before the 2000-01 season. Queries
+    spanning pre-2000 eras will silently exclude those rows from
+    plus-minus aggregates. Filter season_year if pre-2000 plus-minus is
+    expected to be NULL rather than zero.
+  - >
+    Advanced stats (off_rating, def_rating, net_rating, ts_pct, usg_pct,
+    pie, pace) are available here and also in fact_player_game_advanced,
+    which has a different schema. Query fact_player_game_advanced
+    directly for a dedicated advanced-stats model; this model exposes
+    them as per-row dimensions (not measures) alongside the box-score
+    counting stats.
+  - >
+    Team-level context (home/away, win/loss, opponent_team_id) is
+    denormalized into this table. For full game details (scores,
+    attendance, arena, overtime) use the games join via game_id.
+
+synonyms:
+  - box score
+  - game log
+  - player game log
+  - per-game stats
+  - game-by-game
+  - player box score
+
+example_questions:
+  - What was Kobe Bryant's highest scoring game?
+  - Most points in a single game by a player in 2023-24 regular season?
+  - Show LeBron James's stats against the Celtics in the 2012 playoffs.
+  - How many triple-doubles did Russell Westbrook have in 2016-17?
+  - Highest plus-minus in a single game this season?
+  - List all of Wilt Chamberlain's 60-point games.
+  - Average points per game for Michael Jordan in the 1992 playoffs.

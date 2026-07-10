@@ -39,6 +39,8 @@ EXPECTED_MODELS: frozenset[str] = frozenset(
         "standings",
         "shots",
         "head_to_head",
+        "draft",
+        "player_game_box",
     }
 )
 
