@@ -41,7 +41,6 @@ from typing import Any
 
 from chat_server.agent import ResultContract
 from chat_server.db import QueryResult
-from chat_server.templates import Template
 
 
 @dataclass(frozen=True)
@@ -95,45 +94,6 @@ class ComposedAnswer:
     not_answerable: bool = False
     not_answerable_note: str | None = None
     reasoning_summary: str | None = None
-
-
-def compose(
-    template: Template,
-    result: QueryResult,
-    plan_template_id: str,
-) -> ComposedAnswer:
-    """Convert ``result`` into a grounded answer per ``template.answer_policy``.
-
-    The ``plan_template_id`` is accepted for symmetry/logging — every
-    Phase 3 template is registered under a stable id so we don't use it
-    to switch behaviour here, but downstream code (Phase 4 streaming) may.
-
-    Parameters
-    ----------
-    template
-        The template whose SQL was executed to produce ``result``. Only
-        ``template.title``, ``template.answer_policy``, and
-        ``template.allowed_tables`` are read.
-    result
-        The ``QueryResult`` from the runner (columns + rows + row_count).
-    plan_template_id
-        The ``template_id`` from the agent's ``QueryPlan``. Must equal
-        ``template.template_id``; we don't enforce that here so the
-        composer stays policy-free.
-
-    Returns
-    -------
-    ComposedAnswer
-        The answer text, plus one ``Citation`` per allowlisted table.
-    """
-    del plan_template_id
-    answer = _format_empty(template) if not result.rows else _dispatch(template, result)
-    citations = [Citation(table_name=t) for t in sorted(template.allowed_tables)]
-    return ComposedAnswer(
-        answer=answer,
-        citations=citations,
-        reasoning_summary=_reasoning_summary_for(template, result),
-    )
 
 
 def compose_not_answerable(
@@ -243,8 +203,7 @@ def compose_governed(
         )
 
     title = result_contract.grain or _fallback_title(model_name)
-    shim_template = _shim_template(title)
-    answer = _dispatch_governed(result_contract, shim_template, result, model_name)
+    answer = _dispatch_governed(result_contract, title, result, model_name)
     citations = [Citation(table_name=model_name)] if model_name else []
     return ComposedAnswer(
         answer=preamble + answer,
@@ -271,7 +230,7 @@ def _interpretation_preamble(question_interpretation: str) -> str:
 
 def _dispatch_governed(
     result_contract: ResultContract,
-    shim_template: Any,
+    title: str,
     result: QueryResult,
     model_name: str | None,
 ) -> str:
@@ -286,16 +245,16 @@ def _dispatch_governed(
     """
     style = result_contract.answer_style
     if style == "ranked_list":
-        return _format_ranked_list(shim_template, result)  # type: ignore[arg-type]
+        return _format_ranked_list(title, result)
     if style == "single_value":
-        return _format_single_value(shim_template, result)  # type: ignore[arg-type]
+        return _format_single_value(result)
     if style == "count":
-        return _format_count(shim_template, result)  # type: ignore[arg-type]
+        return _format_count(result)
     if style == "prose":
         return _format_prose(result_contract, result, model_name)
     if style == "table":
         return _format_table(result_contract, result, model_name)
-    return _format_generic(shim_template, result)  # type: ignore[arg-type]
+    return _format_generic(result)
 
 
 def _format_prose(
@@ -379,43 +338,12 @@ def _governed_reasoning_summary(
     return summary
 
 
-def _shim_template(title: str) -> Any:
-    """Build a duck-typed object exposing only ``.title`` for the legacy formatters.
-
-    Avoids depending on the full :class:`Template` constructor for the
-    governed path -- the legacy formatters only read ``template.title``.
-    Using :class:`types.SimpleNamespace` keeps a clear "this is a shim"
-    signal at construction time.
-    """
-    import types
-
-    return types.SimpleNamespace(title=title)
-
-
 def _fallback_title(model_name: str | None) -> str:
     """Title used when ``ResultContract.grain`` is empty."""
     return f"results from the {model_name} semantic model" if model_name else "governed query"
 
 
-def _dispatch(template: Template, result: QueryResult) -> str:
-    """Route to the per-policy formatter; fall back to the generic one."""
-    policy = template.answer_policy
-    if policy == "ranked_list":
-        return _format_ranked_list(template, result)
-    if policy == "single_value":
-        return _format_single_value(template, result)
-    if policy == "count":
-        return _format_count(template, result)
-    return _format_generic(template, result)
-
-
-def _format_empty(template: Template) -> str:
-    """Stable text for a zero-row result so the answer is never empty."""
-    del template
-    return "No rows matched the query."
-
-
-def _format_ranked_list(template: Template, result: QueryResult) -> str:
+def _format_ranked_list(title: str, result: QueryResult) -> str:
     """Top-N list format with one-line per row.
 
     Picks the first five rows (or fewer) and joins them with ", ". If
@@ -426,7 +354,7 @@ def _format_ranked_list(template: Template, result: QueryResult) -> str:
     top_n = 5
     rows = result.rows[:top_n]
     total = len(result.rows)
-    head = f"{total} result{'s' if total != 1 else ''} for {template.title}"
+    head = f"{total} result{'s' if total != 1 else ''} for {title}"
     parts = [_format_row_compact(row) for row in rows]
     body = ", ".join(parts)
     if total > top_n:
@@ -456,24 +384,21 @@ def _format_row_compact(row: dict[str, Any]) -> str:
     return str(name)
 
 
-def _format_single_value(template: Template, result: QueryResult) -> str:
+def _format_single_value(result: QueryResult) -> str:
     """``"<column> = <value>"`` for a one-row result. Template unused."""
-    del template
     row = result.rows[0]
     col = result.columns[0]
     return f"{col} = {row[col]}"
 
 
-def _format_count(template: Template, result: QueryResult) -> str:
+def _format_count(result: QueryResult) -> str:
     """Plain row-count answer."""
-    del template
     n = len(result.rows)
     return f"{n} matching row{'s' if n != 1 else ''}."
 
 
-def _format_generic(template: Template, result: QueryResult) -> str:
+def _format_generic(result: QueryResult) -> str:
     """Fallback for unknown policies. Lists columns so the reader knows the shape."""
-    del template
     n = len(result.rows)
     if n == 0:
         return "No rows returned."
@@ -488,22 +413,9 @@ def _fmt_num(value: Any) -> str:
     return str(value)
 
 
-def _reasoning_summary_for(template: Template, result: QueryResult) -> str:
-    """One-line description of what the runner did (never model CoT)."""
-    parts = [
-        f"template={template.template_id}",
-        f"policy={template.answer_policy}",
-        f"rows={result.row_count}",
-    ]
-    if result.truncated:
-        parts.append("truncated=true")
-    return " ".join(parts)
-
-
 __all__ = [
     "Citation",
     "ComposedAnswer",
-    "compose",
     "compose_governed",
     "compose_not_answerable",
 ]

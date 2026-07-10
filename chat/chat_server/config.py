@@ -11,7 +11,6 @@ without secrets configured):
     CHAT_QUERY_TIMEOUT   — default 300 (seconds; watchdog budget for governed SQL execution)
     CHAT_MEMORY_LIMIT    — default "8GB" (DuckDB memory_limit, applied at connection open)
     CHAT_DATA_DIR        — default "./data" (visible session store root)
-    CHAT_GOVERNED_SQL_MODE — default "false"; "1"/"true" enables governed SQL (Phase 3.7)
 """
 
 from __future__ import annotations
@@ -37,13 +36,18 @@ class Settings(BaseSettings):
 
     openrouter_api_key: str = Field(..., min_length=1)
     openrouter_model: str = Field(default="anthropic/claude-sonnet-4.6")
+    openrouter_provider: str = Field(
+        default="",
+        description="Optional OpenRouter provider slug to prefer (e.g. 'deepinfra'). "
+        "When empty, OpenRouter auto-routes across all providers. "
+        "See https://openrouter.ai/docs/guides/routing/provider-selection",
+    )
     duckdb_path: str = Field(..., min_length=1)
     chat_log_dir: str = Field(default="./logs")
     chat_port: int = Field(default=8787, ge=1, le=65535)
     query_timeout_seconds: int = Field(default=300, ge=1)
     chat_memory_limit: str = Field(default="8GB", min_length=1)
     chat_data_dir: str = Field(default="./data")
-    chat_governed_sql_mode: bool = Field(default=False)
 
 
 @lru_cache(maxsize=1)

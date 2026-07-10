@@ -79,7 +79,7 @@ export function ClarifyPrompt({
           onChange={(e) => setFreeText(e.target.value)}
           placeholder="Or type your own answer…"
           disabled={disabled}
-          className="min-w-0 flex-1 rounded-lg border border-[color:var(--color-warn-border)] bg-[color:var(--color-card)] px-3 py-1.5 text-sm text-[color:var(--color-foreground)] placeholder:text-[color:var(--color-muted-foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-warn-bg)] disabled:opacity-50"
+          className="min-w-0 flex-1 rounded-lg border border-[color:var(--color-warn-border)] bg-[color:var(--color-card)] px-3 py-1.5 text-sm text-[color:var(--color-foreground)] placeholder:text-[color:var(--color-muted-foreground)] focus-visible:ring-2 focus-visible:ring-[color:var(--color-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-warn-bg)] focus-visible:outline-none disabled:opacity-50"
         />
         <Button type="submit" size="sm" disabled={disabled || freeText.trim().length === 0}>
           <Send className="h-3.5 w-3.5" aria-hidden="true" />

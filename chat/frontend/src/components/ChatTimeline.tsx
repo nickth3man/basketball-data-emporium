@@ -162,7 +162,7 @@ function EmptyState({ examples, onPickExample }: EmptyStateProps) {
       <motion.div variants={item} className="flex flex-col items-center gap-3">
         <div
           aria-hidden="true"
-          className="flex h-12 w-12 items-center justify-center rounded-xl bg-[color:var(--color-primary)]/12 text-[color:var(--color-primary)] ring-1 ring-inset ring-[color:var(--color-primary)]/25"
+          className="flex h-12 w-12 items-center justify-center rounded-xl bg-[color:var(--color-primary)]/12 text-[color:var(--color-primary)] ring-1 ring-[color:var(--color-primary)]/25 ring-inset"
         >
           <Database className="h-6 w-6" />
         </div>

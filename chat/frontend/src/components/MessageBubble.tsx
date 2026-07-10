@@ -109,10 +109,10 @@ const AssistantBubble = memo(function AssistantBubble({
         className={cn(
           "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg",
           "bg-[color:var(--color-primary)]/12 text-[color:var(--color-primary)]",
-          "ring-1 ring-inset ring-[color:var(--color-primary)]/20",
+          "ring-1 ring-[color:var(--color-primary)]/20 ring-inset",
         )}
       >
-        <span className="font-display text-sm font-bold leading-none">B</span>
+        <span className="font-display text-sm leading-none font-bold">B</span>
       </div>
 
       <article
@@ -176,7 +176,7 @@ const AssistantBubble = memo(function AssistantBubble({
                 "inline-flex items-center gap-1 rounded-md px-2 py-1 text-[0.7rem] font-medium",
                 "text-[color:var(--color-muted-foreground)] transition-colors",
                 "hover:bg-[color:var(--color-muted)] hover:text-[color:var(--color-foreground)]",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-card)]",
+                "focus-visible:ring-2 focus-visible:ring-[color:var(--color-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-card)] focus-visible:outline-none",
               )}
               aria-label={copied ? "Answer copied to clipboard" : "Copy answer to clipboard"}
             >

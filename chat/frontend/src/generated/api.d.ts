@@ -4,672 +4,765 @@
  */
 
 export interface paths {
-  "/": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Root
+         * @description Tiny index so `curl http://localhost:8787/` returns something useful.
+         */
+        get: operations["root__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Root
-     * @description Tiny index so `curl http://localhost:8787/` returns something useful.
-     */
-    get: operations["root__get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/chat": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Chat
+         * @description Run one chat turn end-to-end and return the final answer.
+         *
+         *     Thin consumer of :func:`chat_server.pipeline.run_turn`: resolves the
+         *     session id, drains the ``ChatEvent`` generator, and folds the
+         *     events into one ``ChatResponse``. The cascade (agent → gate →
+         *     dry-run → repair → execute → compose) lives in exactly one place
+         *     — ``run_turn`` — and the JSON and SSE routes are both consumers
+         *     of it.
+         */
+        post: operations["chat_api_chat_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * Chat
-     * @description Run one chat turn end-to-end and return the final answer.
-     *
-     *     The flow mirrors the canonical non-streaming subset with explicit
-     *     not-answerable fallbacks so a bad plan / bad params / failed DB
-     *     call never surfaces as a 500 stack trace to the UI.
-     */
-    post: operations["chat_api_chat_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/config": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/chat/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Chat Stream
+         * @description SSE endpoint: stream one turn's ``ChatEvent``s back to the UI.
+         *
+         *     The endpoint is intentionally thin — all substantive work happens in
+         *     ``chat_server.pipeline.run_turn``. The route is responsible for:
+         *
+         *     * Resolving the session id (create when the client didn't supply
+         *       one; mirrors the non-streaming route's behaviour).
+         *     * Mapping each ``ChatEvent`` through ``to_sse_dict`` and emitting
+         *       one SSE frame.
+         *     * Letting ``EventSourceResponse`` handle the wire-format headers.
+         *
+         *     Errors after the first event become ``ChatError`` events inside the
+         *     stream — the response stays 200 (an SSE body that starts with a
+         *     ``200 OK`` is well-formed even if a later frame carries an error
+         *     code). Errors *before* ``turn_started`` would surface as a 500
+         *     because the generator never yields; in practice ``run_turn`` yields
+         *     ``TurnStarted`` synchronously, so this is a non-issue.
+         */
+        post: operations["chat_stream_api_chat_stream_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Config
-     * @description Return non-secret runtime config to the frontend.
-     */
-    get: operations["config_api_config_get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/debug/artifacts/{artifact_id}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Config
+         * @description Return non-secret runtime config to the frontend.
+         */
+        get: operations["config_api_config_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Get Debug Artifact
-     * @description Fetch a query/model debug artifact by id.
-     *
-     *     Phase 2 stub: no real artifact index exists yet — Phase 4 will
-     *     materialise artifacts under ``chat/logs/{queries,model}`` and resolve
-     *     ``artifact_id`` (a query id or a model-log filename) to the matching
-     *     JSONL/SQL file on disk. For now every id 404s so clients can rely on
-     *     the contract; the response body documents the gap.
-     */
-    get: operations["get_debug_artifact_api_debug_artifacts__artifact_id__get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/health": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/debug/artifacts/{artifact_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Debug Artifact
+         * @description Fetch a query/model debug artifact by id.
+         *
+         *     Phase 2 stub: no real artifact index exists yet — Phase 4 will
+         *     materialise artifacts under ``chat/logs/{queries,model}`` and resolve
+         *     ``artifact_id`` (a query id or a model-log filename) to the matching
+         *     JSONL/SQL file on disk. For now every id 404s so clients can rely on
+         *     the contract; the response body documents the gap.
+         */
+        get: operations["get_debug_artifact_api_debug_artifacts__artifact_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Health
-     * @description Return app + warehouse status.
-     *
-     *     Always returns HTTP 200 so monitoring can detect the process even when
-     *     the warehouse is degraded. The `db` field reports the warehouse status.
-     */
-    get: operations["health_api_health_get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/sessions": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Health
+         * @description Return app + warehouse status.
+         *
+         *     Always returns HTTP 200 so monitoring can detect the process even when
+         *     the warehouse is degraded. The `db` field reports the warehouse status.
+         */
+        get: operations["health_api_health_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * List Sessions
-     * @description Return every session's meta (no messages).
-     *
-     *     Useful for the UI's session-list view; kept here so the
-     *     OpenAPI snapshot exposes the shape to the frontend codegen.
-     */
-    get: operations["list_sessions_api_sessions_get"];
-    put?: never;
-    /**
-     * Create Session
-     * @description Create a new session with the given (or default) title.
-     *
-     *     Body is optional so a bare ``POST /api/sessions`` (no payload) yields
-     *     the same default-title session. Returns ``201 Created`` with the
-     *     freshly minted `SessionMeta`.
-     */
-    post: operations["create_session_api_sessions_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/sessions/{session_id}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Sessions
+         * @description Return every session's meta (no messages).
+         *
+         *     Useful for the UI's session-list view; kept here so the OpenAPI
+         *     snapshot exposes the shape to the frontend codegen.
+         */
+        get: operations["list_sessions_api_sessions_get"];
+        put?: never;
+        /**
+         * Create Session
+         * @description Create a new session with the given (or default) title.
+         *
+         *     Body is optional so a bare ``POST /api/sessions`` (no payload) yields
+         *     the same default-title session. Returns ``201 Created`` with the
+         *     freshly minted `SessionMeta`.
+         */
+        post: operations["create_session_api_sessions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Get Session
-     * @description Return meta for one session.
-     */
-    get: operations["get_session_api_sessions__session_id__get"];
-    put?: never;
-    post?: never;
-    /**
-     * Delete Session
-     * @description Clear the visible history (manual-clear).
-     *
-     *     The session's meta (title, id, created_at) is preserved so the UI can
-     *     keep showing the empty session in its list. ``404`` if the meta is
-     *     missing — the caller asked to clear something that never existed.
-     */
-    delete: operations["delete_session_api_sessions__session_id__delete"];
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/sessions/{session_id}/history": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/sessions/{session_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Session
+         * @description Return meta for one session.
+         */
+        get: operations["get_session_api_sessions__session_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Session
+         * @description Clear the visible history (manual-clear).
+         *
+         *     The session's meta (title, id, created_at) is preserved so the UI can
+         *     keep showing the empty session in its list. ``404`` if the meta is
+         *     missing — the caller asked to clear something that never existed.
+         */
+        delete: operations["delete_session_api_sessions__session_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Get History
-     * @description Return one paginated window of visible messages.
-     *
-     *     ``limit`` is clamped to ``[1, 200]``; non-positive or oversized
-     *     values fall back to the default. ``offset`` must be non-negative
-     *     (FastAPI rejects negatives with 422). Raises ``404`` for unknown
-     *     sessions so the UI can distinguish "empty history" from "session
-     *     was deleted".
-     */
-    get: operations["get_history_api_sessions__session_id__history_get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
+    "/api/sessions/{session_id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get History
+         * @description Return one paginated window of visible messages.
+         *
+         *     ``limit`` is clamped to ``[1, 200]``; non-positive or oversized
+         *     values fall back to the default. ``offset`` must be non-negative
+         *     (FastAPI rejects negatives with 422). Raises ``404`` for unknown
+         *     sessions so the UI can distinguish "empty history" from "session
+         *     was deleted".
+         */
+        get: operations["get_history_api_sessions__session_id__history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-  schemas: {
-    /**
-     * ChatRequest
-     * @description Body for ``POST /api/chat``.
-     *
-     *     Attributes
-     *     ----------
-     *     session_id
-     *         Optional. When omitted (or stale) a new session is created with
-     *         the first 40 characters of ``message`` as its title.
-     *     message
-     *         The user's question. Bounded 1..4000 characters by FastAPI.
-     */
-    ChatRequest: {
-      /** Message */
-      message: string;
-      /** Session Id */
-      session_id?: string | null;
+    schemas: {
+        /**
+         * ChatRequest
+         * @description Body for ``POST /api/chat``.
+         *
+         *     Attributes
+         *     ----------
+         *     session_id
+         *         Optional. When omitted (or stale) a new session is created with
+         *         the first 40 characters of ``message`` as its title.
+         *     message
+         *         The user's question. Bounded 1..4000 characters by FastAPI.
+         */
+        ChatRequest: {
+            /** Message */
+            message: string;
+            /** Session Id */
+            session_id?: string | null;
+        };
+        /**
+         * ChatResponse
+         * @description Response for ``POST /api/chat``.
+         *
+         *     Mirrors the canonical turn response: answer + citations +
+         *     provenance fields. ``sql`` is non-null only on the happy path
+         *     (a governed query executed). ``not_answerable=True``
+         *     short-circuits the SQL + row_count fields.
+         */
+        ChatResponse: {
+            /** Answer */
+            answer: string;
+            /** Citations */
+            citations?: {
+                [key: string]: unknown;
+            }[];
+            /** Duration Ms */
+            duration_ms?: number | null;
+            /**
+             * Not Answerable
+             * @default false
+             */
+            not_answerable: boolean;
+            /** Not Answerable Note */
+            not_answerable_note?: string | null;
+            query_ref?: components["schemas"]["QueryRef"] | null;
+            /** Reasoning Summary */
+            reasoning_summary?: string | null;
+            /** Row Count */
+            row_count?: number | null;
+            /** Session Id */
+            session_id: string;
+            /** Sql */
+            sql?: string | null;
+        };
+        /**
+         * ConfigResponse
+         * @description Public (non-secret) runtime config surfaced at `GET /api/config`.
+         */
+        ConfigResponse: {
+            latency_tiers: components["schemas"]["LatencyTiers"];
+            /** Openrouter Model */
+            openrouter_model: string;
+        };
+        /**
+         * CreateSessionRequest
+         * @description Body for `POST /api/sessions`.
+         *
+         *     ``title`` is optional; the store falls back to ``"New chat"`` when
+         *     the field is omitted, empty, or whitespace-only.
+         */
+        CreateSessionRequest: {
+            /** Title */
+            title?: string | null;
+        };
+        /** HTTPValidationError */
+        HTTPValidationError: {
+            /** Detail */
+            detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * HealthResponse
+         * @description Response shape for `GET /api/health`.
+         */
+        HealthResponse: {
+            /** Db */
+            db: string;
+            /** Status */
+            status: string;
+        };
+        /**
+         * HistoryPage
+         * @description One paginated window over a session's visible messages.
+         */
+        HistoryPage: {
+            /** Limit */
+            limit: number;
+            /** Messages */
+            messages: components["schemas"]["SessionMessage"][];
+            /** Offset */
+            offset: number;
+            /** Session Id */
+            session_id: string;
+            /** Total */
+            total: number;
+        };
+        /**
+         * LatencyTiers
+         * @description Latency budget per template complexity tier.
+         */
+        LatencyTiers: {
+            /** Heavy Seconds */
+            heavy_seconds: [
+                number,
+                number
+            ];
+            /** Heavy Timeout Seconds */
+            heavy_timeout_seconds: number;
+            /** Medium Seconds */
+            medium_seconds: [
+                number,
+                number
+            ];
+            /** Simple Seconds */
+            simple_seconds: [
+                number,
+                number
+            ];
+        };
+        /**
+         * QueryRef
+         * @description Structured provenance for a governed query's referenced tables.
+         */
+        QueryRef: {
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "catalog" | "warehouse";
+            /** Tables */
+            tables: string[];
+        };
+        /**
+         * SessionMessage
+         * @description One visible message in a session.
+         *
+         *     Role is a free-form string at the storage layer; the route layer
+         *     enforces the ``"user" | "assistant"`` subset at write time (Phase 4
+         *     SSE pipeline). Keeping the model open at the store keeps this module
+         *     independent of that pipeline.
+         */
+        SessionMessage: {
+            /** Content */
+            content: string;
+            /** Role */
+            role: string;
+            /**
+             * Ts
+             * Format: date-time
+             */
+            ts: string;
+        };
+        /**
+         * SessionMeta
+         * @description Metadata for a single visible chat session.
+         *
+         *     Surfaces the minimum the UI needs to render a session list without
+         *     scanning the per-session JSONL messages file.
+         */
+        SessionMeta: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Id */
+            id: string;
+            /**
+             * Message Count
+             * @default 0
+             */
+            message_count: number;
+            /**
+             * Status
+             * @default active
+             */
+            status: string;
+            /** Title */
+            title: string;
+        };
+        /** ValidationError */
+        ValidationError: {
+            /** Context */
+            ctx?: Record<string, never>;
+            /** Input */
+            input?: unknown;
+            /** Location */
+            loc: (string | number)[];
+            /** Message */
+            msg: string;
+            /** Error Type */
+            type: string;
+        };
     };
-    /**
-     * ChatResponse
-     * @description Response for ``POST /api/chat``.
-     *
-     *     Mirrors the canonical turn response: answer + citations +
-     *     provenance fields. ``sql`` is non-null only on the happy path
-     *     (``template_id`` resolved, query executed). ``not_answerable=True``
-     *     short-circuits the SQL + row_count fields.
-     */
-    ChatResponse: {
-      /** Answer */
-      answer: string;
-      /** Citations */
-      citations?: {
-        [key: string]: unknown;
-      }[];
-      /** Duration Ms */
-      duration_ms?: number | null;
-      /**
-       * Not Answerable
-       * @default false
-       */
-      not_answerable: boolean;
-      /** Not Answerable Note */
-      not_answerable_note?: string | null;
-      /** Reasoning Summary */
-      reasoning_summary?: string | null;
-      /** Row Count */
-      row_count?: number | null;
-      /** Session Id */
-      session_id: string;
-      /** Sql */
-      sql?: string | null;
-      /** Template Id */
-      template_id?: string | null;
-    };
-    /**
-     * ConfigResponse
-     * @description Public (non-secret) runtime config surfaced at `GET /api/config`.
-     */
-    ConfigResponse: {
-      latency_tiers: components["schemas"]["LatencyTiers"];
-      /** Openrouter Model */
-      openrouter_model: string;
-    };
-    /**
-     * CreateSessionRequest
-     * @description Body for `POST /api/sessions`.
-     *
-     *     ``title`` is optional; the store falls back to ``"New chat"`` when
-     *     the field is omitted, empty, or whitespace-only.
-     */
-    CreateSessionRequest: {
-      /** Title */
-      title?: string | null;
-    };
-    /** HTTPValidationError */
-    HTTPValidationError: {
-      /** Detail */
-      detail?: components["schemas"]["ValidationError"][];
-    };
-    /**
-     * HealthResponse
-     * @description Response shape for `GET /api/health`.
-     */
-    HealthResponse: {
-      /** Db */
-      db: string;
-      /** Status */
-      status: string;
-    };
-    /**
-     * HistoryPage
-     * @description One paginated window over a session's visible messages.
-     */
-    HistoryPage: {
-      /** Limit */
-      limit: number;
-      /** Messages */
-      messages: components["schemas"]["SessionMessage"][];
-      /** Offset */
-      offset: number;
-      /** Session Id */
-      session_id: string;
-      /** Total */
-      total: number;
-    };
-    /**
-     * LatencyTiers
-     * @description Latency budget per template complexity tier.
-     */
-    LatencyTiers: {
-      /** Heavy Seconds */
-      heavy_seconds: [number, number];
-      /** Heavy Timeout Seconds */
-      heavy_timeout_seconds: number;
-      /** Medium Seconds */
-      medium_seconds: [number, number];
-      /** Simple Seconds */
-      simple_seconds: [number, number];
-    };
-    /**
-     * SessionMessage
-     * @description One visible message in a session.
-     *
-     *     Role is a free-form string at the storage layer; the route layer
-     *     enforces the ``"user" | "assistant"`` subset at write time (Phase 4
-     *     SSE pipeline). Keeping the model open at the store keeps this module
-     *     independent of that pipeline.
-     */
-    SessionMessage: {
-      /** Content */
-      content: string;
-      /** Role */
-      role: string;
-      /**
-       * Ts
-       * Format: date-time
-       */
-      ts: string;
-    };
-    /**
-     * SessionMeta
-     * @description Metadata for a single visible chat session.
-     *
-     *     Surfaces the minimum the UI needs to render a session list without
-     *     scanning the per-session JSONL messages file.
-     */
-    SessionMeta: {
-      /**
-       * Created At
-       * Format: date-time
-       */
-      created_at: string;
-      /** Id */
-      id: string;
-      /**
-       * Message Count
-       * @default 0
-       */
-      message_count: number;
-      /**
-       * Status
-       * @default active
-       */
-      status: string;
-      /** Title */
-      title: string;
-    };
-    /** ValidationError */
-    ValidationError: {
-      /** Context */
-      ctx?: Record<string, never>;
-      /** Input */
-      input?: unknown;
-      /** Location */
-      loc: (string | number)[];
-      /** Message */
-      msg: string;
-      /** Error Type */
-      type: string;
-    };
-  };
-  responses: never;
-  parameters: never;
-  requestBodies: never;
-  headers: never;
-  pathItems: never;
+    responses: never;
+    parameters: never;
+    requestBodies: never;
+    headers: never;
+    pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
-  root__get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    root__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    chat_api_chat_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        content: {
-          "application/json": {
-            [key: string]: string;
-          };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatRequest"];
+            };
         };
-      };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
     };
-  };
-  chat_api_chat_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    chat_stream_api_chat_stream_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
     };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["ChatRequest"];
-      };
+    config_api_config_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfigResponse"];
+                };
+            };
+        };
     };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    get_debug_artifact_api_debug_artifacts__artifact_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                artifact_id: string;
+            };
+            cookie?: never;
         };
-        content: {
-          "application/json": components["schemas"]["ChatResponse"];
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
     };
-  };
-  config_api_config_get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    health_api_health_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthResponse"];
+                };
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    list_sessions_api_sessions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        content: {
-          "application/json": components["schemas"]["ConfigResponse"];
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionMeta"][];
+                };
+            };
         };
-      };
     };
-  };
-  get_debug_artifact_api_debug_artifacts__artifact_id__get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        artifact_id: string;
-      };
-      cookie?: never;
+    create_session_api_sessions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["CreateSessionRequest"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionMeta"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    get_session_api_sessions__session_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
         };
-        content: {
-          "application/json": {
-            [key: string]: string;
-          };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionMeta"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
     };
-  };
-  health_api_health_get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    delete_session_api_sessions__session_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    get_history_api_sessions__session_id__history_get: {
+        parameters: {
+            query?: {
+                /** @description Page size. Out-of-range (non-positive, >200) is clamped to the default of 50 by the server. */
+                limit?: number;
+                /** @description Number of oldest messages to skip. */
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
         };
-        content: {
-          "application/json": components["schemas"]["HealthResponse"];
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HistoryPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
-      };
     };
-  };
-  list_sessions_api_sessions_get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["SessionMeta"][];
-        };
-      };
-    };
-  };
-  create_session_api_sessions_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: {
-      content: {
-        "application/json": components["schemas"]["CreateSessionRequest"] | null;
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["SessionMeta"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  get_session_api_sessions__session_id__get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        session_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["SessionMeta"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  delete_session_api_sessions__session_id__delete: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        session_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      204: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  get_history_api_sessions__session_id__history_get: {
-    parameters: {
-      query?: {
-        /** @description Page size. Out-of-range (non-positive, >200) is clamped to the default of 50 by the server. */
-        limit?: number;
-        /** @description Number of oldest messages to skip. */
-        offset?: number;
-      };
-      header?: never;
-      path: {
-        session_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HistoryPage"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
 }

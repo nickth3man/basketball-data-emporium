@@ -23,3 +23,6 @@ frontend/*.local
 # Editor
 .vscode/
 .idea/
+
+# OpenCode deepwork session state (local progress file)
+.slim/deepwork/

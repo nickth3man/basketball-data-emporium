@@ -92,7 +92,6 @@ class SessionStore:
         self._lock = threading.Lock()
         self._root.mkdir(parents=True, exist_ok=True)
 
-
     def _msgs_path(self, session_id: str) -> Path:
         return self._root / f"{session_id}.jsonl"
 
@@ -127,7 +126,6 @@ class SessionStore:
         """
         return self._root / f"{session_id}.clarify.json"
 
-
     def _read_meta(self, session_id: str) -> SessionMeta:
         meta_path = self._meta_path(session_id)
         if not meta_path.exists():
@@ -158,7 +156,6 @@ class SessionStore:
                         continue
                     messages.append(SessionMessage.model_validate_json(line))
         return messages
-
 
     def create(self, title: str | None = None) -> SessionMeta:
         """Create a new session with a random id; return the meta."""
@@ -251,7 +248,6 @@ class SessionStore:
                     continue
         return results
 
-
     def append_model_history(self, session_id: str, messages_json: bytes) -> None:
         """Atomically overwrite the model-history snapshot for one session.
 
@@ -296,7 +292,6 @@ class SessionStore:
         if not isinstance(payload, list):
             raise ValueError(f"model history at {path} is not a JSON array")
         return payload
-
 
     def set_pending_clarification(
         self,

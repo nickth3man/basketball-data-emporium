@@ -68,7 +68,7 @@ export function EvidenceCard({ citations }: EvidenceCardProps) {
       aria-label="Evidence citations"
       className="flex flex-col gap-2 rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-muted)]/50 px-3 py-2.5"
     >
-      <header className="flex items-center gap-1.5 text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-[color:var(--color-muted-foreground)]">
+      <header className="flex items-center gap-1.5 text-[0.65rem] font-semibold tracking-[0.12em] text-[color:var(--color-muted-foreground)] uppercase">
         <Database className="h-3 w-3" aria-hidden="true" />
         Evidence
         <span aria-hidden="true" className="opacity-40">
@@ -95,7 +95,7 @@ export function EvidenceCard({ citations }: EvidenceCardProps) {
                   )}
                 >
                   <Icon className="h-3 w-3 shrink-0 opacity-80" aria-hidden="true" />
-                  <span className="text-[0.6rem] uppercase tracking-wide opacity-60">
+                  <span className="text-[0.6rem] tracking-wide uppercase opacity-60">
                     {KIND_TAG[chip.kind]}
                   </span>
                   <span className="font-medium">{chip.label}</span>

@@ -31,11 +31,10 @@ from pathlib import Path
 from chat_server.events import (
     ChatEvent,
     ClarificationNeeded,
-    IntentClassified,
     QueryStarted,
 )
 from chat_server.pipeline import run_turn
-from chat_server.sessions import SessionStore, reset_store_for_tests
+from chat_server.sessions import SessionStore
 
 from .loader import EvalRow
 
@@ -73,13 +72,10 @@ class ReplayResult:
     final_columns: list[str] = field(default_factory=list)
     final_rows: list[dict] = field(default_factory=list)
     final_sql: str | None = None
+    infrastructure_error: str | None = None
 
 
 # --- plan extraction from events -----------------------------------------
-
-# Sentinel prefix used by the governed-SQL pipeline when it emits
-# IntentClassified (see pipeline.py around the execute_sql branch).
-_GOVERNED_SENTINEL_PREFIX = "semantic:"
 
 
 def _derive_plan(events: list[ChatEvent]) -> TurnTrace:
@@ -88,15 +84,11 @@ def _derive_plan(events: list[ChatEvent]) -> TurnTrace:
     Mapping:
 
     * ``ClarificationNeeded`` present -> ``"clarify"``.
-    * ``IntentClassified`` present with a sentinel-prefixed template id
-      -> ``"execute_sql"`` (governed path).
-    * ``IntentClassified`` present with a non-sentinel template id
-      -> ``"template"`` (legacy path).
+    * ``QueryStarted`` present -> ``"execute_sql"``.
     * ``ChatError`` with no other mode-bearing events -> ``"not_answerable"``.
     * Default (no recognised mode-bearing event) -> ``"not_answerable"``.
 
-    The SQL is taken from ``QueryStarted.sql`` (always emitted on the
-    execute_sql + template paths). Gate / table facts are populated by
+    The SQL and tables are taken from ``QueryStarted``. Gate facts are populated by
     the caller via ``run_governed_gate`` -- the trace records them so
     Layer-1 can grade in a single pass.
     """
@@ -107,20 +99,11 @@ def _derive_plan(events: list[ChatEvent]) -> TurnTrace:
         trace.mode = "clarify"
         return trace
 
-    intent = next((ev for ev in events if isinstance(ev, IntentClassified)), None)
-    if intent is not None:
-        tid = getattr(intent, "template_id", "") or ""
-        if tid.startswith(_GOVERNED_SENTINEL_PREFIX):
-            trace.mode = "execute_sql"
-        else:
-            trace.mode = "template"
-        # SQL is best-effort: QueryStarted is emitted on both execute_sql
-        # and template paths, but we tolerate its absence (e.g. a
-        # not_answerable plan that nonetheless emitted IntentClassified
-        # by accident).
-        qs = next((ev for ev in events if isinstance(ev, QueryStarted)), None)
-        if qs is not None:
-            trace.sql = qs.sql
+    qs = next((ev for ev in events if isinstance(ev, QueryStarted)), None)
+    if qs is not None:
+        trace.mode = "execute_sql"
+        trace.sql = qs.sql
+        trace.tables_referenced = set(qs.query_ref.tables)
         return trace
 
     # No recogniseable mode-bearing event -> not_answerable.
@@ -132,35 +115,20 @@ def _derive_plan(events: list[ChatEvent]) -> TurnTrace:
 
 
 def _build_session_store(sessions_root: Path) -> SessionStore:
-    """Construct a fresh ``SessionStore`` rooted at ``sessions_root``.
-
-    Also clears the process-wide store singleton so any subsequent
-    ``run_turn`` call (which fetches the store via ``get_store()``)
-    picks up this fresh instance. We pass it explicitly into ``run_turn``
-    by monkey-patching the module-level ``get_store`` reference for the
-    duration of the replay.
-    """
+    """Construct a fresh ``SessionStore`` rooted at ``sessions_root``."""
     sessions_root.mkdir(parents=True, exist_ok=True)
-    store = SessionStore(sessions_root)
-    reset_store_for_tests()
-    # ``get_store()`` is referenced inside ``run_turn`` as a module-level
-    # lookup; we patch the symbol in the pipeline's namespace so the
-    # call resolves to our temp store without touching the real one.
-    import chat_server.pipeline as pipeline_module
-
-    pipeline_module.get_store = lambda: store  # type: ignore[assignment]
-    return store
+    return SessionStore(sessions_root)
 
 
 # --- replay driver -------------------------------------------------------
 
 
-async def _drain(session_id: str, message: str) -> list[ChatEvent]:
+async def _drain(session_id: str, message: str, store: SessionStore) -> list[ChatEvent]:
     """Drain one ``run_turn`` call into a list of ``ChatEvent``."""
-    return [ev async for ev in run_turn(session_id, message)]
+    return [ev async for ev in run_turn(session_id, message, store=store)]
 
 
-def _gate_sql(sql: str) -> tuple[bool, set[str]]:
+async def _gate_sql(sql: str) -> tuple[bool, set[str]]:
     """Run ``validate_governed_sql`` against the live catalog.
 
     Returns ``(gate_pass, tables_referenced)``. Used only when the
@@ -168,6 +136,7 @@ def _gate_sql(sql: str) -> tuple[bool, set[str]]:
     template plans the caller skips the gate.
     """
     try:
+        from chat_server.db import get_db
         from chat_server.semantic_catalog import load_catalog
         from chat_server.sqlgate import validate_governed_sql
     except Exception:
@@ -181,7 +150,7 @@ def _gate_sql(sql: str) -> tuple[bool, set[str]]:
     if catalog is None:
         return False, set()
     try:
-        report = validate_governed_sql(sql, catalog)
+        report = await validate_governed_sql(sql, get_db(), catalog)
     except Exception:
         return False, set()
     return bool(report.valid), set(report.tables_referenced)
@@ -210,10 +179,10 @@ async def replay_row(row: EvalRow, sessions_root: Path) -> ReplayResult:
     result = ReplayResult(session_id=session_id)
 
     for _turn_index, message in enumerate(row.scripted_turns):
-        events = await _drain(session_id, message)
+        events = await _drain(session_id, message, store)
         trace = _derive_plan(events)
         if trace.mode == "execute_sql" and trace.sql:
-            gate_pass, tables = _gate_sql(trace.sql)
+            gate_pass, tables = await _gate_sql(trace.sql)
             trace.gate_pass = gate_pass
             trace.tables_referenced = tables
         result.turns.append(trace)

@@ -176,7 +176,7 @@
       "type": "object"
     },
     "IntentClassified": {
-      "description": "The agent committed to a template. ``confidence`` is 1.0 in Phase 4.\n\nPydantic AI's structured-output path doesn't surface a probability;\nwe emit 1.0 as a stable contract so the frontend reducer can rely on\nthe field type. A future enhancement can read the model's tool-call\nranking to populate this with a real number.",
+      "description": "The agent committed to a governed query. ``confidence`` remains 1.0.\n\nPydantic AI's structured-output path doesn't surface a probability;\nwe emit 1.0 as a stable contract so the frontend reducer can rely on\nthe field type. A future enhancement can read the model's tool-call\nranking to populate this with a real number.",
       "properties": {
         "confidence": {
           "title": "Confidence",
@@ -188,13 +188,12 @@
           "title": "Event",
           "type": "string"
         },
-        "template_id": {
-          "title": "Template Id",
-          "type": "string"
+        "query_ref": {
+          "$ref": "#/$defs/QueryRef"
         }
       },
       "required": [
-        "template_id",
+        "query_ref",
         "confidence"
       ],
       "title": "IntentClassified",
@@ -243,6 +242,32 @@
       "title": "QueryFinished",
       "type": "object"
     },
+    "QueryRef": {
+      "description": "Structured provenance for a governed query's referenced tables.",
+      "properties": {
+        "source": {
+          "enum": [
+            "catalog",
+            "warehouse"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "tables": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Tables",
+          "type": "array"
+        }
+      },
+      "required": [
+        "source",
+        "tables"
+      ],
+      "title": "QueryRef",
+      "type": "object"
+    },
     "QueryStarted": {
       "description": "A validated SQL query is about to run.",
       "properties": {
@@ -256,18 +281,17 @@
           "title": "Query Id",
           "type": "string"
         },
+        "query_ref": {
+          "$ref": "#/$defs/QueryRef"
+        },
         "sql": {
           "title": "Sql",
-          "type": "string"
-        },
-        "template_id": {
-          "title": "Template Id",
           "type": "string"
         }
       },
       "required": [
         "query_id",
-        "template_id",
+        "query_ref",
         "sql"
       ],
       "title": "QueryStarted",

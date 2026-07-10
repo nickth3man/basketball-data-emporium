@@ -216,7 +216,7 @@ export function ResultTable({ table }: ResultTableProps) {
             "inline-flex items-center gap-1 rounded-md border border-[color:var(--color-border)]",
             "bg-[color:var(--color-card)] px-2 py-1 text-xs font-medium",
             "transition-colors hover:bg-[color:var(--color-muted)]",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-card)]",
+            "focus-visible:ring-2 focus-visible:ring-[color:var(--color-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-card)] focus-visible:outline-none",
           )}
           aria-label={copied ? "CSV copied to clipboard" : "Copy result rows as CSV"}
         >
@@ -230,7 +230,7 @@ export function ResultTable({ table }: ResultTableProps) {
       </header>
       <div
         ref={scrollRef}
-        className="relative overflow-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-ring)] focus-visible:ring-inset"
+        className="relative overflow-auto focus-visible:ring-2 focus-visible:ring-[color:var(--color-ring)] focus-visible:outline-none focus-visible:ring-inset"
         style={{ maxHeight: MAX_TABLE_HEIGHT }}
       >
         <table className="w-full border-collapse text-sm">
@@ -247,7 +247,7 @@ export function ResultTable({ table }: ResultTableProps) {
                       key={header.id}
                       scope="col"
                       aria-sort={canSort ? ariaSort : undefined}
-                      className="border-b border-[color:var(--color-border)] px-2.5 py-2 text-left font-display text-[0.7rem] font-semibold uppercase tracking-[0.06em] text-[color:var(--color-muted-foreground)]"
+                      className="border-b border-[color:var(--color-border)] px-2.5 py-2 text-left font-display text-[0.7rem] font-semibold tracking-[0.06em] text-[color:var(--color-muted-foreground)] uppercase"
                     >
                       {canSort ? (
                         <button
@@ -256,7 +256,7 @@ export function ResultTable({ table }: ResultTableProps) {
                           className={cn(
                             "inline-flex items-center gap-1 rounded px-1 py-0.5 transition-colors",
                             "hover:bg-[color:var(--color-background)] hover:text-[color:var(--color-foreground)]",
-                            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-ring)] focus-visible:ring-offset-1 focus-visible:ring-offset-[color:var(--color-muted)]",
+                            "focus-visible:ring-2 focus-visible:ring-[color:var(--color-ring)] focus-visible:ring-offset-1 focus-visible:ring-offset-[color:var(--color-muted)] focus-visible:outline-none",
                           )}
                           aria-label={`Sort by ${header.column.columnDef.header as string} ${ariaSort === "ascending" ? "descending" : "ascending"}`}
                         >

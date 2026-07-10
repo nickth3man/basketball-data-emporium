@@ -58,3 +58,18 @@ pre-commit:
       glob: "*.{ts,tsx,js,jsx,json,css,html,md}"
       run: npx prettier --write {staged_files}
       stage_fixed: true
+
+pre-push:
+  parallel: true
+  commands:
+    frontend-typecheck:
+      glob: "frontend/**/*.{ts,tsx}"
+      run: cd frontend && npm run typecheck
+    frontend-test:
+      glob: "frontend/**/*.{ts,tsx}"
+      run: cd frontend && npm run test
+    frontend-knip:
+      # Dead-code/unused-export scan. Knip is noisy on first run until the
+      # codebase is cleaned up; move this to a manual `npm run knip` or a
+      # CI-only step if it blocks pushes during initial adoption.
+      run: cd frontend && npm run knip

@@ -24,7 +24,6 @@ from chat_server.agent import (
     Plan,
     ResultContract,
     SqlPlan,
-    TemplatePlan,
 )
 
 PLAN_ADAPTER: TypeAdapter = TypeAdapter(Plan)
@@ -35,7 +34,6 @@ def test_each_member_validates_via_discriminator() -> None:
         ({"answer_mode": "clarify", "clarification": {"question": "Which season?"}}, ClarifyPlan),
         ({"answer_mode": "not_answerable", "not_answerable_note": "no data"}, NotAnswerablePlan),
         ({"answer_mode": "execute_sql", "sql": "SELECT 1"}, SqlPlan),
-        ({"answer_mode": "template", "template_id": "x.y", "params": {}}, TemplatePlan),
     ]
     for payload, expected_type in cases:
         plan = PLAN_ADAPTER.validate_python(payload)
@@ -44,7 +42,7 @@ def test_each_member_validates_via_discriminator() -> None:
 
 def test_missing_discriminator_is_rejected() -> None:
     with pytest.raises(ValidationError):
-        PLAN_ADAPTER.validate_python({"template_id": "season_thresholds", "params": {}})
+        PLAN_ADAPTER.validate_python({"sql": "SELECT 1"})
 
 
 def test_execute_sql_requires_nonempty_sql() -> None:

@@ -378,11 +378,11 @@ export function ChatView() {
                   {bannerText.title}
                 </p>
                 {bannerText.detail.length > 0 && (
-                  <p className="text-xs opacity-80 text-[color:var(--color-danger-fg)]">
+                  <p className="text-xs text-[color:var(--color-danger-fg)] opacity-80">
                     {bannerText.detail}
                   </p>
                 )}
-                <p className="text-[0.7rem] opacity-60 text-[color:var(--color-danger-fg)]">
+                <p className="text-[0.7rem] text-[color:var(--color-danger-fg)] opacity-60">
                   Code: {lastError.code}
                 </p>
               </div>
@@ -479,13 +479,13 @@ function Header({ health, sessionId, onCleared, onOpenPalette }: HeaderProps) {
       <div className="flex items-center gap-3">
         <div
           aria-hidden="true"
-          className="flex h-9 w-9 items-center justify-center rounded-xl bg-[color:var(--color-primary)]/12 text-[color:var(--color-primary)] ring-1 ring-inset ring-[color:var(--color-primary)]/25"
+          className="flex h-9 w-9 items-center justify-center rounded-xl bg-[color:var(--color-primary)]/12 text-[color:var(--color-primary)] ring-1 ring-[color:var(--color-primary)]/25 ring-inset"
         >
           {/* Baller brand mark — bold Oswald "B" monogram tile. */}
-          <span className="font-display text-base font-bold leading-none">B</span>
+          <span className="font-display text-base leading-none font-bold">B</span>
         </div>
         <div className="flex flex-col">
-          <h1 className="font-display text-base font-semibold leading-tight tracking-tight">
+          <h1 className="font-display text-base leading-tight font-semibold tracking-tight">
             Basketball Data Chatbot
           </h1>
           <p className="text-xs text-[color:var(--color-muted-foreground)]">
@@ -504,7 +504,7 @@ function Header({ health, sessionId, onCleared, onOpenPalette }: HeaderProps) {
             "inline-flex h-8 items-center gap-1 rounded-lg border border-[color:var(--color-border)]",
             "bg-[color:var(--color-card)] px-2 text-xs text-[color:var(--color-muted-foreground)]",
             "transition-colors hover:bg-[color:var(--color-muted)] hover:text-[color:var(--color-foreground)]",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-card)]",
+            "focus-visible:ring-2 focus-visible:ring-[color:var(--color-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-card)] focus-visible:outline-none",
           )}
         >
           <CommandIcon className="h-3.5 w-3.5" aria-hidden="true" />

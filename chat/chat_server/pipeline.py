@@ -1,8 +1,8 @@
-"""Turn orchestration: agent → template → DB → composer → SSE.
+"""Turn orchestration: agent → governed SQL → DB → composer → SSE.
 
 This module owns the **end-to-end sequence** of a single chat turn:
 
-    user message → agent (QueryPlan) → template + params → DB run →
+    user message → agent (Plan) → governed SQL validation → DB run →
     composer → stream ChatEvents
 
 The public surface is one async generator:
@@ -10,8 +10,8 @@ The public surface is one async generator:
     ``run_turn(session_id, message) -> AsyncIterator[ChatEvent]``
 
 The streaming route (``chat_server.routes.chat.POST /api/chat/stream``)
-just wraps it. Everything else — agent wiring, template lookup, DB
-execution, logging — happens here.
+just wraps it. Everything else — agent wiring, plan dispatch, governed
+validation, DB execution, and logging — happens here.
 
 Design notes
 ------------
@@ -19,10 +19,8 @@ Design notes
   step is converted into a ``ChatError(code, message)`` event and the
   full traceback is logged. The SSE stream terminates cleanly after
   the error event so the UI never hangs.
-* **Query timeout**: ``asyncio.wait_for`` cancels the await on the DB
-  thread; the thread itself keeps running until DuckDB finishes
-  (acceptable for v1; Phase 7 may wire a cancellation token through
-  to ``duckdb.interrupt()``).
+* **Query timeout**: the DB watchdog interrupts the executing DuckDB
+  cursor and surfaces ``QueryTimeoutError`` to the pipeline.
 * **Secret redaction**: model log writes never include the
   ``OPENROUTER_API_KEY`` (no live prompt or response bodies). The
   ``usage`` payload is dataclasses.asdict'd from the agent's
@@ -37,7 +35,6 @@ Design notes
 
 from __future__ import annotations
 
-import asyncio
 import contextlib
 import datetime as _dt
 import json
@@ -46,6 +43,7 @@ import re
 import secrets
 from collections.abc import AsyncIterator
 from dataclasses import asdict as _dc_asdict
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -57,15 +55,14 @@ from .agent import (  # noqa: F401
     NotAnswerablePlan,
     ResultContract,
     SqlPlan,
-    TemplatePlan,
     get_agent,
     keep_last_messages_with_tools,
     make_deps,
 )
 from .clarify import ClarificationState, build_clarification_context_prefix
-from .composer import compose, compose_governed, compose_not_answerable
+from .composer import ComposedAnswer, compose_governed, compose_not_answerable
 from .config import get_settings
-from .db import DryRunError, QueryResult, QueryTimeoutError, get_db
+from .db import DryRunError, QueryResult, QueryTimeoutError
 from .events import (
     AnswerDelta,
     AnswerFinished,
@@ -73,35 +70,60 @@ from .events import (
     ChatEvent,
     Citation,
     ClarificationNeeded,
-    ColumnSpec,
     IntentClassified,
     QueryFinished,
+    QueryRef,
     QueryStarted,
     Reasoning,
-    TableReady,
     TurnStarted,
 )
 from .repair import repair_sql
-from .sessions import SessionNotFound, get_store
-from .sqlgate import validate_governed_sql
-from .templates import TemplateNotFound, get_template
-from .validation import validate_template_sql
+from .sessions import SessionNotFound, SessionStore, get_store
+from .sqlgate import ValidationReport, validate_governed_sql
 
 log = logging.getLogger(__name__)
 
-_TABLE_PREVIEW_ROWS = 200
-
 _ANSWER_CHUNK_WINDOW = 80
 
-_ERR_TEMPLATE_NOT_FOUND = "template_not_found"
-_ERR_INVALID_PARAMS = "invalid_params"
 _ERR_DB_FAILED = "db_execute_failed"
 _ERR_QUERY_TIMEOUT = "query_timeout"
 _ERR_AGENT_FAILED = "agent_failed"
-_ERR_UNEXPECTED = "unexpected_error"
 
 
-async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
+@dataclass
+class TurnResult:
+    """Out-of-band facts about a turn that no ``ChatEvent`` carries.
+
+    The JSON route needs ``not_answerable`` / ``not_answerable_note``
+    for its ``ChatResponse``, but adding them to the wire events would
+    break the frozen SSE schema for information the stream consumer
+    never uses. Callers that care pass an instance to :func:`run_turn`;
+    the pipeline mutates it as the turn resolves. The SSE route passes
+    nothing.
+    """
+
+    not_answerable: bool = False
+    not_answerable_note: str | None = None
+    clarification: bool = False
+
+
+def _query_ref(report: ValidationReport, catalog) -> QueryRef:  # type: ignore[no-untyped-def]
+    """Classify final validated tables as catalog-backed or warehouse access."""
+    tables = sorted(report.tables_referenced)
+    catalog_tables = set()
+    if catalog:
+        catalog_tables = {model.base_table.name for model in catalog.models.values()}
+    source = "catalog" if tables and set(tables).issubset(catalog_tables) else "warehouse"
+    return QueryRef(source=source, tables=tables)
+
+
+async def run_turn(
+    session_id: str,
+    message: str,
+    *,
+    result: TurnResult | None = None,
+    store: SessionStore | None = None,
+) -> AsyncIterator[ChatEvent]:
     """Async generator yielding one ``ChatEvent`` per pipeline step.
 
     The first event is always ``TurnStarted``; the last is one of
@@ -113,6 +135,10 @@ async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
     behaviour). The route is responsible for that step so this generator
     stays pure.
 
+    ``result``, when given, is filled with the out-of-band turn facts
+    (see :class:`TurnResult`) so the JSON route can build its response
+    without any change to the event schema.
+
     Failure handling
     ----------------
     Every step is wrapped in try/except; an uncaught exception yields
@@ -123,9 +149,16 @@ async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
     turn_id = secrets.token_urlsafe(8)
     ts = _utcnow()
 
+    def _mark_not_answerable(composed: ComposedAnswer) -> ComposedAnswer:
+        """Record the not-answerable outcome on the caller's TurnResult."""
+        if result is not None:
+            result.not_answerable = True
+            result.not_answerable_note = composed.not_answerable_note
+        return composed
+
     yield TurnStarted(session_id=session_id, turn_id=turn_id, ts=ts)
 
-    store = get_store()
+    store = store or get_store()
     _safe_append_user(store, session_id, message)
 
     with otel.span("agent.run", attributes={"session_id": session_id}) as agent_span:
@@ -140,20 +173,19 @@ async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
             run_kwargs: dict[str, Any] = {"deps": deps}
             if history:
                 run_kwargs["message_history"] = history
-            result = await agent.run(user_message_text, **run_kwargs)
-            plan = result.output
-            usage_obj = result.usage
+            agent_result = await agent.run(user_message_text, **run_kwargs)
+            plan = agent_result.output
+            usage_obj = agent_result.usage
             if agent_span is not None:
                 with contextlib.suppress(Exception):
                     agent_span.set_attribute("answer_mode", plan.answer_mode)
-                    agent_span.set_attribute("template_id", getattr(plan, "template_id", ""))
         except Exception as exc:  # noqa: BLE001
             log.exception("agent.run failed; sid=%s turn_id=%s", session_id, turn_id)
             yield ChatError(code=_ERR_AGENT_FAILED, message=f"agent failed: {type(exc).__name__}")
             _write_model_log(settings, session_id, turn_id, template_id=None, usage=None, error=exc)
             return
 
-    _safe_append_model_history(store, session_id, result)
+    _safe_append_model_history(store, session_id, agent_result)
 
     # Clarify-state side effect: runs in one block above the dispatch so
     # every non-clarify outcome auto-clears stale state.
@@ -179,6 +211,8 @@ async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
     # no ordering contract to document or violate.
     if isinstance(plan, ClarifyPlan):
         clar = plan.clarification
+        if result is not None:
+            result.clarification = True
         yield ClarificationNeeded(
             question=clar.question,
             options=list(clar.options) if clar.options else None,
@@ -196,12 +230,9 @@ async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
 
     if isinstance(plan, NotAnswerablePlan):
         note = plan.not_answerable_note
-        composed = compose_not_answerable(note)
+        composed = _mark_not_answerable(compose_not_answerable(note))
         async for ev in _stream_composed_answer(
             composed=composed,
-            sql=None,
-            result=None,
-            template_title="(no template)",
         ):
             yield ev
         _safe_append_assistant(store, session_id, composed.answer)
@@ -216,105 +247,59 @@ async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
         return
 
     if isinstance(plan, SqlPlan):
-        catalog = deps.catalog
-        if catalog is None:
-            note = "The semantic catalog is not loaded, so I can't run governed queries yet."
-            composed = compose_not_answerable(note)
-            async for ev in _stream_composed_answer(
-                composed=composed,
-                sql=None,
-                result=None,
-                template_title="(governed)",
-            ):
-                yield ev
-            _safe_append_assistant(store, session_id, composed.answer)
-            _write_model_log(
-                settings,
-                session_id,
-                turn_id,
-                template_id=None,
-                usage=usage_obj,
-                error=None,
-            )
-            return
-
-        report = validate_governed_sql(plan.sql, catalog)
+        db = deps.db
+        report = await validate_governed_sql(plan.sql, db, deps.catalog)
+        failure: str | None = None
         if not report.valid:
-            errors_note = "; ".join(report.errors) or "SQL validation failed."
-            composed = compose_not_answerable(errors_note, attempted_sql=plan.sql)
-            async for ev in _stream_composed_answer(
-                composed=composed,
-                sql=plan.sql,
-                result=None,
-                template_title="(governed)",
-            ):
-                yield ev
-            _safe_append_assistant(store, session_id, composed.answer)
-            _write_model_log(
-                settings,
-                session_id,
-                turn_id,
-                template_id=None,
-                usage=usage_obj,
-                error=None,
-            )
-            return
-
-        db = get_db()
-        try:
-            await db.dry_run(plan.sql)
-        except DryRunError as exc:
+            failure = "; ".join(report.errors) or "SQL validation failed"
             log.info(
-                "pipeline: dry-run failed; attempting repair sid=%s err=%s",
+                "pipeline: governed gate failed; attempting repair sid=%s err=%s",
                 session_id,
-                exc.original,
+                failure,
             )
+        else:
+            try:
+                await db.dry_run(plan.sql)
+            except DryRunError as exc:
+                failure = str(exc.original)
+                log.info(
+                    "pipeline: dry-run failed; attempting repair sid=%s err=%s",
+                    session_id,
+                    failure,
+                )
+
+        if failure is not None:
+            attempted_sql = plan.sql
             repaired_plan = await repair_sql(
                 agent,
                 deps,
                 question=message,
-                broken_sql=plan.sql,
-                error=str(exc.original),
+                broken_sql=attempted_sql,
+                error=failure,
+                db=db,
             )
             if repaired_plan is None or not repaired_plan.sql:
-                composed = compose_not_answerable(
-                    f"I couldn't fix the query: {exc.original}",
-                    attempted_sql=plan.sql,
+                composed = _mark_not_answerable(
+                    compose_not_answerable(
+                        f"I couldn't fix the query: {failure}",
+                        attempted_sql=attempted_sql,
+                    )
                 )
                 async for ev in _stream_composed_answer(
                     composed=composed,
-                    sql=plan.sql,
-                    result=None,
-                    template_title="(governed)",
                 ):
                     yield ev
                 _safe_append_assistant(store, session_id, composed.answer)
-                _write_model_log(
+                _write_query_log(
                     settings,
                     session_id,
                     turn_id,
                     template_id=None,
-                    usage=usage_obj,
-                    error=None,
-                )
-                return
-            repaired_report = validate_governed_sql(repaired_plan.sql, catalog)
-            if not repaired_report.valid:
-                repaired_errors = "; ".join(repaired_report.errors) or (
-                    "repaired SQL failed validation"
-                )
-                composed = compose_not_answerable(
-                    f"I couldn't fix the query: {repaired_errors}",
-                    attempted_sql=plan.sql,
-                )
-                async for ev in _stream_composed_answer(
-                    composed=composed,
-                    sql=plan.sql,
+                    sql=attempted_sql,
+                    params=None,
                     result=None,
-                    template_title="(governed)",
-                ):
-                    yield ev
-                _safe_append_assistant(store, session_id, composed.answer)
+                    error=RuntimeError(failure),
+                )
                 _write_model_log(
                     settings,
                     session_id,
@@ -325,13 +310,14 @@ async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
                 )
                 return
             plan = repaired_plan
-            report = repaired_report
+            # repair_sql only returns plans that passed the gate and dry-run.
+            report = await validate_governed_sql(plan.sql, db, deps.catalog)
 
-        model_sentinel = f"semantic:{next(iter(report.tables_referenced), 'unknown')}"
+        query_ref = _query_ref(report, deps.catalog)
 
-        yield IntentClassified(template_id=model_sentinel, confidence=1.0)
+        yield IntentClassified(query_ref=query_ref, confidence=1.0)
         query_id = secrets.token_urlsafe(8)
-        yield QueryStarted(query_id=query_id, template_id=model_sentinel, sql=plan.sql)
+        yield QueryStarted(query_id=query_id, query_ref=query_ref, sql=plan.sql)
 
         row_limit = plan.result_contract.row_limit if plan.result_contract else None
         try:
@@ -353,11 +339,21 @@ async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
                     "Try a narrower question (fewer seasons, one player, or a specific team)."
                 ),
             )
+            _write_query_log(
+                settings,
+                session_id,
+                turn_id,
+                template_id=None,
+                sql=plan.sql,
+                params=None,
+                result=None,
+                error=exc,
+            )
             _write_model_log(
                 settings,
                 session_id,
                 turn_id,
-                template_id=model_sentinel,
+                template_id=None,
                 usage=usage_obj,
                 error=exc,
             )
@@ -368,11 +364,21 @@ async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
                 code=_ERR_DB_FAILED,
                 message=f"db execute failed: {type(exc).__name__}",
             )
+            _write_query_log(
+                settings,
+                session_id,
+                turn_id,
+                template_id=None,
+                sql=plan.sql,
+                params=None,
+                result=None,
+                error=exc,
+            )
             _write_model_log(
                 settings,
                 session_id,
                 turn_id,
-                template_id=model_sentinel,
+                template_id=None,
                 usage=usage_obj,
                 error=exc,
             )
@@ -390,11 +396,11 @@ async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
             plan.result_contract or ResultContract(grain="results", answer_style="prose"),
             query_result,
             plan.sql,
-            model_name=model_sentinel,
+            model_name=query_ref.tables[0] if query_ref.tables else None,
             question_interpretation=plan.question_interpretation,
         )
         yield Reasoning(
-            summary=composed.reasoning_summary or f"executed {model_sentinel}",
+            summary=composed.reasoning_summary or "executed governed query",
             execution_plan=plan.sql[:200],
         )
         for cite in composed.citations:
@@ -405,240 +411,31 @@ async def run_turn(session_id: str, message: str) -> AsyncIterator[ChatEvent]:
             )
         async for ev in _stream_composed_answer(
             composed=composed,
-            sql=plan.sql,
-            result=query_result,
-            template_title=model_sentinel,
         ):
             yield ev
 
         _safe_append_assistant(store, session_id, composed.answer)
+        _write_query_log(
+            settings,
+            session_id,
+            turn_id,
+            template_id=None,
+            sql=plan.sql,
+            params=None,
+            result=query_result,
+            error=None,
+        )
         _write_model_log(
             settings,
             session_id,
             turn_id,
-            template_id=model_sentinel,
+            template_id=None,
             usage=usage_obj,
             error=None,
         )
         return
 
-    # Only TemplatePlan remains (legacy path; deleted in §9 step 7).
-    assert isinstance(plan, TemplatePlan), f"unhandled plan type: {type(plan).__name__}"
-    template_id = plan.template_id
-    yield IntentClassified(template_id=template_id, confidence=1.0)
-
-    try:
-        template = get_template(template_id)
-    except TemplateNotFound:
-        log.warning("pipeline: unknown template_id=%r sid=%s", template_id, session_id)
-        note = f"Template {template_id!r} is not registered."
-        composed = compose_not_answerable(note)
-        async for ev in _stream_composed_answer(
-            composed=composed,
-            sql=None,
-            result=None,
-            template_title=template_id,
-        ):
-            yield ev
-        _safe_append_assistant(store, session_id, composed.answer)
-        _write_model_log(
-            settings, session_id, turn_id, template_id=template_id, usage=usage_obj, error=None
-        )
-        return
-
-    try:
-        validated_params = template.params_model(**plan.params).model_dump()
-    except Exception as exc:  # noqa: BLE001
-        log.warning(
-            "pipeline: invalid params sid=%s template=%s err=%s",
-            session_id,
-            template_id,
-            exc,
-        )
-        note = (
-            f"Invalid params for {template_id}: {type(exc).__name__}: {exc}. "
-            "Rephrase the question with the parameters the template expects."
-        )
-        composed = compose_not_answerable(note, attempted_sql=template.sql)
-        async for ev in _stream_composed_answer(
-            composed=composed,
-            sql=template.sql,
-            result=None,
-            template_title=template.title,
-        ):
-            yield ev
-        _safe_append_assistant(store, session_id, composed.answer)
-        _write_model_log(
-            settings,
-            session_id,
-            turn_id,
-            template_id=template_id,
-            usage=usage_obj,
-            error=exc,
-        )
-        return
-
-    sql_report = validate_template_sql(template.sql, template.allowed_tables)
-    if not sql_report.valid:
-        log.error(
-            "template %s failed validate_template_sql at request time: %s",
-            template_id,
-            sql_report.errors,
-        )
-        note = "Template SQL failed safety validation at request time."
-        composed = compose_not_answerable(note, attempted_sql=template.sql)
-        async for ev in _stream_composed_answer(
-            composed=composed,
-            sql=template.sql,
-            result=None,
-            template_title=template.title,
-        ):
-            yield ev
-        _safe_append_assistant(store, session_id, composed.answer)
-        _write_model_log(
-            settings,
-            session_id,
-            turn_id,
-            template_id=template_id,
-            usage=usage_obj,
-            error=ValueError("; ".join(sql_report.errors)),
-        )
-        return
-
-    query_id = secrets.token_urlsafe(8)
-    yield QueryStarted(query_id=query_id, template_id=template_id, sql=template.sql)
-
-    db = get_db()
-    timeout_seconds = template.timeout_seconds
-    with otel.span(
-        "db.execute",
-        attributes={"template_id": template_id, "timeout_seconds": timeout_seconds},
-    ) as db_span:
-        try:
-            query_result: QueryResult = await asyncio.wait_for(
-                db.execute(template.sql, validated_params, limit=template.default_limit),
-                timeout=timeout_seconds,
-            )
-            if db_span is not None:
-                with contextlib.suppress(Exception):
-                    db_span.set_attribute("row_count", query_result.row_count)
-                    db_span.set_attribute("duration_ms", query_result.duration_ms)
-        except TimeoutError:
-            log.warning(
-                "pipeline: query timeout sid=%s template=%s timeout=%ds",
-                session_id,
-                template_id,
-                timeout_seconds,
-            )
-            yield ChatError(
-                code=_ERR_QUERY_TIMEOUT,
-                message=(
-                    f"Query exceeded the template's {timeout_seconds}s timeout. "
-                    "Try a narrower question or a different season/filter."
-                ),
-            )
-            _write_query_log(
-                settings,
-                session_id,
-                turn_id,
-                template_id=template_id,
-                sql=template.sql,
-                params=validated_params,
-                result=None,
-                error=TimeoutError(f"timeout after {timeout_seconds}s"),
-            )
-            _write_model_log(
-                settings,
-                session_id,
-                turn_id,
-                template_id=template_id,
-                usage=usage_obj,
-                error=TimeoutError("query timeout"),
-            )
-            return
-        except Exception as exc:  # noqa: BLE001
-            log.exception(
-                "pipeline: db.execute failed sid=%s template=%s err=%s",
-                session_id,
-                template_id,
-                exc,
-            )
-            yield ChatError(code=_ERR_DB_FAILED, message=f"db execute failed: {type(exc).__name__}")
-            _write_query_log(
-                settings,
-                session_id,
-                turn_id,
-                template_id=template_id,
-                sql=template.sql,
-                params=validated_params,
-                result=None,
-                error=exc,
-            )
-            _write_model_log(
-                settings,
-                session_id,
-                turn_id,
-                template_id=template_id,
-                usage=usage_obj,
-                error=exc,
-            )
-            return
-
-    yield QueryFinished(
-        query_id=query_id,
-        duration_ms=query_result.duration_ms,
-        row_count=query_result.row_count,
-        columns=list(query_result.columns),
-        truncated=query_result.truncated,
-    )
-
-    preview_rows = query_result.rows[:_TABLE_PREVIEW_ROWS]
-    truncated = query_result.truncated or len(query_result.rows) > _TABLE_PREVIEW_ROWS
-    yield TableReady(
-        columns=[ColumnSpec(name=c, dtype=None) for c in query_result.columns],
-        rows=preview_rows,
-        row_count=query_result.row_count,
-        truncated=truncated,
-    )
-
-    composed = compose(template, query_result, template_id)
-    yield Reasoning(
-        summary=composed.reasoning_summary or f"executed {template_id}",
-        execution_plan=template.title,
-    )
-    for cite in composed.citations:
-        yield Citation(
-            table_name=cite.table_name,
-            metric_key=cite.metric_key,
-            gap_key=cite.gap_key,
-        )
-    async for ev in _stream_composed_answer(
-        composed=composed,
-        sql=template.sql,
-        result=query_result,
-        template_title=template.title,
-    ):
-        yield ev
-
-    _safe_append_assistant(store, session_id, composed.answer)
-    _write_query_log(
-        settings,
-        session_id,
-        turn_id,
-        template_id=template_id,
-        sql=template.sql,
-        params=validated_params,
-        result=query_result,
-        error=None,
-    )
-    _write_model_log(
-        settings,
-        session_id,
-        turn_id,
-        template_id=template_id,
-        usage=usage_obj,
-        error=None,
-    )
+    raise AssertionError(f"unhandled plan type: {type(plan).__name__}")
 
 
 def _stream_answer_chunks(answer: str) -> list[str]:
@@ -667,19 +464,15 @@ def _stream_answer_chunks(answer: str) -> list[str]:
 
 async def _stream_composed_answer(
     composed,  # type: ignore[no-untyped-def]
-    sql: str | None,
-    result: QueryResult | None,
-    template_title: str,
 ) -> AsyncIterator[ChatEvent]:
     """Yield ``AnswerDelta``s then a final ``AnswerFinished``.
 
-    ``Reasoning`` and ``Citation`` events are emitted by the caller;
-    this helper only handles the answer prose. For very-short answers
+    ``Reasoning`` and ``Citation`` events are emitted by the caller; this
+    helper only handles answer prose. For very-short answers
     we still emit at least one ``AnswerDelta`` before the
     ``AnswerFinished`` so the reducer's "is streaming" flag works
     uniformly.
     """
-    del sql, result, template_title
     answer = composed.answer
     for chunk in _stream_answer_chunks(answer):
         yield AnswerDelta(delta=chunk)
@@ -798,11 +591,11 @@ def _write_query_log(
     result: QueryResult | None,
     error: BaseException | None,
 ) -> None:
-    """Persist the rendered SQL + a result preview under logs/queries/.
+    """Persist governed SQL plus its result preview or execution error.
 
     Two sibling files:
-        <turn_id>.<template_id>.sql         — the rendered SQL text
-        <turn_id>.<template_id>.result.json — columns, row_count,
+        <turn_id>.<query-ref>.sql           — the governed SQL text
+        <turn_id>.<query-ref>.result.json   — columns, row_count,
                                              first ~50 rows, duration
                                              ms, truncated flag, error
                                              (if any)
@@ -811,7 +604,8 @@ def _write_query_log(
     continues.
     """
     base_dir = Path(settings.chat_log_dir) / "queries" / _today_stamp() / session_id
-    tid = template_id or "unknown"
+    # JSONL/query-log payload fields retain their legacy name in this phase.
+    tid = re.sub(r"[^A-Za-z0-9_.-]+", "_", template_id or "unknown")
     if sql is not None:
         _safe_write(base_dir / f"{turn_id}.{tid}.sql", sql)
     payload: dict[str, Any] = {

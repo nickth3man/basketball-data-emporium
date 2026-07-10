@@ -1,26 +1,25 @@
-"""Governed-SQL repair loop (Stage 3.4).
+"""Bounded governed-SQL repair loop.
 
-When the agent's first ``QueryPlan`` SQL passes the catalog gate but
-fails to actually resolve against the warehouse (stale column reference,
-typoed identifier, join key that doesn't exist, ...) the pipeline needs
-a single shot at self-correction before giving up.
+When an initial governed query fails either the validation gate or the
+warehouse dry-run, the agent gets up to ``MAX_ROUND`` correction attempts.
+Every candidate is validated against the live schema and catalog, then
+dry-run before it can be returned for execution.
 
 Design lineage
 --------------
 This module is the Stage 3.4 implementation of two classical patterns
 in LLM-driven SQL generation:
 
-* **MAC-SQL Refiner** -- one bounded repair round where the model gets
-  the failed SQL + the engine error + a curated schema, and emits a
-  corrected SQL. We cap the loop at ``MAX_ROUND = 1`` so a misbehaving
-  model can't spin (PLAN: "reprompt once").
+* **MAC-SQL Refiner** -- a bounded correction loop where the model gets
+  failed SQL, its error, and curated schema context. ``MAX_ROUND = 2``
+  prevents an unbounded retry cycle.
 * **DIN-SQL 7-bullet fix-it rules** -- the seven ``Fix-it rules`` in
   ``prompts/repair.txt`` (re-read intent, verify every table/column,
   check join keys + grain, replace fabricated identifiers, preserve
   intent, honor additivity, decline when unfixable from the schema
   alone). Those rules are paraphrased into :data:`REFINER_PREAMBLE`
   rather than loaded verbatim, because the structured agent returns a
-  ``QueryPlan`` (not raw SQL) and our refiner message must be
+  ``SqlPlan`` (not raw SQL) and our refiner message must be
   compatible with that output shape.
 
 Output-shape contract (load-bearing)
@@ -47,6 +46,8 @@ import re
 from typing import TYPE_CHECKING
 
 from .agent import Plan, SqlPlan
+from .db import DryRunError, DuckDBSingleton
+from .sqlgate import validate_governed_sql
 
 if TYPE_CHECKING:
     from .agent import Agent, AgentDeps
@@ -55,11 +56,11 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-MAX_ROUND: int = 1
+MAX_ROUND: int = 2
 
 
 REFINER_PREAMBLE: str = (
-    "The SQL below failed to dry-run against the warehouse. "
+    "The SQL below failed governed validation or a warehouse dry-run. "
     "You are being asked to fix it. Emit a new QueryPlan whose "
     "answer_mode is execute_sql and whose sql field carries the "
     "corrected DuckDB SQL. Use only the curated catalog models "
@@ -81,7 +82,7 @@ REFINER_PREAMBLE: str = (
     "non-additive sum, switch to the catalog's declared non-additive "
     "path or pre-aggregate the fanned side in a subquery.\n"
     "  7. If the SQL is unfixable from the schema alone, emit a "
-    "QueryPlan with answer_mode = not_answerable and a one-line note "
+    "plan with answer_mode = not_answerable and a one-line note "
     "explaining why; do NOT guess new tables or columns."
 )
 
@@ -193,10 +194,9 @@ def build_refiner_message(
         The user's original question. Echoed verbatim so the refiner
         can re-ground on intent (Fix-it rule 1).
     broken_sql
-        The SQL the model emitted on the first attempt; failed
-        ``EXPLAIN`` against the warehouse.
+        The SQL from the previous failed attempt.
     error
-        The engine error message (``str(DryRunError.original)``).
+        The gate or warehouse dry-run error message.
         Concise enough to fit in the prompt budget but specific
         enough that the model can act on it.
     catalog
@@ -224,8 +224,9 @@ async def repair_sql(
     question: str,
     broken_sql: str,
     error: str,
+    db: DuckDBSingleton,
 ) -> SqlPlan | None:
-    """One-shot repair round: re-prompt the structured agent with the failure.
+    """Try at most ``MAX_ROUND`` fully checked repairs for a failed query.
 
     Mirrors the initial plan call (see ``chat_server.pipeline.run_turn``
     / ``chat_server.routes.chat.chat``): ``agent.run(message, deps=deps)``
@@ -237,8 +238,8 @@ async def repair_sql(
     Returns
     -------
     SqlPlan | None
-        ``None`` when the model declined (it produced a clarify /
-        not-answerable / template plan instead of SQL, or the ``sql``
+        ``None`` when the model declined (it produced a clarify or
+        not-answerable plan instead of SQL, or the ``sql``
         field is blank) -- the caller degrades to a not-answerable
         response.
 
@@ -250,34 +251,43 @@ async def repair_sql(
         None) -- the refiner cannot build a meaningful schema context
         and we'd rather degrade to not-answerable than guess.
 
-        Otherwise: a fresh ``SqlPlan`` with a non-empty ``sql``.
+        Otherwise: an ``SqlPlan`` whose SQL has passed the governed gate
+        and warehouse dry-run.
 
     Notes
     -----
-    The returned plan is NOT re-validated against the catalog here;
-    the pipeline / route handler does that after we return so it can
-    pick up the same error-display path it already uses for the
-    initial validation failure.
+    Each candidate is revalidated by ``validate_governed_sql`` and then
+    dry-run. Gate and dry-run failures become the next round's context.
     """
     catalog = deps.catalog
     if catalog is None:
         log.warning("repair_sql: catalog unavailable; degrading to not-answerable")
         return None
 
-    message = build_refiner_message(
-        question=question,
-        broken_sql=broken_sql,
-        error=error,
-        catalog=catalog,
-    )
-    try:
-        result = await agent.run(message, deps=deps)
-    except Exception as exc:  # noqa: BLE001
-        log.warning("repair_sql: agent.run raised; degrading to not-answerable: %s", exc)
-        return None
-
-    plan = result.output
-    if isinstance(plan, SqlPlan) and plan.sql.strip():
+    candidate_sql, failure = broken_sql, error
+    for _ in range(MAX_ROUND):
+        message = build_refiner_message(
+            question=question, broken_sql=candidate_sql, error=failure, catalog=catalog
+        )
+        try:
+            result = await agent.run(message, deps=deps)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("repair_sql: agent.run raised; degrading to not-answerable: %s", exc)
+            return None
+        plan = result.output
+        if not isinstance(plan, SqlPlan) or not plan.sql.strip():
+            return None
+        report = await validate_governed_sql(plan.sql, db, catalog)
+        if not report.valid:
+            candidate_sql = plan.sql
+            failure = "; ".join(report.errors) or "SQL validation failed"
+            continue
+        try:
+            await db.dry_run(plan.sql)
+        except DryRunError as exc:
+            candidate_sql = plan.sql
+            failure = str(exc.original)
+            continue
         return plan
     return None
 

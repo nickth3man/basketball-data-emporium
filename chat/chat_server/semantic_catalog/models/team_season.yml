@@ -34,15 +34,10 @@
 #   drb_percent DOUBLE, opp_ft_fga DOUBLE,
 #   arena VARCHAR, attend DOUBLE, attend_g DOUBLE.
 #
-# IMPORTANT schema mismatch:
-#   chat_server.schema_context.ALLOWED_TABLES_FOR_AGENT lists
-#   'src_bref_team_summaries' -- that table does NOT exist in the
-#   warehouse. The real table backing this model is
-#   'src_fact_bref_team_season_summary'. A future Phase 3 step must
-#   reconcile schema_context.py (rename the allowlist entry and its
-#   _TABLE_PURPOSES row). The catalog loader does NOT enforce the
-#   allowlist; only the chat_tests/test_semantic_catalog.py grounding
-#   check (information_schema.tables existence) runs at test time.
+# Allowlist contract: src_fact_bref_team_season_summary is present in
+# chat_server.schema_context.ALLOWED_TABLES_FOR_AGENT. Every catalog base
+# table must be present there so governed SQL is never told a valid model is
+# off-limits.
 #
 # Conventions (matching player_career.yml):
 # - All `expr` strings are written against the `ts.` alias declared in
@@ -199,20 +194,9 @@ joins: []
 
 caveats:
   - >
-    ALLOWLIST MISMATCH (Phase 3 follow-up): this model's base_table is
-    src_fact_bref_team_season_summary, but
-    chat_server.schema_context.ALLOWED_TABLES_FOR_AGENT lists
-    'src_bref_team_summaries' (no 'fact_', no '_season_' segment) --
-    that name does NOT exist in the warehouse. The real, allowlisted
-    equivalent must be reconciled in a later phase (rename the entry
-    in schema_context.py and update _TABLE_PURPOSES). Until then the
-    chat agent's prompt text will not advertise this table.
-  - >
     Source-backed table in the src_* layer (Basketball-Reference
-    fact_bref_team_season_summary source CSV). It does not yet have a
-    mart_* rollup, so it lives outside the standard allowlist -- any
-    query must include it explicitly or be issued through a
-    source-backed template.
+    fact_bref_team_season_summary source CSV). It is explicitly allowlisted
+    for governed SQL because this catalog model is its supported interface.
   - >
     Grain is (team, season, is_playoffs): for each (team, season) the
     table has BOTH a regular-season row (is_playoffs=false) and a

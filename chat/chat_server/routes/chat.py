@@ -1,73 +1,66 @@
 """Chat routes — non-streaming ``POST /api/chat`` (Phase 3) and
 streaming ``POST /api/chat/stream`` (Phase 4).
 
-The non-streaming handler is a thin orchestrator whose substantive work
-lives in:
+Both routes are **thin consumers** of ``chat_server.pipeline.run_turn``,
+the single canonical cascade that owns the agent → gate → dry-run →
+repair → execute → compose sequence. The routes are responsible only
+for:
 
-* ``chat_server.agent`` — intent classification + param extraction
-  (Pydantic AI agent).
-* ``chat_server.templates`` — registry lookup + parameter validation.
-* ``chat_server.db`` — read-only DuckDB execution.
-* ``chat_server.composer`` — rows → grounded answer + citations.
-
-The streaming handler (``/api/chat/stream``) is a thin SSE shim that
-wraps ``chat_server.pipeline.run_turn`` — it owns the route shape and
-session-id resolution but delegates everything else to the pipeline.
+* Resolving the session id (``POST /api/sessions`` semantics: an unknown
+  id is treated as "create a new session with this title"; the title
+  defaults to the first 40 chars of the incoming message).
+* Mapping the ``ChatEvent`` stream from ``run_turn`` onto the route's
+  wire format — SSE frames for ``/stream``, a single ``ChatResponse``
+  for ``/chat``.
 
 Failure handling (non-streaming)
 -------------------------------
-The non-streaming route is wrapped to keep the response shape stable
-even when internal steps blow up. Any exception inside the agent / DB /
-composer is caught, logged in full, and translated into either a
-``not_answerable=True`` response (preferred — keeps the UI flow intact)
-or, as a last resort, an HTTP 500. The persisted JSONL history never
-contains a stack trace.
+``run_turn`` yields a ``ChatError`` event for any uncaught exception
+inside the cascade; the JSON reducer folds it into a
+``not_answerable=True`` response so the wire shape stays uniform. An
+exception raised before ``run_turn`` yields ``TurnStarted`` (rare —
+session-store failures happen synchronously *after* the first yield in
+practice) is translated into an HTTP 500. The persisted JSONL history
+never contains a stack trace.
 
 Failure handling (streaming)
 ---------------------------
-The pipeline yields a ``ChatError`` event for any uncaught exception;
+``run_turn`` yields a ``ChatError`` event for any uncaught exception;
 the route just passes the events through. The SSE generator returning
 terminates the response cleanly without leaking a 500 to the client.
 
 Session store
 -------------
-The session store is append-only; both the user message and the
-assistant response are recorded before the route returns so the
-history endpoint can replay the turn without gaps. The streaming route
-persists the same way, but the assistant message is appended *after*
-the last event is yielded (so the visible history matches what the UI
-actually rendered).
+The session store is append-only; ``run_turn`` writes both the user
+message and the assistant response as part of its cascade. The JSON
+route does no session-store writes of its own (per Phase 1 §9 step 4 —
+the route is a consumer, not a duplicator). The streaming route has
+the same behaviour.
 """
 
 from __future__ import annotations
 
-import asyncio
 import logging
 
 from fastapi import APIRouter, HTTPException
 from fastapi.sse import EventSourceResponse
 from pydantic import BaseModel, Field
 
-from chat_server.agent import (  # noqa: E402, F401
-    ClarifyPlan,
-    NotAnswerablePlan,
-    ResultContract,
-    SqlPlan,
-    TemplatePlan,
-    get_agent,
-    make_deps,
+from chat_server.events import (
+    AnswerFinished,
+    ChatError,
+    ChatEvent,
+    Citation,
+    ClarificationNeeded,
+    IntentClassified,
+    QueryFinished,
+    QueryRef,
+    QueryStarted,
+    Reasoning,
+    to_sse_dict,
 )
-from chat_server.clarify import ClarificationState, build_clarification_context_prefix
-from chat_server.composer import compose, compose_governed, compose_not_answerable
-from chat_server.config import get_settings
-from chat_server.db import DryRunError, QueryTimeoutError, get_db
-from chat_server.events import ChatError, to_sse_dict
-from chat_server.pipeline import _load_model_history, _safe_append_model_history, run_turn
-from chat_server.repair import repair_sql
+from chat_server.pipeline import TurnResult, run_turn
 from chat_server.sessions import SessionNotFound, get_store
-from chat_server.sqlgate import validate_governed_sql
-from chat_server.templates import TemplateNotFound, get_template
-from chat_server.validation import validate_template_sql
 
 router = APIRouter(tags=["chat"])
 log = logging.getLogger(__name__)
@@ -94,7 +87,7 @@ class ChatResponse(BaseModel):
 
     Mirrors the canonical turn response: answer + citations +
     provenance fields. ``sql`` is non-null only on the happy path
-    (``template_id`` resolved, query executed). ``not_answerable=True``
+    (a governed query executed). ``not_answerable=True``
     short-circuits the SQL + row_count fields.
     """
 
@@ -103,7 +96,7 @@ class ChatResponse(BaseModel):
     citations: list[dict] = Field(default_factory=list)
     not_answerable: bool = False
     not_answerable_note: str | None = None
-    template_id: str | None = None
+    query_ref: QueryRef | None = None
     sql: str | None = None
     row_count: int | None = None
     reasoning_summary: str | None = None
@@ -130,423 +123,196 @@ def _title_from(message: str) -> str:
     return message[:40].strip() or "New chat"
 
 
-def _citations_to_dicts(composed_citations) -> list[dict]:
-    """Flat serialisable view of the composer's Citation list."""
-    return [
-        {
-            "table_name": c.table_name,
-            "metric_key": c.metric_key,
-            "gap_key": c.gap_key,
-        }
-        for c in composed_citations
-    ]
+# ---------------------------------------------------------------------------
+# JSON reducer: fold the 11-event ChatEvent stream into one ChatResponse
+# ---------------------------------------------------------------------------
+#
+# The 11-event union (see ``chat_server.events.ChatEvent``) is the single
+# source of truth for what happened during a turn. ``run_turn`` already
+# drives the agent / gate / dry-run / repair / execute / compose cascade
+# and emits the relevant events; the reducer below just accumulates them
+# into the JSON wire shape.
+#
+# Event → ChatResponse mapping
+# ----------------------------
+# ``IntentClassified.query_ref``     → ``ChatResponse.query_ref``
+# ``QueryStarted.sql``               → ``ChatResponse.sql``
+# ``QueryStarted.query_ref``         → ``ChatResponse.query_ref``
+#                                     (fallback if IntentClassified was
+#                                     skipped on an early-degradation path).
+# ``QueryFinished.row_count``        → ``ChatResponse.row_count``
+# ``QueryFinished.duration_ms``      → ``ChatResponse.duration_ms``
+# ``Reasoning.summary``              → ``ChatResponse.reasoning_summary``
+# ``Citation``                       → ``ChatResponse.citations``
+#                                     (one dict per event; the composer's
+#                                     ``Citation`` dataclass and the SSE
+#                                     ``Citation`` event share field names).
+# ``AnswerFinished.answer``          → ``ChatResponse.answer``
+#                                     (authoritative full text).
+# ``ChatError.message``              → ``ChatResponse.answer`` +
+#                                     ``ChatResponse.not_answerable=True``
+#                                     when no ``AnswerFinished`` follows.
+# ``ClarificationNeeded.question``   → ``ChatResponse.answer`` for the
+#                                     clarification branch (no AnswerFinished
+#                                     is emitted on that path).
+# ``TurnResult.not_answerable``      → ``ChatResponse.not_answerable``
+# ``TurnResult.not_answerable_note`` → ``ChatResponse.not_answerable_note``
+#
+# Events with no ChatResponse field
+# ---------------------------------
+# ``TurnStarted`` carries sid / turn_id / ts — metadata the JSON route
+# already has from the request.
+# ``TableReady`` duplicates ``row_count`` and adds a preview row window
+# the JSON response doesn't surface (the React UI uses the SSE stream
+# for the preview table; the JSON consumer reads the row_count only).
+# ``AnswerDelta`` is intentionally dropped — ``AnswerFinished.answer``
+# carries the authoritative full text; deltas are an SSE-view concern.
+
+
+class _ResponseFold:
+    """Accumulate ``ChatEvent``s into the fields of one ``ChatResponse``.
+
+    The fold runs alongside the ``run_turn`` async generator so we never
+    buffer the whole stream before responding — events are folded as
+    they arrive. The reducer is the single place that maps events to
+    fields; both the happy path and every degradation path flow through
+    the same ``fold`` → ``build`` pair.
+
+    Contract change from v1 (documented):
+    On pre-QueryStarted not-answerable paths (gate failure or repair exhaustion),
+    ChatResponse.sql is now None. Attempted SQL remains visible in the answer prose
+    via compose_not_answerable(attempted_sql=...). Post-QueryStarted failures
+    (timeout, db-execute) still surface sql because QueryStarted was emitted.
+    """
+
+    __slots__ = (
+        "_answer",
+        "_citations",
+        "_duration_ms",
+        "_last_event_was_error",
+        "_reasoning_summary",
+        "_row_count",
+        "_saw_answer_finished",
+        "_saw_clarification",
+        "_sid",
+        "_sql",
+        "_query_ref",
+    )
+
+    def __init__(self, *, sid: str) -> None:
+        self._sid = sid
+        self._query_ref: QueryRef | None = None
+        self._sql: str | None = None
+        self._row_count: int | None = None
+        self._duration_ms: float | None = None
+        self._reasoning_summary: str | None = None
+        self._citations: list[dict] = []
+        self._answer: str = ""
+        self._saw_clarification = False
+        self._saw_answer_finished = False
+        self._last_event_was_error = False
+
+    def fold(self, ev: ChatEvent) -> None:
+        """Fold one ``ChatEvent`` into the accumulator."""
+        self._last_event_was_error = isinstance(ev, ChatError)
+        if isinstance(ev, IntentClassified):
+            self._query_ref = ev.query_ref
+        elif isinstance(ev, ClarificationNeeded):
+            self._saw_clarification = True
+            self._answer = ev.question
+        elif isinstance(ev, QueryStarted):
+            self._sql = ev.sql
+            # Pipeline emits IntentClassified before QueryStarted with the
+            # same query reference, but capture defensively in case the
+            # ordering ever changes.
+            if self._query_ref is None:
+                self._query_ref = ev.query_ref
+        elif isinstance(ev, QueryFinished):
+            self._row_count = ev.row_count
+            self._duration_ms = ev.duration_ms
+        elif isinstance(ev, Reasoning):
+            self._reasoning_summary = ev.summary
+        elif isinstance(ev, Citation):
+            self._citations.append(
+                {
+                    "table_name": ev.table_name,
+                    "metric_key": ev.metric_key,
+                    "gap_key": ev.gap_key,
+                }
+            )
+        elif isinstance(ev, AnswerFinished):
+            self._answer = ev.answer
+            self._saw_answer_finished = True
+        elif isinstance(ev, ChatError):
+            # ``ChatError.message`` is safe to render — the pipeline
+            # redacts CoT and secrets before emission. It becomes the
+            # answer; ``build`` flags the response as not-answerable
+            # because no ``AnswerFinished`` followed.
+            self._answer = ev.message
+        # ``TurnStarted``, ``TableReady``, ``AnswerDelta``: no fold target
+        # (see module-level docstring for rationale).
+
+    def build(self, result: TurnResult) -> ChatResponse:
+        """Build the final ``ChatResponse`` from accumulated events + out-of-band flags."""
+        not_answerable = result.not_answerable
+        not_answerable_note = result.not_answerable_note
+
+        # Errors the pipeline did NOT mark as graceful
+        # (``agent_failed`` / ``query_timeout`` / ``db_execute_failed``)
+        # terminate the stream with a ``ChatError`` and no
+        # ``AnswerFinished``; surface them here as not-answerable so the
+        # JSON shape stays uniform.
+        if not not_answerable and self._last_event_was_error and not self._saw_answer_finished:
+            not_answerable = True
+            not_answerable_note = self._answer
+
+        # Legacy hardcoded string preserved verbatim so the JSON contract
+        # for clarification turns doesn't drift. The pipeline doesn't
+        # emit a ``Reasoning`` event on the clarify branch.
+        if self._saw_clarification and self._reasoning_summary is None:
+            self._reasoning_summary = "Clarification needed before query."
+
+        return ChatResponse(
+            session_id=self._sid,
+            answer=self._answer,
+            citations=self._citations,
+            not_answerable=not_answerable,
+            not_answerable_note=not_answerable_note,
+            query_ref=self._query_ref,
+            sql=self._sql,
+            row_count=self._row_count,
+            duration_ms=self._duration_ms,
+            reasoning_summary=self._reasoning_summary,
+        )
 
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest) -> ChatResponse:
     """Run one chat turn end-to-end and return the final answer.
 
-    The flow mirrors the canonical non-streaming subset with explicit
-    not-answerable fallbacks so a bad plan / bad params / failed DB
-    call never surfaces as a 500 stack trace to the UI.
+    Thin consumer of :func:`chat_server.pipeline.run_turn`: resolves the
+    session id, drains the ``ChatEvent`` generator, and folds the
+    events into one ``ChatResponse``. The cascade (agent → gate →
+    dry-run → repair → execute → compose) lives in exactly one place
+    — ``run_turn`` — and the JSON and SSE routes are both consumers
+    of it.
     """
     store = get_store()
     sid = _resolve_session_id(store, req.session_id, _title_from(req.message))
 
+    fold = _ResponseFold(sid=sid)
+    result = TurnResult()
     try:
-        store.append_message(sid, "user", req.message)
-    except SessionNotFound:
-        log.exception("session store failed to append user message; sid=%s", sid)
-        raise HTTPException(status_code=500, detail="session store error") from None
+        async for ev in run_turn(sid, req.message, result=result):
+            fold.fold(ev)
+    except Exception as exc:  # noqa: BLE001
+        log.exception("chat: pipeline raised before producing events; sid=%s", sid)
+        raise HTTPException(
+            status_code=500,
+            detail=f"pipeline failed: {type(exc).__name__}",
+        ) from None
 
-    try:
-        agent = get_agent()
-        deps = await make_deps()
-        history = _load_model_history(store, sid)
-        pending = store.get_pending_clarification(sid)
-        user_message_text = req.message
-        if pending is not None:
-            user_message_text = build_clarification_context_prefix(pending, req.message)
-        run_kwargs: dict = {"deps": deps}
-        if history:
-            run_kwargs["message_history"] = history
-        result = await agent.run(user_message_text, **run_kwargs)
-        plan = result.output
-        _safe_append_model_history(store, sid, result)
-    except Exception as exc:
-        log.exception("agent.run failed; sid=%s", sid)
-        _append_assistant_or_500(sid, store, f"Agent failed: {type(exc).__name__}")
-        return _not_answerable_response(
-            sid=sid,
-            note=f"Agent failed: {type(exc).__name__}",
-            template_id=None,
-        )
-
-    # Clarify-state side effect: one block above the dispatch so every
-    # non-clarify outcome auto-clears stale state.
-    if isinstance(plan, ClarifyPlan):
-        clar = plan.clarification
-        options_list: list[str] | None = list(clar.options) if clar.options else None
-        state = ClarificationState(
-            original_question=req.message,
-            clarification_question=clar.question,
-            options=options_list,
-        )
-        try:
-            store.set_pending_clarification(sid, state)
-        except Exception:  # noqa: BLE001
-            log.exception("set_pending_clarification failed; sid=%s", sid)
-    else:
-        try:
-            store.clear_pending_clarification(sid)
-        except Exception:  # noqa: BLE001
-            log.exception("clear_pending_clarification failed; sid=%s", sid)
-
-    if isinstance(plan, ClarifyPlan):
-        clarification_text = plan.clarification.question
-        store.append_message(sid, "assistant", clarification_text)
-        log.info("chat turn: clarification sid=%s", sid)
-        return ChatResponse(
-            session_id=sid,
-            answer=clarification_text,
-            citations=[],
-            not_answerable=False,
-            template_id=None,
-            reasoning_summary="Clarification needed before query.",
-        )
-
-    if isinstance(plan, NotAnswerablePlan):
-        note: str = plan.not_answerable_note
-        composed = compose_not_answerable(note)
-        store.append_message(sid, "assistant", composed.answer)
-        log.info("chat turn: not-answerable sid=%s", sid)
-        return ChatResponse(
-            session_id=sid,
-            answer=composed.answer,
-            citations=[],
-            not_answerable=True,
-            not_answerable_note=composed.not_answerable_note,
-            template_id=None,
-            reasoning_summary=composed.reasoning_summary,
-        )
-
-    if isinstance(plan, SqlPlan):
-        catalog = deps.catalog
-        if catalog is None:
-            note = "The semantic catalog is not loaded, so I can't run governed queries yet."
-            composed = compose_not_answerable(note)
-            store.append_message(sid, "assistant", composed.answer)
-            log.info("chat turn: governed without catalog sid=%s", sid)
-            return ChatResponse(
-                session_id=sid,
-                answer=composed.answer,
-                citations=[],
-                not_answerable=True,
-                not_answerable_note=composed.not_answerable_note,
-                template_id=None,
-                reasoning_summary=composed.reasoning_summary,
-            )
-
-        report = validate_governed_sql(plan.sql, catalog)
-        if not report.valid:
-            errors_note = "; ".join(report.errors) or "SQL validation failed."
-            composed = compose_not_answerable(errors_note, attempted_sql=plan.sql)
-            store.append_message(sid, "assistant", composed.answer)
-            log.info(
-                "chat turn: governed validation failed sid=%s errs=%s",
-                sid,
-                report.errors,
-            )
-            return ChatResponse(
-                session_id=sid,
-                answer=composed.answer,
-                citations=[],
-                not_answerable=True,
-                not_answerable_note=composed.not_answerable_note,
-                template_id=None,
-                sql=plan.sql,
-                reasoning_summary=composed.reasoning_summary,
-            )
-
-        db = get_db()
-        try:
-            await db.dry_run(plan.sql)
-        except DryRunError as exc:
-            log.info(
-                "chat turn: dry-run failed; attempting repair sid=%s err=%s",
-                sid,
-                exc.original,
-            )
-            repaired_plan = await repair_sql(
-                agent,
-                deps,
-                question=req.message,
-                broken_sql=plan.sql,
-                error=str(exc.original),
-            )
-            if repaired_plan is None or not repaired_plan.sql:
-                composed = compose_not_answerable(
-                    f"I couldn't fix the query: {exc.original}",
-                    attempted_sql=plan.sql,
-                )
-                store.append_message(sid, "assistant", composed.answer)
-                return ChatResponse(
-                    session_id=sid,
-                    answer=composed.answer,
-                    citations=[],
-                    not_answerable=True,
-                    not_answerable_note=composed.not_answerable_note,
-                    template_id=None,
-                    sql=plan.sql,
-                    reasoning_summary=composed.reasoning_summary,
-                )
-            repaired_report = validate_governed_sql(repaired_plan.sql, catalog)
-            if not repaired_report.valid:
-                repaired_errors = "; ".join(repaired_report.errors) or (
-                    "repaired SQL failed validation"
-                )
-                composed = compose_not_answerable(
-                    f"I couldn't fix the query: {repaired_errors}",
-                    attempted_sql=plan.sql,
-                )
-                store.append_message(sid, "assistant", composed.answer)
-                return ChatResponse(
-                    session_id=sid,
-                    answer=composed.answer,
-                    citations=[],
-                    not_answerable=True,
-                    not_answerable_note=composed.not_answerable_note,
-                    template_id=None,
-                    sql=plan.sql,
-                    reasoning_summary=composed.reasoning_summary,
-                )
-            plan = repaired_plan
-            report = repaired_report
-
-        model_sentinel = f"semantic:{next(iter(report.tables_referenced), 'unknown')}"
-        row_limit = plan.result_contract.row_limit if plan.result_contract else None
-        try:
-            query_result = await db.execute(
-                plan.sql,
-                limit=row_limit,
-                timeout_seconds=get_settings().query_timeout_seconds,
-            )
-        except QueryTimeoutError:
-            timeout_s = get_settings().query_timeout_seconds
-            note = (
-                f"Query exceeded the {timeout_s}s limit. "
-                "Try a narrower question (fewer seasons, one player, or a specific team)."
-            )
-            composed = compose_not_answerable(note, attempted_sql=plan.sql)
-            store.append_message(sid, "assistant", composed.answer)
-            return ChatResponse(
-                session_id=sid,
-                answer=composed.answer,
-                citations=[],
-                not_answerable=True,
-                not_answerable_note=composed.not_answerable_note,
-                template_id=model_sentinel,
-                sql=plan.sql,
-                reasoning_summary=composed.reasoning_summary,
-            )
-        except Exception as exc:
-            log.exception("chat turn: governed db.execute failed sid=%s err=%s", sid, exc)
-            note = f"Query execution failed: {type(exc).__name__}"
-            composed = compose_not_answerable(note, attempted_sql=plan.sql)
-            store.append_message(sid, "assistant", composed.answer)
-            return ChatResponse(
-                session_id=sid,
-                answer=composed.answer,
-                citations=[],
-                not_answerable=True,
-                not_answerable_note=composed.not_answerable_note,
-                template_id=model_sentinel,
-                sql=plan.sql,
-                reasoning_summary=composed.reasoning_summary,
-            )
-
-        composed = compose_governed(
-            plan.result_contract or ResultContract(grain="results", answer_style="prose"),
-            query_result,
-            plan.sql,
-            model_name=model_sentinel,
-            question_interpretation=plan.question_interpretation,
-        )
-        store.append_message(sid, "assistant", composed.answer)
-        log.info(
-            "chat turn: governed=%s sid=%s duration_ms=%.1f row_count=%d truncated=%s",
-            model_sentinel,
-            sid,
-            query_result.duration_ms,
-            query_result.row_count,
-            query_result.truncated,
-        )
-        return ChatResponse(
-            session_id=sid,
-            answer=composed.answer,
-            citations=_citations_to_dicts(composed.citations),
-            not_answerable=False,
-            template_id=model_sentinel,
-            sql=plan.sql,
-            row_count=query_result.row_count,
-            reasoning_summary=composed.reasoning_summary,
-            duration_ms=query_result.duration_ms,
-        )
-
-    # Only TemplatePlan remains (legacy path; deleted in §9 step 7).
-    assert isinstance(plan, TemplatePlan), f"unhandled plan type: {type(plan).__name__}"
-    try:
-        template = get_template(plan.template_id)
-    except TemplateNotFound:
-        note = f"Template {plan.template_id!r} is not registered."
-        composed = compose_not_answerable(note)
-        store.append_message(sid, "assistant", composed.answer)
-        log.warning("chat turn: unknown template sid=%s template_id=%r", sid, plan.template_id)
-        return ChatResponse(
-            session_id=sid,
-            answer=composed.answer,
-            citations=[],
-            not_answerable=True,
-            not_answerable_note=composed.not_answerable_note,
-            template_id=plan.template_id,
-            reasoning_summary=composed.reasoning_summary,
-        )
-
-    try:
-        validated_params = template.params_model(**plan.params).model_dump()
-    except Exception as exc:
-        note = (
-            f"Invalid params for {plan.template_id}: {type(exc).__name__}: {exc}. "
-            "Rephrase the question with the parameters the template expects."
-        )
-        composed = compose_not_answerable(note, attempted_sql=template.sql)
-        store.append_message(sid, "assistant", composed.answer)
-        log.warning(
-            "chat turn: invalid params sid=%s template=%s err=%s", sid, plan.template_id, exc
-        )
-        return ChatResponse(
-            session_id=sid,
-            answer=composed.answer,
-            citations=[],
-            not_answerable=True,
-            not_answerable_note=composed.not_answerable_note,
-            template_id=plan.template_id,
-            sql=template.sql,
-            reasoning_summary=composed.reasoning_summary,
-        )
-
-    sql_report = validate_template_sql(template.sql, template.allowed_tables)
-    if not sql_report.valid:
-        log.error(
-            "template %s failed validate_template_sql at request time: %s",
-            plan.template_id,
-            sql_report.errors,
-        )
-        note = "Template SQL failed safety validation at request time."
-        composed = compose_not_answerable(note, attempted_sql=template.sql)
-        store.append_message(sid, "assistant", composed.answer)
-        return ChatResponse(
-            session_id=sid,
-            answer=composed.answer,
-            citations=[],
-            not_answerable=True,
-            not_answerable_note=composed.not_answerable_note,
-            template_id=plan.template_id,
-            sql=template.sql,
-            reasoning_summary=composed.reasoning_summary,
-        )
-
-    try:
-        query_result = await asyncio.wait_for(
-            get_db().execute(
-                template.sql,
-                validated_params,
-                limit=template.default_limit,
-            ),
-            timeout=template.timeout_seconds,
-        )
-    except TimeoutError:
-        log.warning(
-            "DB execute timed out; sid=%s template=%s timeout=%ss",
-            sid,
-            plan.template_id,
-            template.timeout_seconds,
-        )
-        note = f"Query exceeded the {template.timeout_seconds}s timeout for this template."
-        composed = compose_not_answerable(note, attempted_sql=template.sql)
-        store.append_message(sid, "assistant", composed.answer)
-        return ChatResponse(
-            session_id=sid,
-            answer=composed.answer,
-            citations=[],
-            not_answerable=True,
-            not_answerable_note=composed.not_answerable_note,
-            template_id=plan.template_id,
-            sql=template.sql,
-            reasoning_summary=composed.reasoning_summary,
-        )
-    except Exception as exc:
-        log.exception("DB execute failed; sid=%s template=%s err=%s", sid, plan.template_id, exc)
-        note = f"Query execution failed: {type(exc).__name__}"
-        composed = compose_not_answerable(note, attempted_sql=template.sql)
-        store.append_message(sid, "assistant", composed.answer)
-        return ChatResponse(
-            session_id=sid,
-            answer=composed.answer,
-            citations=[],
-            not_answerable=True,
-            not_answerable_note=composed.not_answerable_note,
-            template_id=plan.template_id,
-            sql=template.sql,
-            reasoning_summary=composed.reasoning_summary,
-        )
-
-    composed = compose(template, query_result, plan.template_id)
-    store.append_message(sid, "assistant", composed.answer)
-    log.info(
-        "chat turn: template=%s sid=%s duration_ms=%.1f row_count=%d truncated=%s",
-        plan.template_id,
-        sid,
-        query_result.duration_ms,
-        query_result.row_count,
-        query_result.truncated,
-    )
-    return ChatResponse(
-        session_id=sid,
-        answer=composed.answer,
-        citations=_citations_to_dicts(composed.citations),
-        not_answerable=False,
-        template_id=plan.template_id,
-        sql=template.sql,
-        row_count=query_result.row_count,
-        reasoning_summary=composed.reasoning_summary,
-        duration_ms=query_result.duration_ms,
-    )
-
-
-def _append_assistant_or_500(sid: str, store, text: str) -> None:
-    """Persist an assistant message; swallow session-store failures.
-
-    Used in the agent-failure branch where the request is about to
-    return a not-answerable response — losing the assistant message to a
-    second store error would compound the failure. We log and move on.
-    """
-    try:
-        store.append_message(sid, "assistant", text)
-    except Exception:
-        log.exception("failed to append assistant message; sid=%s", sid)
-
-
-def _not_answerable_response(*, sid: str, note: str, template_id: str | None) -> ChatResponse:
-    """Build a uniform not-answerable response with empty SQL fields."""
-    return ChatResponse(
-        session_id=sid,
-        answer=note,
-        citations=[],
-        not_answerable=True,
-        not_answerable_note=note,
-        template_id=template_id,
-    )
+    return fold.build(result)
 
 
 __all__ = ["ChatRequest", "ChatResponse", "router"]

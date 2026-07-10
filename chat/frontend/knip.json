@@ -1,0 +1,9 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
+  "entry": ["src/main.tsx", "vite.config.ts"],
+  "project": ["src/**/*.{ts,tsx}!"],
+  "ignore": ["src/generated/**", "src/test/**"],
+  "vite": true,
+  "vitest": true,
+  "react": true
+}

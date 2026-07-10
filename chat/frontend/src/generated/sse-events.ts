@@ -27,6 +27,12 @@ export interface ColumnSpec {
   dtype?: string | null;
 }
 
+/** Provenance for the tables used by a governed query. */
+export interface QueryRef {
+  source: "catalog" | "warehouse";
+  tables: string[];
+}
+
 /** `turn_started` — first event of every turn; carries the ids + timestamp. */
 export interface TurnStarted {
   event: "turn_started";
@@ -36,10 +42,10 @@ export interface TurnStarted {
   ts: string;
 }
 
-/** `intent_classified` — agent committed to a template. */
+/** `intent_classified` — agent committed to a governed query. */
 export interface IntentClassified {
   event: "intent_classified";
-  template_id: string;
+  query_ref: QueryRef;
   /** 1.0 in Phase 4 (no model probability exposed); see `events.py` note. */
   confidence: number;
 }
@@ -56,8 +62,8 @@ export interface ClarificationNeeded {
 export interface QueryStarted {
   event: "query_started";
   query_id: string;
-  template_id: string;
-      /** The rendered SQL (already validated). */
+  query_ref: QueryRef;
+  /** The rendered SQL (already validated). */
   sql: string;
 }
 

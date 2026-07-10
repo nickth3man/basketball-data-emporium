@@ -304,8 +304,6 @@ def test_compose_governed_whitespace_interpretation_treated_as_empty() -> None:
     rows = [{"x": 1}]
     result = _result(rows)
 
-    composed = compose_governed(
-        contract, result, _SAMPLE_SQL, question_interpretation="   \n  "
-    )
+    composed = compose_governed(contract, result, _SAMPLE_SQL, question_interpretation="   \n  ")
 
     assert "I read your question as:" not in composed.answer

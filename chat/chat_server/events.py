@@ -8,7 +8,7 @@ the frontend drift guard.
 Why a Pydantic discriminated union
 ----------------------------------
 * `Field(discriminator="event")` validates each payload against the
-  right concrete model — a typo in `template_id` on a
+  right concrete model — a typo in `query_ref` on a
   `query_started` event surfaces as a 422 at the SSE boundary, not as
   a runtime crash in the React reducer.
 * `model_dump(mode="json")` renders ``datetime`` objects as ISO 8601
@@ -55,8 +55,15 @@ class TurnStarted(BaseModel):
     ts: _dt.datetime
 
 
+class QueryRef(BaseModel):
+    """Structured provenance for a governed query's referenced tables."""
+
+    source: Literal["catalog", "warehouse"]
+    tables: list[str]
+
+
 class IntentClassified(BaseModel):
-    """The agent committed to a template. ``confidence`` is 1.0 in Phase 4.
+    """The agent committed to a governed query. ``confidence`` remains 1.0.
 
     Pydantic AI's structured-output path doesn't surface a probability;
     we emit 1.0 as a stable contract so the frontend reducer can rely on
@@ -65,7 +72,7 @@ class IntentClassified(BaseModel):
     """
 
     event: Literal["intent_classified"] = "intent_classified"
-    template_id: str
+    query_ref: QueryRef
     confidence: float
 
 
@@ -82,7 +89,7 @@ class QueryStarted(BaseModel):
 
     event: Literal["query_started"] = "query_started"
     query_id: str
-    template_id: str
+    query_ref: QueryRef
     sql: str
 
 
@@ -248,6 +255,7 @@ def chat_event_from_dict(d: dict[str, Any]) -> ChatEvent:
 
 __all__ = [
     "TurnStarted",
+    "QueryRef",
     "IntentClassified",
     "ClarificationNeeded",
     "QueryStarted",

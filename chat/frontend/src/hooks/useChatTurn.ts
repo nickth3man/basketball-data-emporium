@@ -7,7 +7,7 @@
  *   - `answer` is the running concatenation of `answer_delta` chunks;
  *     `answer_finished` overwrites it with the canonical final string
  *     (covers any chunking artifacts on the server side).
- *   - `sql` / `templateId` come from `intent_classified` + `query_started`.
+ *   - `sql` / `queryRef` come from `intent_classified` + `query_started`.
  *   - `table` / `reasoning` / `clarification` mirror their eponymous events.
  *   - `citations` is an array (multiple citations per turn).
  *   - `queryDurationMs` comes from `query_finished`.
@@ -27,7 +27,7 @@
 import { useCallback, useReducer, useRef } from "react";
 
 import { streamChat } from "@/api/sse";
-import type { ChatEvent, Citation, ColumnSpec } from "@/generated/sse-events";
+import type { ChatEvent, Citation, ColumnSpec, QueryRef } from "@/generated/sse-events";
 
 export interface ChatTurnTable {
   columns: ColumnSpec[];
@@ -59,7 +59,7 @@ export interface ChatTurnState {
   events: ChatEvent[];
   answer: string;
   sql: string | null;
-  templateId: string | null;
+  queryRef: QueryRef | null;
   table: ChatTurnTable | null;
   reasoning: ChatTurnReasoning | null;
   citations: Citation[];
@@ -74,7 +74,7 @@ const initialState: ChatTurnState = {
   events: [],
   answer: "",
   sql: null,
-  templateId: null,
+  queryRef: null,
   table: null,
   reasoning: null,
   citations: [],
@@ -122,7 +122,7 @@ function reducer(state: ChatTurnState, action: Action): ChatTurnState {
         case "turn_started":
           return { ...state, events, turnId: ev.turn_id };
         case "intent_classified":
-          return { ...state, events, templateId: ev.template_id };
+          return { ...state, events, queryRef: ev.query_ref };
         case "clarification_needed":
           return {
             ...state,
@@ -137,7 +137,7 @@ function reducer(state: ChatTurnState, action: Action): ChatTurnState {
             ...state,
             events,
             sql: ev.sql,
-            templateId: ev.template_id,
+            queryRef: ev.query_ref,
           };
         case "query_finished":
           return { ...state, events, queryDurationMs: ev.duration_ms };

@@ -39,11 +39,11 @@ from dataclasses import dataclass
 from typing import Annotated, Any, Literal, cast
 
 from pydantic import BaseModel, Field, field_validator
-from pydantic_ai import Agent, RunContext, ToolOutput
+from pydantic_ai import Agent, NativeOutput, RunContext, ToolOutput
 from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.messages import ToolCallPart, ToolReturnPart
 from pydantic_ai.models import Model
-from pydantic_ai.models.openrouter import OpenRouterModel
+from pydantic_ai.models.openrouter import OpenRouterModel, OpenRouterModelSettings
 from pydantic_ai.providers.openrouter import OpenRouterProvider
 from pydantic_core import PydanticUndefined
 
@@ -51,14 +51,6 @@ from .config import get_settings
 from .db import DuckDBSingleton, get_db
 from .schema_context import SchemaContext, get_schema_context
 from .semantic_catalog import SemanticCatalog, load_catalog
-from .templates import (
-    TemplateNotFound,
-    get_registry,
-    get_template,
-)
-from .templates import (
-    list_templates as _registry_list_templates,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -136,24 +128,8 @@ class SqlPlan(BaseModel):
     )
 
 
-class TemplatePlan(BaseModel):
-    """Legacy template mode. Temporary union member — deleted with the
-    template subsystem (ARCHITECTURE.md §9 step 7)."""
-
-    answer_mode: Literal["template"] = "template"
-    question_interpretation: str = ""
-    template_id: str = Field(
-        default="",
-        description="Template id that exists in the registry.",
-    )
-    params: dict[str, Any] = Field(
-        default_factory=dict,
-        description="Typed params validated against the template's Params model.",
-    )
-
-
 Plan = Annotated[
-    ClarifyPlan | NotAnswerablePlan | SqlPlan | TemplatePlan,
+    ClarifyPlan | NotAnswerablePlan | SqlPlan,
     Field(discriminator="answer_mode"),
 ]
 """Typed output the agent produces on every turn.
@@ -191,47 +167,71 @@ class AgentDeps:
         db=...)`` construction in the test suite keeps working unchanged.
     """
 
-    registry: dict
     schema_context: SchemaContext
     db: DuckDBSingleton
     catalog: SemanticCatalog | None = None
 
 
-SYSTEM_PROMPT_TEMPLATE = """\
-You are a basketball analytics assistant. Answer NBA data questions ONLY by selecting a query
-template and extracting typed parameters. NEVER write SQL. If a user's question maps to a
-template, call list_templates / get_template_detail to inspect it, then return a plan with
-answer_mode = template, the template_id, and validated params. If params are missing or
-ambiguous, return answer_mode = clarify with a specific question. If NO template fits,
-return answer_mode = not_answerable explaining why (with the evidence). Use lookup_player /
-lookup_team / lookup_season to resolve free-text names to canonical ids — never guess ids.
-The warehouse is the only source of truth for data.
-
-Available warehouse tables and metrics:
-{schema_context}
-"""
-
-
 SYSTEM_PROMPT_TEMPLATE_GOVERNED = """\
+OUTPUT PROTOCOL — mandatory:
+- Your final response for every turn MUST be a JSON object matching the output schema.
+- Do NOT respond in prose or plain text.
+- The JSON object must have an `answer_mode` field set to one of: `execute_sql`,
+  `clarify`, `not_answerable`.
+- For `execute_sql`: include `sql` with valid DuckDB SELECT. For `clarify`: include
+  `clarification`. For `not_answerable`: include `not_answerable_note`.
+- No markdown fences, no explanation outside the JSON.
+
+ANSWER MODE RULES — strictly enforced:
+- NEVER use answer_mode = "template". This mode is deprecated and disabled.
+  Always choose one of: execute_sql, clarify, or not_answerable.
+- PREFER execute_sql. Attempt to write SQL for any question the warehouse can answer.
+  Use the catalog models and their documented dimensions/measures.
+- Only use not_answerable when the question is genuinely unanswerable from the
+  available catalog (e.g., the data doesn't exist at all). "I don't know the SQL"
+  is NOT a valid reason for not_answerable — try the catalog tools first.
+- Use clarify only for genuine ambiguity that changes the answer (e.g., "best"
+  could mean multiple things). Do not clarify when the intent is clear.
+
 You are a basketball analytics assistant with governed SQL access to an NBA
-DuckDB warehouse. Answer data questions by writing DuckDB SELECT queries that
-draw ONLY from the curated semantic catalog's business models. Call
-list_models / get_model_detail to inspect a model's base table, dimensions,
-measures, joins, and caveats before writing SQL. Use lookup_player /
-lookup_team / lookup_season to resolve free-text names to canonical ids —
-never guess ids.
+DuckDB warehouse. Prefer a curated semantic catalog model: call list_models /
+get_model_detail to inspect its base table, dimensions, measures, joins, and
+caveats. If it lacks coverage, use list_warehouse_tables / describe_table /
+preview to inspect approved live warehouse tables, then report tables used.
 
 Available semantic models (call get_model_detail for full schemas):
 {catalog_summary}
+
+GOVERNED SQL COOKBOOK — use these patterns:
+1. Player lookup + career stats: SELECT * FROM mart_player_career pc
+   WHERE pc.full_name ILIKE '%name%'.
+2. Season leaderboard: SELECT ps.player_id, <metric> FROM mart_player_season ps
+   WHERE ps.season_year = '<YYYY-YY>' AND ps.season_type = 'Regular'
+   ORDER BY <metric> DESC LIMIT 10.
+3. Player comparison: WITH baseline AS (SELECT <metric> AS metric
+   FROM mart_player_season WHERE player_id = <player_id> AND season_year = '<base>')
+   SELECT ps.season_year, ps.<metric> - b.metric AS delta
+   FROM mart_player_season ps CROSS JOIN baseline b WHERE ps.player_id = <player_id>.
+4. Team season record: SELECT ts.team, SUM(ts.w) AS wins, SUM(ts.l) AS losses
+   FROM src_fact_bref_team_season_summary ts WHERE ts.season = <start_year>
+   AND ts.is_playoffs = FALSE AND ts.team_id = <team_id> GROUP BY ts.team.
+5. Career similarity: WITH target AS (SELECT career_ppg, career_rpg, career_apg
+   FROM mart_player_career WHERE player_id = <player_id>)
+   SELECT pc.player_id, ABS(pc.career_ppg - t.career_ppg) + ABS(pc.career_rpg - t.career_rpg)
+   + ABS(pc.career_apg - t.career_apg) AS diff FROM mart_player_career pc CROSS JOIN target t
+   WHERE pc.player_id <> <player_id> ORDER BY diff LIMIT 10.
+6. PREFER writing SQL directly with ILIKE patterns for player/team names
+   (e.g., WHERE player_name ILIKE '%Russell%'). Only use lookup_player /
+   lookup_team tools if you need the exact ID and can't match by name.
 
 Warehouse reference (allowlist + metrics, supplementary to the catalog):
 {schema_context}
 
 Rules for every governed SQL answer:
 1. SELECT only. No INSERT / UPDATE / DELETE / CREATE / DROP / PRAGMA / ATTACH.
-2. FROM and JOIN only the catalog models' base tables. Never query a table
-   that is not in the catalog. If a question needs a table the catalog does
-   not cover, decline with answer_mode = not_answerable citing the gap.
+2. Use catalog base tables when available. Otherwise, query only approved
+   live warehouse tables discovered through introspection; never invent a
+   table or column name.
 3. Always return answer_mode = execute_sql with a non-empty sql string AND a
    filled result_contract (grain, columns you expect, row_limit, answer_style).
    The composer uses result_contract to format the answer.
@@ -242,9 +242,9 @@ Rules for every governed SQL answer:
 6. If the question is ambiguous (e.g. which season, which player when several
    match, a pronoun with no referent), return answer_mode = clarify with a
    specific clarification question and, where useful, options.
-7. If the question is out of scope (no catalog model covers it, or it asks for
-   non-NBA data), return answer_mode = not_answerable with a note explaining
-   why and what evidence you checked.
+7. If the question is out of scope after catalog and warehouse inspection, or
+   it asks for non-NBA data, return answer_mode = not_answerable with a note
+   explaining why and what evidence you checked.
 8. The warehouse is the only source of truth. Never fabricate numbers; every
    value in your answer must come from the executed SQL's result rows.
 9. ALWAYS fill question_interpretation with a concise plain-English statement of
@@ -282,6 +282,45 @@ def _catalog_summary(catalog: SemanticCatalog) -> str:
     return "\n".join(lines)
 
 
+_DOCUMENTED_CATALOG_TYPE = re.compile(
+    r"\b(BIGINT|HUGEINT|INTEGER|DOUBLE|VARCHAR|BOOLEAN|DATE|TIMESTAMP)\b",
+    re.IGNORECASE,
+)
+
+
+def _catalog_field_type(name: str, expr: str, description: str, *, measure: bool) -> str:
+    """Return a documented or conservative DuckDB type for catalog output."""
+    documented = _DOCUMENTED_CATALOG_TYPE.search(description)
+    if documented:
+        return documented.group(1).upper()
+    upper_expr = expr.upper()
+    if "CAST(" in upper_expr or "AVG(" in upper_expr or "/" in expr:
+        return "DOUBLE"
+    if "COUNT(" in upper_expr:
+        return "BIGINT"
+    if measure:
+        if any(
+            token in name for token in ("pct", "rating", "pace", "margin", "average", "distance")
+        ):
+            return "DOUBLE"
+        return "HUGEINT" if name.startswith("total_") else "BIGINT"
+    if name.endswith("_id") or name in {
+        "conf_rank",
+        "div_rank",
+        "month",
+        "week",
+        "series_game_number",
+    }:
+        return "BIGINT" if name.endswith("_id") else "INTEGER"
+    if name.startswith("is_"):
+        return "BOOLEAN"
+    if name.endswith("_date"):
+        return "DATE"
+    if "datetime" in name:
+        return "TIMESTAMP"
+    return "VARCHAR"
+
+
 def _build_model() -> OpenRouterModel:
     """Construct the live `OpenRouterModel` from settings.
 
@@ -290,14 +329,21 @@ def _build_model() -> OpenRouterModel:
     the model does NOT make a network call — only `agent.run()` does.
     """
     s = get_settings()
-    return OpenRouterModel(
-        s.openrouter_model,
-        provider=OpenRouterProvider(
+    kwargs: dict[str, Any] = {
+        "provider": OpenRouterProvider(
             api_key=s.openrouter_api_key,
             app_url="https://github.com/nickth3man/basketball-data-emporium",
             app_title="Basketball Data Chatbot",
         ),
-    )
+    }
+    if s.openrouter_provider:
+        kwargs["settings"] = OpenRouterModelSettings(
+            openrouter_provider={
+                "order": [s.openrouter_provider],
+                "allow_fallbacks": True,
+            }
+        )
+    return OpenRouterModel(s.openrouter_model, **kwargs)
 
 
 _agent: Agent[AgentDeps, Plan] | None = None
@@ -329,19 +375,20 @@ def _build_agent(
 ) -> Agent[AgentDeps, Plan]:
     """Build a fresh agent (called by `get_agent` on first invocation).
 
-    ``output_type`` is the plan union wrapped in a single ``ToolOutput``
-    so the model sees exactly one output tool (``final_result``) whose
-    schema is the discriminated union — the discriminator picks the
-    member at validation time.
+    Live OpenRouter requests use provider-native structured output so the
+    plan union is sent as a response-format schema rather than an output
+    tool call. Injected test models retain the tool output transport because
+    Pydantic AI's ``TestModel`` does not support native structured output.
     """
     m = model if model is not None else _build_model()
+    output_type = NativeOutput(Plan) if model is None else ToolOutput(Plan, name="final_result")  # type: ignore[arg-type]
     raw: Agent[AgentDeps, Plan] = cast(
         "Agent[AgentDeps, Plan]",
         Agent(
             m,
-            output_type=ToolOutput(Plan, name="final_result"),  # type: ignore[arg-type]
+            output_type=output_type,
             deps_type=AgentDeps,
-            retries={"output": 3, "tools": 2},
+            retries={"output": 5, "tools": 5},
             system_prompt=(),
         ),
     )
@@ -359,13 +406,15 @@ def _build_agent(
         (settings are ``lru_cache``-d at module scope).
         """
         schema_text = ctx.deps.schema_context.as_prompt_text()
-        if get_settings().chat_governed_sql_mode and ctx.deps.catalog is not None:
-            return SYSTEM_PROMPT_TEMPLATE_GOVERNED.format(
-                schema_context=schema_text,
-                catalog_summary=_catalog_summary(ctx.deps.catalog),
-            )
-        return SYSTEM_PROMPT_TEMPLATE.format(schema_context=schema_text)
+        catalog_summary = (
+            _catalog_summary(ctx.deps.catalog) if ctx.deps.catalog is not None else "(not loaded)"
+        )
+        return SYSTEM_PROMPT_TEMPLATE_GOVERNED.format(
+            schema_context=schema_text, catalog_summary=catalog_summary
+        )
 
+    # TestModel keeps the legacy tool surface so existing template fixtures
+    # remain executable; only live governed agents hide deprecated tools.
     _register_tools(agent)
     return agent
 
@@ -426,91 +475,6 @@ def _register_tools(agent: Agent[AgentDeps, Plan]) -> None:
     they're introspectable from tests; the decorator calls them as
     methods on the agent's tool registry.
     """
-
-    @agent.tool
-    def list_templates(ctx: RunContext[AgentDeps], capability: str | None = None) -> list[dict]:
-        """List available query templates, optionally filtered by capability family.
-
-        Parameters
-        ----------
-        capability
-            Optional capability family (folder name, e.g.
-            ``'season_thresholds'``). When omitted, every registered
-            template is returned.
-
-        Returns
-        -------
-        list of dict
-            One entry per template with: ``template_id``, ``title``,
-            ``description``, ``capability``, ``examples`` (truncated
-            to first 3), ``params`` (list of `{name, type, default?,
-            description?}`).
-        """
-        templates = _registry_list_templates(capability)
-        return [
-            {
-                "template_id": t.template_id,
-                "title": t.title,
-                "description": t.description,
-                "capability": t.capability,
-                "examples": list(t.examples)[:3],
-                "params": _summarize_params(t.params_model),
-            }
-            for t in templates
-        ]
-
-    @agent.tool
-    def get_template_detail(ctx: RunContext[AgentDeps], template_id: str) -> dict:
-        """Get full detail for one template.
-
-        Parameters
-        ----------
-        template_id
-            The dotted template id (e.g.
-            ``'season_thresholds.fifty_forty_ninety'``).
-
-        Returns
-        -------
-        dict
-            Full metadata: ``template_id``, ``title``, ``description``,
-            ``capability``, ``examples``, ``allowed_tables``,
-            ``result_schema`` (col name -> type name), ``answer_policy``,
-            ``default_limit``, ``timeout_seconds``, ``params`` (full
-            list with descriptions), ``sql_preview`` (first 200 chars
-            of the SQL, to orient the agent without leaking the whole
-            query).
-
-        Raises
-        ------
-        ModelRetry
-            If `template_id` is not in the registry. This feeds the
-            error back to the model so it can call `list_templates`
-            and try again (pydantic-ai#822 mitigation).
-        """
-        try:
-            t = get_template(template_id)
-        except TemplateNotFound:
-            raise ModelRetry(
-                f"Unknown template_id {template_id!r}. Call list_templates first "
-                f"to discover valid ids."
-            ) from None
-        return {
-            "template_id": t.template_id,
-            "title": t.title,
-            "description": t.description,
-            "capability": t.capability,
-            "examples": list(t.examples),
-            "allowed_tables": sorted(t.allowed_tables),
-            "result_schema": {
-                col: getattr(typ, "__name__", str(typ)) for col, typ in t.result_schema.items()
-            },
-            "answer_policy": t.answer_policy,
-            "default_limit": t.default_limit,
-            "timeout_seconds": t.timeout_seconds,
-            "params": _summarize_params(t.params_model),
-            "sql_preview": t.sql.strip()[:200],
-        }
-
 
     @agent.tool
     def list_models(ctx: RunContext[AgentDeps]) -> list[dict]:
@@ -582,11 +546,18 @@ def _register_tools(agent: Agent[AgentDeps, Plan]) -> None:
             "grain": m.grain,
             "base_table": {"name": m.base_table.name, "alias": m.base_table.alias},
             "dimensions": [
-                {"name": d.name, "expr": d.expr, "description": d.description} for d in m.dimensions
+                {
+                    "name": d.name,
+                    "type": _catalog_field_type(d.name, d.expr, d.description, measure=False),
+                    "expr": d.expr,
+                    "description": d.description,
+                }
+                for d in m.dimensions
             ],
             "measures": [
                 {
                     "name": me.name,
+                    "type": _catalog_field_type(me.name, me.expr, me.description, measure=True),
                     "expr": me.expr,
                     "description": me.description,
                     "additivity": me.additivity,
@@ -607,6 +578,46 @@ def _register_tools(agent: Agent[AgentDeps, Plan]) -> None:
             "synonyms": list(m.synonyms),
             "example_questions": list(m.example_questions),
         }
+
+    @agent.tool
+    async def list_warehouse_tables(ctx: RunContext[AgentDeps]) -> list[str]:
+        """List approved live warehouse tables when the catalog lacks coverage."""
+        result = await ctx.deps.db.execute(
+            """SELECT DISTINCT table_name FROM information_schema.columns
+               WHERE table_schema = 'main' AND (table_name LIKE 'dim_%' OR table_name LIKE 'fact_%'
+                 OR table_name LIKE 'mart_%' OR table_name LIKE 'analytics_%')
+               ORDER BY table_name"""
+        )
+        return [str(row["table_name"]) for row in result.rows]
+
+    @agent.tool
+    async def describe_table(ctx: RunContext[AgentDeps], table: str) -> list[dict]:
+        """Describe an approved live warehouse table's columns and types."""
+        if not table.startswith(("dim_", "fact_", "mart_", "analytics_")):
+            raise ModelRetry(
+                "Only approved dim_, fact_, mart_, and analytics_ tables may be inspected."
+            )
+        result = await ctx.deps.db.execute(
+            """SELECT column_name, data_type FROM information_schema.columns
+               WHERE table_schema = 'main' AND table_name = $table ORDER BY ordinal_position""",
+            {"table": table},
+        )
+        if not result.rows:
+            raise ModelRetry(f"Unknown approved warehouse table {table!r}.")
+        return [
+            {"name": str(row["column_name"]), "type": str(row["data_type"])} for row in result.rows
+        ]
+
+    @agent.tool
+    async def preview(ctx: RunContext[AgentDeps], table: str, n: int = 5) -> list[dict]:
+        """Preview up to five rows from an approved table after describing it."""
+        if not table.startswith(("dim_", "fact_", "mart_", "analytics_")):
+            raise ModelRetry("Only approved warehouse tables may be previewed.")
+        if not 1 <= n <= 5:
+            raise ModelRetry("preview n must be between 1 and 5.")
+        # The table name is checked against a fixed identifier policy before interpolation.
+        result = await ctx.deps.db.execute(f'SELECT * FROM "{table}" LIMIT {n}')
+        return list(result.rows)
 
     @agent.tool
     async def lookup_player(ctx: RunContext[AgentDeps], name: str) -> list[dict]:
@@ -778,7 +789,6 @@ async def make_deps() -> AgentDeps:
     except Exception as exc:
         logger.warning("semantic catalog failed to load; AgentDeps.catalog=None: %s", exc)
     return AgentDeps(
-        registry=get_registry(),
         schema_context=schema,
         db=get_db(),
         catalog=catalog,
@@ -908,11 +918,9 @@ __all__ = [
     "ClarifyPlan",
     "NotAnswerablePlan",
     "SqlPlan",
-    "TemplatePlan",
     "Clarification",
     "ResultContract",
     "AgentDeps",
-    "SYSTEM_PROMPT_TEMPLATE",
     "SYSTEM_PROMPT_TEMPLATE_GOVERNED",
     "get_agent",
     "reset_agent_for_tests",

@@ -84,15 +84,11 @@ def warehouse_path() -> str:
 
 @pytest.fixture
 def governed_sql_mode_on(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    """Force ``chat_governed_sql_mode=True`` for the duration of one test.
+    """Reset singleton state for an eval that requires governed SQL.
 
-    The eval baseline runs governed (per EVALS.md); without this flag
-    the agent falls back to the legacy template prompt and the
-    plan-object grading is meaningless. We set the env var and reset
-    the cached settings + agent singletons so the change takes effect
-    on the next ``get_agent()`` / ``get_settings()`` call.
+    Governed SQL is the only runtime mode; the fixture name remains for
+    existing eval parametrization compatibility.
     """
-    monkeypatch.setenv("CHAT_GOVERNED_SQL_MODE", "1")
     reset_settings_cache()
     # The agent singleton captures the prompt at first build; force a
     # rebuild so the next call sees the new flag.
@@ -116,12 +112,11 @@ def governed_sql_mode_on(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
             pass
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def temp_sessions_root(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path_factory: pytest.TempPathFactory,
 ) -> Iterator[Path]:
-    """A session-scoped-ish temp directory the eval replay can use as
+    """A module-scoped temp directory the eval replay can use as
     ``data/sessions/``.
 
     We point the real ``Settings.chat_data_dir`` at ``tmp_path`` for the
@@ -129,6 +124,8 @@ def temp_sessions_root(
     singleton. The store's ``__init__`` creates ``<root>/sessions/`` so
     we don't need to pre-create anything.
     """
+    tmp_path = tmp_path_factory.mktemp("sessions")
+    monkeypatch = pytest.MonkeyPatch()
     monkeypatch.setenv("CHAT_DATA_DIR", str(tmp_path))
     reset_settings_cache()
     # Drop the cached store + agent singletons so the next ``get_store``
@@ -148,6 +145,7 @@ def temp_sessions_root(
 
     yield tmp_path
 
+    monkeypatch.undo()
     reset_settings_cache()
     try:
         from chat_server.sessions import reset_store_for_tests

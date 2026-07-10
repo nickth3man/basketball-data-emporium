@@ -50,7 +50,7 @@ function MarkdownContentImpl({ content, className }: MarkdownContentProps) {
         // our design-system CSS vars so headings, links, code, and tables
         // read in both themes.
         "prose-chat prose prose-sm max-w-none dark:prose-invert",
-        "prose-p:leading-relaxed prose-li:my-0.5 prose-headings:mb-1 prose-headings:mt-3",
+        "prose-headings:mt-3 prose-headings:mb-1 prose-p:leading-relaxed prose-li:my-0.5",
         "prose-pre:my-2 prose-pre:bg-[color:var(--color-muted)] prose-pre:px-3 prose-pre:py-2.5",
         "prose-table:text-xs",
         className,

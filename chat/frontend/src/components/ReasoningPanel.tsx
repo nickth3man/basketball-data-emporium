@@ -37,7 +37,7 @@ export function ReasoningPanel({ summary, executionPlan }: ReasoningPanelProps) 
         className={cn(
           "flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-sm font-medium select-none",
           "transition-colors hover:bg-[color:var(--color-muted)]",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-ring)]",
+          "focus-visible:ring-2 focus-visible:ring-[color:var(--color-ring)] focus-visible:outline-none",
           "focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-card)]",
           "[&::-webkit-details-marker]:hidden",
         )}
@@ -49,14 +49,14 @@ export function ReasoningPanel({ summary, executionPlan }: ReasoningPanelProps) 
         <Lightbulb className="h-4 w-4 text-[color:var(--color-accent-orange)]" aria-hidden="true" />
         Reasoning
       </summary>
-      <div className="flex flex-col gap-2 px-3 pb-3 pt-0.5 text-sm leading-relaxed">
+      <div className="flex flex-col gap-2 px-3 pt-0.5 pb-3 text-sm leading-relaxed">
         <p className="text-[color:var(--color-foreground)]/90">{summary}</p>
         {executionPlan !== null && executionPlan !== undefined && executionPlan.length > 0 && (
           <>
-            <p className="font-display text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-[color:var(--color-muted-foreground)]">
+            <p className="font-display text-[0.65rem] font-semibold tracking-[0.12em] text-[color:var(--color-muted-foreground)] uppercase">
               Execution plan
             </p>
-            <pre className="m-0 overflow-x-auto whitespace-pre-wrap rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-card)] p-2.5 font-mono text-xs leading-relaxed">
+            <pre className="m-0 overflow-x-auto rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-card)] p-2.5 font-mono text-xs leading-relaxed whitespace-pre-wrap">
               {executionPlan}
             </pre>
           </>

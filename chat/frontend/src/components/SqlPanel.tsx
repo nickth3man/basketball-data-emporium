@@ -94,7 +94,7 @@ export function SqlPanel({ sql }: SqlPanelProps) {
           className={cn(
             "flex cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-1 text-sm font-medium select-none",
             "transition-colors hover:bg-[color:var(--color-muted)]",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-card)]",
+            "focus-visible:ring-2 focus-visible:ring-[color:var(--color-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-card)] focus-visible:outline-none",
           )}
         >
           <ChevronRight
@@ -103,7 +103,7 @@ export function SqlPanel({ sql }: SqlPanelProps) {
             aria-hidden="true"
           />
           <Database className="h-3.5 w-3.5 text-[color:var(--color-primary)]" aria-hidden="true" />
-          <span className="font-display text-xs font-semibold uppercase tracking-[0.1em]">SQL</span>
+          <span className="font-display text-xs font-semibold tracking-[0.1em] uppercase">SQL</span>
         </button>
         <button
           type="button"
@@ -114,7 +114,7 @@ export function SqlPanel({ sql }: SqlPanelProps) {
             "inline-flex items-center gap-1 rounded-md border border-[color:var(--color-border)]",
             "bg-[color:var(--color-card)] px-2 py-1 text-xs font-medium",
             "transition-colors hover:bg-[color:var(--color-muted)]",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-card)]",
+            "focus-visible:ring-2 focus-visible:ring-[color:var(--color-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-card)] focus-visible:outline-none",
           )}
           aria-label={copied ? "SQL copied to clipboard" : "Copy SQL to clipboard"}
         >

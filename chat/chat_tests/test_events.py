@@ -47,6 +47,7 @@ from chat_server.events import (
     ColumnSpec,
     IntentClassified,
     QueryFinished,
+    QueryRef,
     QueryStarted,
     Reasoning,
     TableReady,
@@ -85,7 +86,9 @@ def _sample_turn_started() -> TurnStarted:
 
 
 def _sample_intent_classified() -> IntentClassified:
-    return IntentClassified(template_id="season_thresholds.fifty_forty_ninety", confidence=1.0)
+    return IntentClassified(
+        query_ref=QueryRef(source="catalog", tables=["mart_player_season"]), confidence=1.0
+    )
 
 
 def _sample_clarification_needed() -> ClarificationNeeded:
@@ -98,7 +101,7 @@ def _sample_clarification_needed() -> ClarificationNeeded:
 def _sample_query_started() -> QueryStarted:
     return QueryStarted(
         query_id="q1",
-        template_id="season_thresholds.fifty_forty_ninety",
+        query_ref=QueryRef(source="catalog", tables=["mart_player_season"]),
         sql="SELECT * FROM mart_player_season LIMIT 50",
     )
 
@@ -229,7 +232,7 @@ def test_discriminator_rejects_unknown_event() -> None:
             {
                 "event": "totally_made_up",  # type: ignore[typeddict-item]
                 "query_id": "q1",
-                "template_id": "t",
+                "query_ref": {"source": "warehouse", "tables": ["dim_player"]},
                 "sql": "SELECT 1",
             },
         )
@@ -254,7 +257,7 @@ def test_extra_fields_silently_dropped_by_default() -> None:
         {
             "event": "query_started",
             "query_id": "q1",
-            "template_id": "t",
+            "query_ref": {"source": "warehouse", "tables": ["dim_player"]},
             "sql": "SELECT 1",
             "rogue_field": "boom",
         },
@@ -326,7 +329,7 @@ def test_validator_rejects_an_unknown_event() -> None:
         "event": "ghost_event",
         # Pick a few plausible fields so the only failure is the discriminator.
         "query_id": "q1",
-        "template_id": "t",
+        "query_ref": {"source": "warehouse", "tables": ["dim_player"]},
         "sql": "SELECT 1",
     }
     errors = list(validator.iter_errors(bogus))

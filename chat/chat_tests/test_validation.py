@@ -1,6 +1,6 @@
-"""Unit tests for `chat_server.validation`.
+"""Unit tests for `chat_server.sqlgate.validate_select_sql`.
 
-No DB connection required. Covers every branch of `validate_template_sql`:
+No DB connection required. Covers every branch of `validate_select_sql`:
 
 * SELECT on allowlisted tables (with/without JOIN, with/without CTE)
 * DDL/DML forbidden (INSERT/UPDATE/DELETE/CREATE/DROP/ALTER)
@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import pytest
 
-from chat_server.validation import ValidationReport, validate_template_sql
+from chat_server.sqlgate import ValidationReport, validate_select_sql
 
 # The shared allowlist used by the "happy path" cases below. Templates
 # against the production warehouse get to read from this set; anything
@@ -28,14 +28,14 @@ ALLOWED = {"mart_player_season", "dim_player", "fact_game_result"}
 
 
 def test_simple_select_no_tables_is_valid() -> None:
-    r = validate_template_sql("SELECT 1 AS x", ALLOWED)
+    r = validate_select_sql("SELECT 1 AS x", ALLOWED)
     assert r.valid is True
     assert r.errors == []
     assert r.tables_referenced == set()
 
 
 def test_select_from_allowed_table_is_valid() -> None:
-    r = validate_template_sql("SELECT * FROM mart_player_season", ALLOWED)
+    r = validate_select_sql("SELECT * FROM mart_player_season", ALLOWED)
     assert r.valid is True
     assert r.tables_referenced == {"mart_player_season"}
 
@@ -45,7 +45,7 @@ def test_select_join_two_allowed_tables_is_valid() -> None:
         "SELECT p.full_name, ps.season_year "
         "FROM mart_player_season ps JOIN dim_player p USING (player_id)"
     )
-    r = validate_template_sql(sql, ALLOWED)
+    r = validate_select_sql(sql, ALLOWED)
     assert r.valid is True
     assert r.tables_referenced == {"mart_player_season", "dim_player"}
 
@@ -59,7 +59,7 @@ def test_select_with_cte_referencing_allowed_table_is_valid() -> None:
         "FROM p JOIN mart_player_season ps USING (player_id) "
         "ORDER BY ps.season_year DESC LIMIT 5"
     )
-    r = validate_template_sql(sql, ALLOWED)
+    r = validate_select_sql(sql, ALLOWED)
     assert r.valid is True
     assert r.tables_referenced == {"mart_player_season", "dim_player"}
     # CTE aliases must NOT be reported as referenced tables.
@@ -72,7 +72,7 @@ def test_select_with_multiple_ctes_is_valid() -> None:
         "     b AS (SELECT * FROM dim_player) "
         "SELECT a.player_id, b.full_name FROM a JOIN b USING (player_id)"
     )
-    r = validate_template_sql(sql, ALLOWED)
+    r = validate_select_sql(sql, ALLOWED)
     assert r.valid is True
     assert r.tables_referenced == {"mart_player_season", "dim_player"}
     assert r.tables_referenced.isdisjoint({"a", "b"})
@@ -80,7 +80,7 @@ def test_select_with_multiple_ctes_is_valid() -> None:
 
 def test_empty_allowlist_with_no_tables_is_valid() -> None:
     """`SELECT 1` touches no tables, so the allowlist check is a no-op."""
-    r = validate_template_sql("SELECT 1 + 2", set())
+    r = validate_select_sql("SELECT 1 + 2", set())
     assert r.valid is True
 
 
@@ -101,7 +101,7 @@ def test_empty_allowlist_with_no_tables_is_valid() -> None:
     ],
 )
 def test_ddl_dml_rejected(sql: str) -> None:
-    r = validate_template_sql(sql, ALLOWED)
+    r = validate_select_sql(sql, ALLOWED)
     assert r.valid is False
     assert any("only SELECT" in e for e in r.errors), r.errors
 
@@ -125,7 +125,7 @@ def test_ddl_dml_rejected(sql: str) -> None:
     ],
 )
 def test_session_and_utility_statements_rejected(sql: str) -> None:
-    r = validate_template_sql(sql, ALLOWED)
+    r = validate_select_sql(sql, ALLOWED)
     assert r.valid is False, f"expected {sql!r} to be rejected"
 
 
@@ -136,7 +136,7 @@ def test_session_and_utility_statements_rejected(sql: str) -> None:
 
 def test_multi_statement_rejected_select_then_drop() -> None:
     sql = "SELECT 1; DROP TABLE mart_player_season"
-    r = validate_template_sql(sql, ALLOWED)
+    r = validate_select_sql(sql, ALLOWED)
     assert r.valid is False
     assert any("exactly 1" in e for e in r.errors), r.errors
 
@@ -144,7 +144,7 @@ def test_multi_statement_rejected_select_then_drop() -> None:
 def test_multi_statement_rejected_two_selects() -> None:
     # Two benign SELECTs are still a multi-statement payload — reject.
     sql = "SELECT 1; SELECT 2"
-    r = validate_template_sql(sql, ALLOWED)
+    r = validate_select_sql(sql, ALLOWED)
     assert r.valid is False
     assert any("exactly 1" in e for e in r.errors), r.errors
 
@@ -155,15 +155,15 @@ def test_multi_statement_rejected_two_selects() -> None:
 
 
 def test_table_not_in_allowlist_rejected() -> None:
-    r = validate_template_sql("SELECT * FROM not_allowed_table", ALLOWED)
+    r = validate_select_sql("SELECT * FROM not_allowed_table", ALLOWED)
     assert r.valid is False
     assert "not_allowed_table" in r.tables_referenced
-    assert any("not in the template's allowed set" in e for e in r.errors), r.errors
+    assert any("not allowed by the approved warehouse set" in e for e in r.errors), r.errors
 
 
 def test_join_with_one_bad_table_rejected() -> None:
     sql = "SELECT * FROM mart_player_season ps JOIN some_other_table ot USING (player_id)"
-    r = validate_template_sql(sql, ALLOWED)
+    r = validate_select_sql(sql, ALLOWED)
     assert r.valid is False
     assert r.tables_referenced == {"mart_player_season", "some_other_table"}
 
@@ -174,13 +174,13 @@ def test_join_with_one_bad_table_rejected() -> None:
 
 
 def test_parse_error_rejected() -> None:
-    r = validate_template_sql("SELCT 1 FROM x", ALLOWED)
+    r = validate_select_sql("SELCT 1 FROM x", ALLOWED)
     assert r.valid is False
     assert any("parse error" in e.lower() for e in r.errors), r.errors
 
 
 def test_parse_error_truncated_query_rejected() -> None:
-    r = validate_template_sql("SELECT * FROM", ALLOWED)
+    r = validate_select_sql("SELECT * FROM", ALLOWED)
     assert r.valid is False
 
 
@@ -192,7 +192,7 @@ def test_parse_error_truncated_query_rejected() -> None:
 def test_validation_report_shape() -> None:
     """`ValidationReport` exposes the three documented fields with the
     documented types, regardless of the verdict."""
-    r = validate_template_sql("SELECT 1", ALLOWED)
+    r = validate_select_sql("SELECT 1", ALLOWED)
     assert isinstance(r, ValidationReport)
     assert isinstance(r.valid, bool)
     assert isinstance(r.errors, list)

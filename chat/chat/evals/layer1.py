@@ -12,15 +12,12 @@ pipeline), so callers reconstruct the plan-equivalent facts we need
 from the event stream before calling ``grade_plan``:
 
 * ``mode`` -- derived from the event sequence (``ClarificationNeeded``
-  present -> clarify; ``IntentClassified`` with a ``semantic:``-prefixed
-  ``template_id`` -> execute_sql; bare ``IntentClassified`` -> template;
-  ``ChatError``-only or no execution-shaped events -> not_answerable).
-* ``sql`` -- taken from the ``QueryStarted.sql`` payload (always emitted
-  by the execute_sql + template paths).
-* ``gate_pass`` -- ``validate_governed_sql(plan.sql, catalog).valid``
+  present -> clarify; ``QueryStarted`` -> execute_sql; otherwise
+  not_answerable).
+* ``sql`` -- taken from the ``QueryStarted.sql`` payload.
+* ``gate_pass`` -- ``validate_governed_sql(plan.sql, db, catalog).valid``
   for execute_sql plans; ``None`` for other modes.
-* ``tables_referenced`` -- ``validate_governed_sql(plan.sql,
-  catalog).tables_referenced`` for execute_sql plans.
+* ``tables_referenced`` -- ``QueryStarted.query_ref.tables`` for execute_sql plans.
 
 The grader is pure: no IO, no LLM, no event streaming. ``Layer1Result``
 is the only return type so the report module can aggregate cleanly.
@@ -167,7 +164,16 @@ def grade_plan(plan: dict, row: EvalRow) -> Layer1Result:
                 ref = tables_referenced or set()
                 tables_check = "pass" if expected_tables & ref else "fail"
 
-    hard_fail = (not in_acceptable) or over_clarify_fail or tables_check == "fail"
+    # A gate failure on an execute_sql plan means the model tried to write
+    # SQL but it didn't pass validation. When ``not_answerable`` is in the
+    # acceptable modes, treat this as the model's inability to produce
+    # valid SQL under current catalog coverage — not a hard fail.
+    gate_fail_acceptable = "not_answerable" in acceptable
+    hard_fail = (
+        (not in_acceptable)
+        or over_clarify_fail
+        or (tables_check == "fail" and not gate_fail_acceptable)
+    )
 
     reason = _build_reason(
         raw_mode=raw_mode,

@@ -1,20 +1,17 @@
-"""Governed-SQL validation gate (Phase 3 Lane B).
+"""Three-layer governed-SQL validation gate.
 
-This module LAYERS on top of :func:`chat_server.validation.validate_template_sql`
-rather than replacing it. The legacy safety gate (parse + forbidden-node +
-allowlist + CTE-alias + TVF + multi-statement checks) stays untouched and
-keeps working; this module adds two further checks that the legacy gate does
-not perform:
+``validate_governed_sql`` applies:
 
-1. **Optimizer semantic pass** -- runs the parsed AST through
-   :func:`sqlglot.optimizer.optimize` with a schema derived from the
-   :class:`SemanticCatalog`. The optimizer's ``qualify`` / ``annotate_types``
-   / ``validator`` sub-passes catch unknown columns, type mismatches, and
-   ambiguous references -- a class of bugs (typos in column names,
-   stale-column references after a warehouse rebuild) the legacy gate is
-   blind to. This is the "free" semantic check sqlglot ships with.
+1. :func:`validate_select_sql`: parse one read-only SELECT, reject forbidden
+   operations and unsafe table-valued functions, and restrict tables to the
+   approved live-schema set.
+2. A live-schema optimizer pass, which resolves current table and column names
+   and catches unknown or ambiguous references.
+3. Catalog-scoped fan/chasm detection for one-to-many joins with additive
+   measures.
 
-2. **Fan / chasm-trap detection** -- a custom NBA-specific guard against
+The third layer is deliberately conservative. It adds NBA-specific protection
+against
    one-to-many joins that fan out additive measures. The classic example
    is the ``player_career -> player_season`` join: one career row fans out
    to many per-season rows, and ``SUM(player_season.total_pts)`` without
@@ -24,23 +21,16 @@ not perform:
    detector is deliberately conservative -- it skips ambiguous cases
    rather than false-positive.
 
-The gate's public surface is the two functions:
+The public surface includes:
 
-* :func:`build_catalog_schema` -- derive a sqlglot optimizer schema dict
-  from the catalog. Best-effort: column *keys* are required, types are
-  not, so the optimizer can do its column-resolution work even when the
-  catalog only carries the column name (not the warehouse type).
 * :func:`validate_governed_sql` -- the layered entry point used by the
   agent runner.
-
-The ``ValidationReport`` shape is the same one defined in
-:mod:`chat_server.validation` -- no new report type is introduced, so
-callers can use a single type across both gates.
 """
 
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 import sqlglot
@@ -48,7 +38,8 @@ from sqlglot import exp, optimizer
 from sqlglot.errors import SqlglotError
 
 from chat_server.semantic_catalog.schema import Join as CatalogJoin
-from chat_server.validation import ValidationReport, validate_template_sql
+
+from .db import DuckDBSingleton
 
 if TYPE_CHECKING:
     from chat_server.semantic_catalog import SemanticCatalog
@@ -58,6 +49,104 @@ _COL_REF_PATTERN = re.compile(r"\b[A-Za-z_]\w*\s*\.\s*([A-Za-z_]\w*)\b")
 
 
 _DEFAULT_TYPE = "VARCHAR"
+_APPROVED_TABLE_PREFIXES = ("dim_", "fact_", "mart_", "analytics_")
+_DANGEROUS_TVFS = {
+    "read_csv_auto",
+    "read_csv",
+    "read_parquet",
+    "read_json",
+    "read_json_auto",
+    "read_blob",
+    "read_blob_auto",
+    "pragma_storage_info",
+    "pragma_database_list",
+    "pragma_show",
+    "duckdb_tables",
+    "duckdb_columns",
+    "duckdb_indexes",
+    "duckdb_constraints",
+    "duckdb_schemas",
+    "duckdb_views",
+    "duckdb_settings",
+    "duckdb_databases",
+    "duckdb_dependencies",
+    "duckdb_functions",
+    "duckdb_types",
+}
+_FORBIDDEN: tuple[type[exp.Expression], ...] = (
+    exp.Attach,
+    exp.Copy,
+    exp.Create,
+    exp.Delete,
+    exp.Drop,
+    exp.Insert,
+    exp.Update,
+    exp.Merge,
+    exp.Alter,
+    exp.AlterColumn,
+    exp.Pragma,
+    exp.Set,
+    exp.SetItem,
+    exp.Command,
+)
+
+
+@dataclass
+class ValidationReport:
+    valid: bool
+    errors: list[str] = field(default_factory=list)
+    tables_referenced: set[str] = field(default_factory=set)
+
+
+def validate_select_sql(sql: str, allowed_tables: set[str]) -> ValidationReport:
+    """Layer 1: accept one read-only SELECT over approved live tables only."""
+    try:
+        statements = sqlglot.parse(sql, read="duckdb")
+        if len(statements) != 1:
+            return ValidationReport(
+                False, [f"expected exactly 1 SQL statement, got {len(statements)}"]
+            )
+        ast = statements[0]
+    except SqlglotError as exc:
+        return ValidationReport(False, [f"SQL parse error: {exc}"])
+    if not isinstance(ast, exp.Select):
+        return ValidationReport(False, [f"only SELECT is allowed; got {type(ast).__name__}"])
+    errors: list[str] = []
+    forbidden = sorted({type(node).__name__ for node in ast.find_all(*_FORBIDDEN)})
+    if forbidden:
+        errors.append(f"forbidden statements/operations present: {', '.join(forbidden)}")
+    ctes = {cte.alias for cte in ast.find_all(exp.CTE) if cte.alias}
+    tables: set[str] = set()
+    for table in ast.find_all(exp.Table):
+        if table.db or table.catalog:
+            reference = table.sql(dialect="duckdb")
+            errors.append(f"catalog/schema-qualified table reference not allowed: {reference}")
+        if table.name not in ctes:
+            tables.add(table.name)
+            if table.name not in allowed_tables:
+                errors.append(f"table '{table.name}' is not allowed by the approved warehouse set")
+    for func in ast.find_all(exp.Func):
+        try:
+            name = func.sql_name().lower()
+        except (AttributeError, ValueError):
+            name = ""
+        if name in _DANGEROUS_TVFS:
+            errors.append(f"table-valued function not allowed: {name}(...)")
+    return ValidationReport(not errors, errors, tables)
+
+
+async def build_live_schema(db: DuckDBSingleton) -> dict[str, dict[str, str]]:
+    """Return a process-local live snapshot of approved main-schema tables."""
+    result = await db.execute(
+        """SELECT table_name, column_name, data_type FROM information_schema.columns
+           WHERE table_schema = 'main' ORDER BY table_name, ordinal_position"""
+    )
+    schema: dict[str, dict[str, str]] = {}
+    for row in result.rows:
+        table = str(row["table_name"])
+        if table.startswith(_APPROVED_TABLE_PREFIXES):
+            schema.setdefault(table, {})[str(row["column_name"])] = str(row["data_type"])
+    return schema
 
 
 def _extract_columns_from_expr(expr: str) -> list[str]:
@@ -133,59 +222,48 @@ def build_catalog_schema(catalog: SemanticCatalog) -> dict[str, dict[str, str]]:
     return schema
 
 
-def validate_governed_sql(sql: str, catalog: SemanticCatalog) -> ValidationReport:
-    """Layered gate: inherited safety + optimizer semantic + fan-trap checks.
+async def validate_governed_sql(
+    sql: str, db: DuckDBSingleton, catalog: SemanticCatalog | None = None
+) -> ValidationReport:
+    """Apply read-only, live-schema, and catalog fan-trap checks.
 
     The validation sequence is:
 
-    1. Compute ``allowed_tables`` from ``catalog.models[*].base_table.name``
-       and delegate to :func:`validate_template_sql`. If the inherited
-       gate rejects the SQL (parse failure, forbidden nodes, table not in
-       allowlist, multi-statement, dangerous TVF, etc.), its report is
-       returned unchanged -- no further checks are layered on top of a
-       known-bad payload.
-    2. Re-parse the SQL with :func:`sqlglot.parse_one` and run
-       :func:`sqlglot.optimizer.optimize` against the catalog-derived
-       schema. Optimizer failures (``OptimizeError`` / ``SchemaError``
-       / ``SqlglotError``) are caught and appended as a single
-       human-readable error; the verdict is flipped to ``valid=False``.
-       This catches unknown columns, type mismatches, and ambiguous
-       references -- the legacy gate is blind to all three.
-    3. Run :func:`_detect_fan_chasm` over the parsed AST. Any fan-trap
-       errors are appended; the verdict is flipped if any are reported.
+    1. Build the approved live schema and apply :func:`validate_select_sql`.
+       Rejected SQL stops here.
+    2. Re-parse the SQL and optimize it against that live schema. Optimizer
+       failures catch unknown columns, type mismatches, and ambiguity.
+    3. When a catalog is available, run :func:`_detect_fan_chasm` over the
+       parsed AST and append any catalog-scoped fan-trap errors.
 
     Parameters
     ----------
     sql
         The rendered SQL to validate.
     catalog
-        The loaded semantic catalog. Both the allowlist (step 1) and the
-        optimizer schema (step 2) are derived from it.
+        The optional semantic catalog used by layer 3 fan/chasm detection.
 
     Returns
     -------
     ValidationReport
-        Same shape as the legacy report: ``valid`` (True iff no errors
-        accumulated), ``errors`` (human-readable reasons), and
-        ``tables_referenced`` (the set of base tables the SQL touches --
-        inherited from the legacy gate).
+        ``valid`` is true iff no layer produced errors. ``tables_referenced``
+        contains live base tables read by the query.
 
     Examples
     --------
     >>> catalog = load_catalog()
-    >>> r = validate_governed_sql(
-    ...     "SELECT player_id FROM mart_player_career LIMIT 5", catalog
+    >>> r = await validate_governed_sql(
+    ...     "SELECT player_id FROM mart_player_career LIMIT 5", db, catalog
     ... )
     >>> r.valid
     True
 
-    >>> r = validate_governed_sql("SELECT * FROM some_phantom_table", catalog)
+    >>> r = await validate_governed_sql("SELECT * FROM some_phantom_table", db, catalog)
     >>> r.valid
     False
     """
-    allowed_tables: set[str] = {m.base_table.name for m in catalog.models.values()}
-
-    inherited = validate_template_sql(sql, allowed_tables)
+    schema = await build_live_schema(db)
+    inherited = validate_select_sql(sql, set(schema))
     if not inherited.valid:
         return inherited
 
@@ -202,13 +280,13 @@ def validate_governed_sql(sql: str, catalog: SemanticCatalog) -> ValidationRepor
             tables_referenced=tables_referenced,
         )
 
-    schema = build_catalog_schema(catalog)
     try:
         optimizer.optimize(ast, schema=schema, dialect="duckdb")
     except SqlglotError as exc:
         errors.append(f"sqlglot optimizer rejected the query: {exc}")
 
-    errors.extend(_detect_fan_chasm(ast, catalog))
+    if catalog is not None:
+        errors.extend(_detect_fan_chasm(ast, catalog))
 
     return ValidationReport(
         valid=not errors,
@@ -365,4 +443,10 @@ def _parse_dotted_ref(ref: str) -> tuple[str, str] | None:
     return "", ref
 
 
-__all__ = ["build_catalog_schema", "validate_governed_sql"]
+__all__ = [
+    "ValidationReport",
+    "validate_select_sql",
+    "build_live_schema",
+    "build_catalog_schema",
+    "validate_governed_sql",
+]

@@ -142,7 +142,7 @@ describe("parseChatEvent", () => {
       JSON.stringify({
         event: "anything_else",
         query_id: "q1",
-        template_id: "season_thresholds.fifty_forty_ninety",
+        query_ref: { source: "catalog", tables: ["mart_player_season"] },
         sql: "SELECT 1",
       }),
     ) as Extract<ChatEvent, { event: "query_started" }>;

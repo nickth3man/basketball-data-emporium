@@ -27,7 +27,7 @@
         "type": "object"
       },
       "ChatResponse": {
-        "description": "Response for ``POST /api/chat``.\n\nMirrors the canonical turn response (PLAN \u00a77.7): answer + citations +\nprovenance fields. ``sql`` is non-null only on the happy path\n(``template_id`` resolved, query executed). ``not_answerable=True``\nshort-circuits the SQL + row_count fields.",
+        "description": "Response for ``POST /api/chat``.\n\nMirrors the canonical turn response: answer + citations +\nprovenance fields. ``sql`` is non-null only on the happy path\n(a governed query executed). ``not_answerable=True``\nshort-circuits the SQL + row_count fields.",
         "properties": {
           "answer": {
             "title": "Answer",
@@ -68,6 +68,16 @@
             ],
             "title": "Not Answerable Note"
           },
+          "query_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/QueryRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "reasoning_summary": {
             "anyOf": [
               {
@@ -104,17 +114,6 @@
               }
             ],
             "title": "Sql"
-          },
-          "template_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Template Id"
           }
         },
         "required": ["session_id", "answer"],
@@ -137,7 +136,7 @@
         "type": "object"
       },
       "CreateSessionRequest": {
-        "description": "Body for `POST /api/sessions` (PLAN \u00a77.9).\n\n``title`` is optional; the store falls back to ``\"New chat\"`` when\nthe field is omitted, empty, or whitespace-only.",
+        "description": "Body for `POST /api/sessions`.\n\n``title`` is optional; the store falls back to ``\"New chat\"`` when\nthe field is omitted, empty, or whitespace-only.",
         "properties": {
           "title": {
             "anyOf": [
@@ -216,7 +215,7 @@
         "type": "object"
       },
       "LatencyTiers": {
-        "description": "Latency budget per template complexity tier (PLAN \u00a713).",
+        "description": "Latency budget per template complexity tier.",
         "properties": {
           "heavy_seconds": {
             "maxItems": 2,
@@ -267,6 +266,26 @@
         },
         "required": ["simple_seconds", "medium_seconds", "heavy_seconds", "heavy_timeout_seconds"],
         "title": "LatencyTiers",
+        "type": "object"
+      },
+      "QueryRef": {
+        "description": "Structured provenance for a governed query's referenced tables.",
+        "properties": {
+          "source": {
+            "enum": ["catalog", "warehouse"],
+            "title": "Source",
+            "type": "string"
+          },
+          "tables": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tables",
+            "type": "array"
+          }
+        },
+        "required": ["source", "tables"],
+        "title": "QueryRef",
         "type": "object"
       },
       "SessionMessage": {
@@ -391,7 +410,7 @@
     },
     "/api/chat": {
       "post": {
-        "description": "Run one chat turn end-to-end and return the final answer.\n\nThe flow mirrors PLAN \u00a77.7 (non-streaming subset) with explicit\nnot-answerable fallbacks so a bad plan / bad params / failed DB\ncall never surfaces as a 500 stack trace to the UI.",
+        "description": "Run one chat turn end-to-end and return the final answer.\n\nThin consumer of :func:`chat_server.pipeline.run_turn`: resolves the\nsession id, drains the ``ChatEvent`` generator, and folds the\nevents into one ``ChatResponse``. The cascade (agent \u2192 gate \u2192\ndry-run \u2192 repair \u2192 execute \u2192 compose) lives in exactly one place\n\u2014 ``run_turn`` \u2014 and the JSON and SSE routes are both consumers\nof it.",
         "operationId": "chat_api_chat_post",
         "requestBody": {
           "content": {
@@ -426,6 +445,44 @@
           }
         },
         "summary": "Chat",
+        "tags": ["chat"]
+      }
+    },
+    "/api/chat/stream": {
+      "post": {
+        "description": "SSE endpoint: stream one turn's ``ChatEvent``s back to the UI.\n\nThe endpoint is intentionally thin \u2014 all substantive work happens in\n``chat_server.pipeline.run_turn``. The route is responsible for:\n\n* Resolving the session id (create when the client didn't supply\n  one; mirrors the non-streaming route's behaviour).\n* Mapping each ``ChatEvent`` through ``to_sse_dict`` and emitting\n  one SSE frame.\n* Letting ``EventSourceResponse`` handle the wire-format headers.\n\nErrors after the first event become ``ChatError`` events inside the\nstream \u2014 the response stays 200 (an SSE body that starts with a\n``200 OK`` is well-formed even if a later frame carries an error\ncode). Errors *before* ``turn_started`` would surface as a 500\nbecause the generator never yields; in practice ``run_turn`` yields\n``TurnStarted`` synchronously, so this is a non-issue.",
+        "operationId": "chat_stream_api_chat_stream_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Chat Stream",
         "tags": ["chat"]
       }
     },
@@ -516,7 +573,7 @@
     },
     "/api/sessions": {
       "get": {
-        "description": "Return every session's meta (no messages).\n\nNot explicitly in PLAN \u00a77.9 but useful for the UI's session-list view;\nkept here so the OpenAPI snapshot exposes the shape to the frontend\ncodegen.",
+        "description": "Return every session's meta (no messages).\n\nUseful for the UI's session-list view; kept here so the OpenAPI\nsnapshot exposes the shape to the frontend codegen.",
         "operationId": "list_sessions_api_sessions_get",
         "responses": {
           "200": {
@@ -585,7 +642,7 @@
     },
     "/api/sessions/{session_id}": {
       "delete": {
-        "description": "Clear the visible history (PLAN \u00a77.9 manual-clear).\n\nThe session's meta (title, id, created_at) is preserved so the UI can\nkeep showing the empty session in its list. ``404`` if the meta is\nmissing \u2014 the caller asked to clear something that never existed.",
+        "description": "Clear the visible history (manual-clear).\n\nThe session's meta (title, id, created_at) is preserved so the UI can\nkeep showing the empty session in its list. ``404`` if the meta is\nmissing \u2014 the caller asked to clear something that never existed.",
         "operationId": "delete_session_api_sessions__session_id__delete",
         "parameters": [
           {
