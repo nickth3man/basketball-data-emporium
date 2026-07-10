@@ -348,9 +348,7 @@ async def chat_stream(req: ChatRequest) -> EventSourceResponse:
                 yield f"event: {d['event']}\ndata: {d['data']}\n\n"
         except Exception as exc:  # noqa: BLE001
             log.exception("chat_stream: pipeline raised; sid=%s", sid)
-            fallback = to_sse_dict(
-                ChatError(code="stream_failed", message=f"{type(exc).__name__}: {exc}")
-            )
+            fallback = to_sse_dict(ChatError(code="stream_failed", message=f"{type(exc).__name__}"))
             yield f"event: {fallback['event']}\ndata: {fallback['data']}\n\n"
 
     return EventSourceResponse(event_gen())

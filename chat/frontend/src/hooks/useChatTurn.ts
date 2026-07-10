@@ -19,10 +19,9 @@
  * it directly. If a caller wires `send` into an effect, that effect MUST
  * call `cancel()` on cleanup so the in-flight AbortController is released.
  *
- * **Concurrency:** `send` is not safe to invoke while another `send` is
- * still in flight — the new call would reset state mid-stream and leak
- * the old AbortController. The UI should disable the send button while
- * `state.status === "running"` to prevent this.
+ * **Concurrency:** If `send` is called while another turn is in flight,
+ * the prior turn is aborted (its AbortController fires) before the new
+ * turn starts. This prevents interleaved events and leaked controllers.
  */
 import { useCallback, useReducer, useRef } from "react";
 
@@ -221,6 +220,10 @@ export function useChatTurn(sessionId: string | null): UseChatTurnResult {
         // Caller responsibility (per the contract): the UI must create a
         // session via `useSessions` before invoking `send`.
         throw new Error("useChatTurn: no session id (create one via useSessions first)");
+      }
+      // Abort any in-flight turn before starting a new one.
+      if (abortRef.current) {
+        abortRef.current.abort();
       }
       const ac = new AbortController();
       abortRef.current = ac;

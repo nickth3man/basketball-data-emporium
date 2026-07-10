@@ -85,6 +85,7 @@ def _utcnow() -> _dt.datetime:
 
 
 class SessionStore:
+    # TODO: pipeline-level per-session asyncio.Lock for full turn serialization
     """File-backed JSONL session store. Thread-safe via a single lock."""
 
     def __init__(self, root: Path) -> None:
@@ -262,13 +263,14 @@ class SessionStore:
         concurrent reader never sees a torn file.
         """
         path = self._model_history_path(session_id)
-        tmp = path.parent / f".{path.name}.tmp"
-        try:
-            tmp.write_bytes(messages_json)
-            os.replace(tmp, path)
-        finally:
-            with contextlib.suppress(Exception):
-                tmp.unlink()
+        tmp = path.parent / f".{path.name}.{threading.get_ident()}.tmp"
+        with self._lock:
+            try:
+                tmp.write_bytes(messages_json)
+                os.replace(tmp, path)
+            finally:
+                with contextlib.suppress(Exception):
+                    tmp.unlink()
 
     def load_model_history(self, session_id: str) -> list[Any]:
         """Load the raw parsed history list for one session.
@@ -285,9 +287,10 @@ class SessionStore:
         degrade to an empty history list rather than crash the turn.
         """
         path = self._model_history_path(session_id)
-        if not path.exists() or path.stat().st_size == 0:
-            return []
-        raw = path.read_bytes()
+        with self._lock:
+            if not path.exists() or path.stat().st_size == 0:
+                return []
+            raw = path.read_bytes()
         payload: Any = json.loads(raw.decode("utf-8"))
         if not isinstance(payload, list):
             raise ValueError(f"model history at {path} is not a JSON array")
@@ -307,13 +310,14 @@ class SessionStore:
         no half-written ``.tmp`` lingers across turns.
         """
         path = self._clarify_path(session_id)
-        tmp = path.parent / f".{path.name}.tmp"
-        try:
-            tmp.write_text(state.model_dump_json(), encoding="utf-8")
-            os.replace(tmp, path)
-        finally:
-            with contextlib.suppress(Exception):
-                tmp.unlink()
+        tmp = path.parent / f".{path.name}.{threading.get_ident()}.tmp"
+        with self._lock:
+            try:
+                tmp.write_text(state.model_dump_json(), encoding="utf-8")
+                os.replace(tmp, path)
+            finally:
+                with contextlib.suppress(Exception):
+                    tmp.unlink()
 
     def get_pending_clarification(self, session_id: str) -> ClarificationState | None:
         """Return the pending clarification for ``session_id``, or ``None``.
@@ -338,9 +342,10 @@ class SessionStore:
         """
         path = self._clarify_path(session_id)
         try:
-            if not path.exists() or path.stat().st_size == 0:
-                return None
-            raw = path.read_text(encoding="utf-8")
+            with self._lock:
+                if not path.exists() or path.stat().st_size == 0:
+                    return None
+                raw = path.read_text(encoding="utf-8")
             state = ClarificationState.model_validate_json(raw)
         except (FileNotFoundError, json.JSONDecodeError, ValidationError, OSError):
             with contextlib.suppress(Exception):
@@ -361,7 +366,7 @@ class SessionStore:
         non-clarify plan outcome.
         """
         path = self._clarify_path(session_id)
-        with contextlib.suppress(Exception):
+        with self._lock, contextlib.suppress(Exception):
             path.unlink()
 
 

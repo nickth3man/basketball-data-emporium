@@ -468,7 +468,6 @@ def test_chat_stream_error_fallback(monkeypatch, tmp_path):
 
     error_frames = [f for f in frames if f["event"] == "error"]
     assert len(error_frames) == 1
-    # The current fallback emits the raw exception type+message.
-    # TODO: The route fallback at routes/chat.py:351-353 leaks raw
-    #       exception text; ideally it should produce a redacted message.
-    assert "RuntimeError" in error_frames[0]["data"]["message"]
+    msg = error_frames[0]["data"]["message"]
+    assert "RuntimeError" in msg
+    assert "unexpected crash" not in msg  # raw str(exc) must not leak

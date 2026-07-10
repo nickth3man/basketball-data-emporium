@@ -132,9 +132,45 @@ def test_live_warehouse_introspection_tools_only_expose_approved_tables(agent) -
     assert len(rows) <= 1
 
 
+class _FailingDb:
+    """Minimal mock that raises on any execute call."""
+
+    async def execute(self, *args: object, **kwargs: object) -> object:
+        raise RuntimeError("no db")
+
+
 def test_introspection_tools_reject_unapproved_tables_and_bad_preview_size(agent) -> None:
     deps = _deps(catalog=None)
     with pytest.raises(ModelRetry):
         _call_tool(agent, "describe_table", deps, table="src_secret")
     with pytest.raises(ModelRetry):
         _call_tool(agent, "preview", deps, table="dim_player", n=6)
+
+
+def test_preview_rejects_adversarial_identifiers(agent) -> None:
+    """Preview must reject table names containing SQL metacharacters
+    even when they start with an approved prefix."""
+    deps = _deps(catalog=None)
+    adversarial = [
+        'dim_evil" UNION SELECT sql FROM duckdb_tables() --',
+        "dim_x; DROP TABLE dim_player",
+        'dim_y" OR "1"="1',
+        "dim_a\\' OR \\'1\\'=\\'1",
+        "dim_table--comment",
+        "dim_tab\r\n",
+        "dim_tab\x00",
+    ]
+    for table in adversarial:
+        with pytest.raises(ModelRetry):
+            _call_tool(agent, "preview", deps, table=table, n=3)
+
+
+def test_preview_accepts_valid_identifier_past_regex(agent) -> None:
+    """A clean identifier with an approved prefix must pass the regex
+    check and only fail on the DB side (no warehouse in unit tests)."""
+    deps = _deps(catalog=None, db=cast(DuckDBSingleton, _FailingDb()))
+    # The call should NOT raise ModelRetry from the identifier check.
+    # It may raise from the DB call (no warehouse), which is fine —
+    # we just need to prove the regex didn't reject it.
+    with pytest.raises(RuntimeError, match="no db"):
+        _call_tool(agent, "preview", deps, table="dim_player", n=3)

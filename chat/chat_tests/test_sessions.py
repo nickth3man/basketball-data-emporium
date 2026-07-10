@@ -328,3 +328,76 @@ def test_openapi_exposes_session_paths(client):
     assert "/api/sessions/{session_id}" in paths
     assert "/api/sessions/{session_id}/history" in paths
     assert "/api/debug/artifacts/{artifact_id}" in paths
+
+
+# --- Concurrent-write tests --------------------------------------------
+
+
+def test_concurrent_append_model_history_does_not_corrupt(tmp_path):
+    """Two threads calling append_model_history on the same session
+    must not corrupt each other's writes."""
+    import threading
+
+    store = SessionStore(tmp_path)
+    sid = store.create(title="concurrent").id
+    errors: list[Exception] = []
+
+    def writer(payload: bytes) -> None:
+        try:
+            store.append_model_history(sid, payload)
+        except Exception as e:
+            errors.append(e)
+
+    t1 = threading.Thread(
+        target=writer,
+        args=(b'[{"role":"model","parts":[{"content":"first"}]}]',),
+    )
+    t2 = threading.Thread(
+        target=writer,
+        args=(b'[{"role":"model","parts":[{"content":"second"}]}]',),
+    )
+    t1.start()
+    t2.start()
+    t1.join()
+    t2.join()
+
+    assert not errors, f"concurrent writes failed: {errors}"
+    # The final file must be valid JSON (one of the two payloads won)
+    loaded = store.load_model_history(sid)
+    assert isinstance(loaded, list)
+
+
+def test_concurrent_set_pending_clarification_does_not_corrupt(tmp_path):
+    """Two threads calling set_pending_clarification on the same session
+    must not leave a corrupt or torn file."""
+    import threading
+
+    from chat_server.clarify import ClarificationState
+
+    store = SessionStore(tmp_path)
+    sid = store.create(title="concurrent-clarify").id
+    errors: list[Exception] = []
+
+    def setter(question: str) -> None:
+        try:
+            state = ClarificationState(
+                original_question="test",
+                clarification_question=question,
+                options=["A", "B"],
+            )
+            store.set_pending_clarification(sid, state)
+        except Exception as e:
+            errors.append(e)
+
+    t1 = threading.Thread(target=setter, args=("first question",))
+    t2 = threading.Thread(target=setter, args=("second question",))
+    t1.start()
+    t2.start()
+    t1.join()
+    t2.join()
+
+    assert not errors, f"concurrent writes failed: {errors}"
+    # The file must be readable and valid
+    result = store.get_pending_clarification(sid)
+    assert result is not None
+    assert result.clarification_question in ("first question", "second question")

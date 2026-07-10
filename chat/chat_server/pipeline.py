@@ -91,6 +91,8 @@ _TABLE_PREVIEW_ROWS = 200
 _ERR_DB_FAILED = "db_execute_failed"
 _ERR_QUERY_TIMEOUT = "query_timeout"
 _ERR_AGENT_FAILED = "agent_failed"
+_ERR_GATE_FAILED = "gate_failed"
+_ERR_COMPOSE_FAILED = "compose_failed"
 
 
 @dataclass
@@ -251,7 +253,17 @@ async def run_turn(
 
     if isinstance(plan, SqlPlan):
         db = deps.db
-        report = await validate_governed_sql(plan.sql, db, deps.catalog)
+        try:
+            report = await validate_governed_sql(plan.sql, db, deps.catalog)
+        except Exception as exc:  # noqa: BLE001
+            log.exception(
+                "pipeline: validate_governed_sql failed; sid=%s turn_id=%s", session_id, turn_id
+            )
+            yield ChatError(code=_ERR_GATE_FAILED, message=f"SQL gate failed: {type(exc).__name__}")
+            _write_model_log(
+                settings, session_id, turn_id, template_id=None, usage=usage_obj, error=exc
+            )
+            return
         failure: str | None = None
         if not report.valid:
             failure = "; ".join(report.errors) or "SQL validation failed"
@@ -273,14 +285,24 @@ async def run_turn(
 
         if failure is not None:
             attempted_sql = plan.sql
-            repaired_plan = await repair_sql(
-                agent,
-                deps,
-                question=message,
-                broken_sql=attempted_sql,
-                error=failure,
-                db=db,
-            )
+            try:
+                repaired_plan = await repair_sql(
+                    agent,
+                    deps,
+                    question=message,
+                    broken_sql=attempted_sql,
+                    error=failure,
+                    db=db,
+                )
+            except Exception as exc:  # noqa: BLE001
+                log.exception("pipeline: repair_sql failed; sid=%s turn_id=%s", session_id, turn_id)
+                yield ChatError(
+                    code=_ERR_GATE_FAILED, message=f"SQL repair failed: {type(exc).__name__}"
+                )
+                _write_model_log(
+                    settings, session_id, turn_id, template_id=None, usage=usage_obj, error=exc
+                )
+                return
             if repaired_plan is None or not repaired_plan.sql:
                 composed = _mark_not_answerable(
                     compose_not_answerable(
@@ -314,7 +336,21 @@ async def run_turn(
                 return
             plan = repaired_plan
             # repair_sql only returns plans that passed the gate and dry-run.
-            report = await validate_governed_sql(plan.sql, db, deps.catalog)
+            try:
+                report = await validate_governed_sql(plan.sql, db, deps.catalog)
+            except Exception as exc:  # noqa: BLE001
+                log.exception(
+                    "pipeline: post-repair validate_governed_sql failed; sid=%s turn_id=%s",
+                    session_id,
+                    turn_id,
+                )
+                yield ChatError(
+                    code=_ERR_GATE_FAILED, message=f"SQL gate failed: {type(exc).__name__}"
+                )
+                _write_model_log(
+                    settings, session_id, turn_id, template_id=None, usage=usage_obj, error=exc
+                )
+                return
 
         query_ref = _query_ref(report, deps.catalog)
 
@@ -402,13 +438,35 @@ async def run_turn(
             truncated=len(query_result.rows) > _TABLE_PREVIEW_ROWS,
         )
 
-        composed = compose_governed(
-            plan.result_contract or ResultContract(grain="results", answer_style="prose"),
-            query_result,
-            plan.sql,
-            model_name=query_ref.tables[0] if query_ref.tables else None,
-            question_interpretation=plan.question_interpretation,
-        )
+        try:
+            composed = compose_governed(
+                plan.result_contract or ResultContract(grain="results", answer_style="prose"),
+                query_result,
+                plan.sql,
+                model_name=query_ref.tables[0] if query_ref.tables else None,
+                question_interpretation=plan.question_interpretation,
+            )
+        except Exception as exc:  # noqa: BLE001
+            log.exception(
+                "pipeline: compose_governed failed; sid=%s turn_id=%s", session_id, turn_id
+            )
+            yield ChatError(
+                code=_ERR_COMPOSE_FAILED, message=f"compose failed: {type(exc).__name__}"
+            )
+            _write_query_log(
+                settings,
+                session_id,
+                turn_id,
+                template_id=None,
+                sql=plan.sql,
+                params=None,
+                result=query_result,
+                error=exc,
+            )
+            _write_model_log(
+                settings, session_id, turn_id, template_id=None, usage=usage_obj, error=exc
+            )
+            return
         yield Reasoning(
             summary=composed.reasoning_summary or "executed governed query",
             execution_plan=plan.sql[:200],

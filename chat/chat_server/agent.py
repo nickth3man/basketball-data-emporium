@@ -43,7 +43,7 @@ from pydantic_ai import Agent, NativeOutput, RunContext, ToolOutput
 from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.messages import ToolCallPart, ToolReturnPart
 from pydantic_ai.models import Model
-from pydantic_ai.models.openrouter import OpenRouterModel, OpenRouterModelSettings
+from pydantic_ai.models.openrouter import OpenRouterModel
 from pydantic_ai.providers.openrouter import OpenRouterProvider
 from pydantic_core import PydanticUndefined
 
@@ -625,6 +625,8 @@ def _register_tools(agent: Agent[AgentDeps, Plan]) -> None:
     @agent.tool
     async def preview(ctx: RunContext[AgentDeps], table: str, n: int = 5) -> list[dict]:
         """Preview up to five rows from an approved table after describing it."""
+        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", table):
+            raise ModelRetry(f"Invalid table identifier: {table!r}")
         if not table.startswith(("dim_", "fact_", "mart_", "analytics_")):
             raise ModelRetry("Only approved warehouse tables may be previewed.")
         if not 1 <= n <= 5:
