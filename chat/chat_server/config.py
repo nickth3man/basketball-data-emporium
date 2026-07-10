@@ -42,6 +42,13 @@ class Settings(BaseSettings):
         "When empty, OpenRouter auto-routes across all providers. "
         "See https://openrouter.ai/docs/guides/routing/provider-selection",
     )
+    openrouter_max_tokens: int = Field(
+        default=16384,
+        ge=256,
+        le=128000,
+        description="Max output tokens for OpenRouter calls. Higher values prevent "
+        "tool-call JSON truncation when the system prompt is large.",
+    )
     duckdb_path: str = Field(..., min_length=1)
     chat_log_dir: str = Field(default="./logs")
     chat_port: int = Field(default=8787, ge=1, le=65535)

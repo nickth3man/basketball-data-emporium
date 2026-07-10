@@ -47,6 +47,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from pydantic_ai.exceptions import UnexpectedModelBehavior
 from pydantic_ai.messages import ModelMessagesTypeAdapter
 
 from . import otel
@@ -173,7 +174,28 @@ async def run_turn(
             run_kwargs: dict[str, Any] = {"deps": deps}
             if history:
                 run_kwargs["message_history"] = history
-            agent_result = await agent.run(user_message_text, **run_kwargs)
+            # One retry on UnexpectedModelBehavior (covers IncompleteToolCall as a
+            # subclass). This fixes tool-call JSON truncation — the model ran out of
+            # output tokens mid-JSON on the first attempt but succeeds on the second
+            # with a concise hint.
+            _agent_result = None
+            for _attempt in range(2):
+                try:
+                    _agent_result = await agent.run(user_message_text, **run_kwargs)
+                    break
+                except UnexpectedModelBehavior:
+                    if _attempt == 1:
+                        raise
+                    log.warning(
+                        "agent.run UnexpectedModelBehavior (possible truncation); "
+                        "retrying with hint sid=%s",
+                        session_id,
+                    )
+                    user_message_text = (
+                        f"{user_message_text}\n\nNote: Your previous response was "
+                        "truncated. Keep tool call arguments concise."
+                    )
+            agent_result = _agent_result
             plan = agent_result.output
             usage_obj = agent_result.usage
             if agent_span is not None:

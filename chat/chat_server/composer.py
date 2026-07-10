@@ -1,33 +1,23 @@
 """Answer composer: turns a `QueryResult` into a concise grounded answer.
 
-Phase 3 (this module) implements the minimal per-policy formatters needed
-to land the Phase 3 exit criterion: "Non-streaming ``POST /api/chat``
-returns a plan + (for one template) executes it and returns the answer."
-
 The composer's contract is small on purpose:
 
-* ``compose(template, result, plan_template_id)`` — happy-path formatter.
+* ``compose_governed(result_contract, result, sql, model_name)`` —
+  governed-SQL happy-path formatter. Dispatches on
+  ``ResultContract.answer_style`` (``ranked_list``, ``single_value``,
+  ``count``, ``prose``, ``table``).
 * ``compose_not_answerable(note, attempted_sql=None)`` — explicit
   "I could not answer this, here's the evidence" path.
 
-Per-template enrichment (metric citations, gap caveats, custom headlines,
-prose re-writes) lands in later phases. The policies supported here are
-``ranked_list``, ``single_value``, ``count``; anything else falls back to
-a generic "returned N rows" summary so an unknown policy never crashes
-the route.
-
 Design notes
 ------------
-* ``answer_policy`` is a string on the template; we dispatch on equality.
-  Adding a new policy means adding a branch here, the template's
-  ``ANSWER_POLICY`` constant, and a test in ``chat_tests/test_composer.py``.
+* ``answer_style`` drives the dispatch. Adding a new style means adding a
+  branch here and a test in ``chat_tests/test_composer.py``.
 * The composer never inspects ``result.columns`` to guess a schema — it
-  reads the values by name (``row["full_name"]``, ``row["avg_pts"]``, …).
-  Templates that need different column names should ship their own
-  formatter in a later phase.
+  reads the values by name.
 * The composer never builds SQL and never touches the warehouse; all
   numbers in the answer are grounded in ``result.rows``. The caller
-  (route layer) is responsible for surface-level guarantees (template
+  (route layer) is responsible for surface-level guarantees (the
   validation, allowlists, row caps).
 * ``reasoning_summary`` is a short human-readable description of what was
   done — *not* the model's chain-of-thought. The pipeline never emits CoT;

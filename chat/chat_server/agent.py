@@ -1,11 +1,10 @@
 """Pydantic AI agent for the basketball chatbot.
 
-Phase 3 exit criteria:
-* Singleton `Agent` with native `OpenRouterModel`.
-* Typed `Plan` output — a discriminated union on `answer_mode`
-  (`ClarifyPlan | NotAnswerablePlan | SqlPlan | TemplatePlan`).
-* Tools: `list_templates`, `get_template_detail`, `lookup_player`,
-  `lookup_team`, `lookup_season`.
+Typed `Plan` output — a discriminated union on `answer_mode`
+(`ClarifyPlan | NotAnswerablePlan | SqlPlan`).
+Tools: `list_models`, `get_model_detail`, `list_warehouse_tables`,
+`describe_table`, `preview`, `lookup_player`,
+`lookup_team`, `lookup_season`.
 * `retries={'output': 3, 'tools': 2}` (mitigates
   pydantic-ai#822 where some OpenRouter models return plain text on
   structured output).
@@ -43,7 +42,7 @@ from pydantic_ai import Agent, NativeOutput, RunContext, ToolOutput
 from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.messages import ToolCallPart, ToolReturnPart
 from pydantic_ai.models import Model
-from pydantic_ai.models.openrouter import OpenRouterModel, OpenRouterModelSettings
+from pydantic_ai.models.openrouter import OpenRouterModel
 from pydantic_ai.providers.openrouter import OpenRouterProvider
 from pydantic_core import PydanticUndefined
 
@@ -147,11 +146,6 @@ class AgentDeps:
 
     Attributes
     ----------
-    registry
-        The live template registry dict (from `get_registry()`). The
-        `list_templates` / `get_template_detail` tools use this rather
-        than re-importing the templates package — keeps tool bodies
-        testable in isolation.
     schema_context
         The compact schema context for this run. Built once at startup
         via `get_schema_context()` and reused.
@@ -159,12 +153,10 @@ class AgentDeps:
         The process-wide `DuckDBSingleton`. `lookup_player` /
         `lookup_team` / `lookup_season` hit the read-only warehouse.
     catalog
-        The semantic catalog (Phase 3 Lane B). Populated by
-        ``make_deps()`` via :func:`load_catalog`; ``None`` when the
-        catalog failed to load (treated by the governed-SQL branch as
-        a "catalog not loaded" / not-answerable signal). Defaults to
-        ``None`` so every existing ``AgentDeps(registry=..., schema_context=...,
-        db=...)`` construction in the test suite keeps working unchanged.
+        The semantic catalog. Populated by ``make_deps()`` via
+        :func:`load_catalog`; ``None`` when the catalog failed to load
+        (treated by the governed-SQL branch as a "catalog not loaded" /
+        not-answerable signal).
     """
 
     schema_context: SchemaContext
@@ -327,22 +319,36 @@ def _build_model() -> OpenRouterModel:
     The native `OpenRouterProvider` sets the required `HTTP-Referer` and
     `X-Title` headers from `app_url` / `app_title`. Building
     the model does NOT make a network call — only `agent.run()` does.
+
+    ``max_tokens`` is set explicitly (rather than relying on the downstream
+    default of 4096) because the governed-SQL system prompt is large and
+    Anthropic models will truncate tool-call JSON mid-string when the output
+    budget is too tight. ``temperature=0.0`` keeps tool-call JSON
+    deterministic. ``extra_body`` mirrors ``max_tokens`` as a workaround for
+    Pydantic AI < 2.0 max_tokens → max_completion_tokens mapping issues
+    (pydantic-ai#5186 / PR #5926).
     """
     s = get_settings()
+    settings_dict: dict[str, Any] = {
+        "max_tokens": s.openrouter_max_tokens,
+        "temperature": 0.0,
+        "extra_body": {"max_tokens": s.openrouter_max_tokens},
+    }
+    if s.openrouter_provider:
+        settings_dict["openrouter_provider"] = {
+            "order": [s.openrouter_provider],
+            "allow_fallbacks": True,
+        }
+        settings_dict["openrouter_cache_instructions"] = True
+        settings_dict["openrouter_cache_tool_definitions"] = True
     kwargs: dict[str, Any] = {
         "provider": OpenRouterProvider(
             api_key=s.openrouter_api_key,
             app_url="https://github.com/nickth3man/basketball-data-emporium",
             app_title="Basketball Data Chatbot",
         ),
+        "settings": settings_dict,
     }
-    if s.openrouter_provider:
-        kwargs["settings"] = OpenRouterModelSettings(
-            openrouter_provider={
-                "order": [s.openrouter_provider],
-                "allow_fallbacks": True,
-            }
-        )
     return OpenRouterModel(s.openrouter_model, **kwargs)
 
 
