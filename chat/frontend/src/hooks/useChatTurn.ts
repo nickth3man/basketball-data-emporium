@@ -51,7 +51,13 @@ export interface ChatTurnError {
   message: string;
 }
 
-export type ChatTurnStatus = "idle" | "running" | "done" | "error" | "cancelled";
+export type ChatTurnStatus =
+  | "idle"
+  | "running"
+  | "awaiting_clarification"
+  | "done"
+  | "error"
+  | "cancelled";
 
 export interface ChatTurnState {
   status: ChatTurnStatus;
@@ -103,9 +109,12 @@ function reducer(state: ChatTurnState, action: Action): ChatTurnState {
       if (state.status === "error") return state;
       return { ...state, status: "cancelled" };
     case "done":
-      // `done` only transitions from `running` / `idle`. A terminal
-      // error or cancellation must not be overwritten by stream close.
-      if (state.status === "error" || state.status === "cancelled") {
+      // Stream close must not overwrite another terminal or waiting state.
+      if (
+        state.status === "error" ||
+        state.status === "cancelled" ||
+        state.status === "awaiting_clarification"
+      ) {
         return state;
       }
       return { ...state, status: "done" };
@@ -127,6 +136,7 @@ function reducer(state: ChatTurnState, action: Action): ChatTurnState {
           return {
             ...state,
             events,
+            status: "awaiting_clarification",
             clarification: {
               question: ev.question,
               options: ev.options ?? null,

@@ -7,7 +7,7 @@
  * callback, so the parent (`ChatView`) can re-send the answer through
  * the same `useChatTurn.send()` pipeline.
  */
-import { useCallback, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { HelpCircle, Send } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
@@ -27,6 +27,15 @@ export function ClarifyPrompt({
   disabled = false,
 }: ClarifyPromptProps) {
   const [freeText, setFreeText] = useState<string>("");
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const previousQuestionRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (previousQuestionRef.current !== question) {
+      inputRef.current?.focus();
+      previousQuestionRef.current = question;
+    }
+  }, [question]);
 
   const handleFreeSubmit = useCallback(
     (e: FormEvent<HTMLFormElement>) => {
@@ -47,7 +56,7 @@ export function ClarifyPrompt({
       <legend className="sr-only">Clarification needed</legend>
       <p className="flex items-start gap-2 font-medium text-[color:var(--color-warn-fg)]">
         <HelpCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-        <span>{question}</span>
+        <span id="clarify-question">{question}</span>
       </p>
       {options !== null && options.length > 0 && (
         <ul className="flex flex-wrap gap-2">
@@ -74,7 +83,9 @@ export function ClarifyPrompt({
         </label>
         <input
           id="clarify-freetext"
+          ref={inputRef}
           type="text"
+          aria-describedby="clarify-question"
           value={freeText}
           onChange={(e) => setFreeText(e.target.value)}
           placeholder="Or type your own answer…"

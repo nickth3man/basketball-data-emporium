@@ -271,8 +271,7 @@ export function ChatView() {
     return snippet.length > 0 ? `Retry: ${snippet}` : "Retry";
   }, [retryText]);
 
-  const showClarify =
-    state.status === "running" && state.clarification !== null && state.clarification !== undefined;
+  const showClarify = state.status === "awaiting_clarification" && state.clarification !== null;
   const showErrorBanner = lastError !== null && !isRunning;
   const showCancelledNote = lastCancelled && lastError === null && !isRunning;
   const bannerText = lastError ? errorBannerText(lastError) : null;
@@ -347,10 +346,18 @@ export function ChatView() {
 
       {showClarify && state.clarification && (
         <div className="border-t border-[color:var(--color-border)] bg-[color:var(--color-muted)]/40 px-4 py-3 sm:px-6">
+          {/* eslint-disable-next-line jsx-a11y/prefer-tag-over-role -- explicit live-region role is part of the chat contract. */}
+          <p
+            role="status"
+            aria-live="polite"
+            className="mb-2 text-sm text-[color:var(--color-muted-foreground)]"
+          >
+            Your answer is needed to continue.
+          </p>
           <ClarifyPrompt
             question={state.clarification.question}
             options={state.clarification.options ?? null}
-            disabled={isRunning}
+            disabled={false}
             onAnswer={(text) => {
               void handleSubmit(text);
             }}
