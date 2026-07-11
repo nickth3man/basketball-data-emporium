@@ -46,7 +46,7 @@ export type HealthResponse = components["schemas"]["HealthResponse"];
 
 // --- Client singleton ---------------------------------------------------
 
-export const apiClient = createClient<paths>({ baseUrl: "" });
+const apiClient = createClient<paths>({ baseUrl: "" });
 
 // --- Typed helper wrappers ----------------------------------------------
 // Each helper throws on a transport error (non-2xx, no body) and returns

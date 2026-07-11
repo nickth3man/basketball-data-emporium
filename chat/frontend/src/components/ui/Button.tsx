@@ -16,7 +16,7 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
-export type ButtonVariant = "primary" | "subtle" | "ghost" | "danger";
+type ButtonVariant = "primary" | "subtle" | "ghost" | "danger";
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;

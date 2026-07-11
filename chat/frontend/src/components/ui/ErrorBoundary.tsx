@@ -56,8 +56,8 @@ function GranularFallback({ label, resetErrorBoundary }: FallbackProps & { label
       role="alert"
       className={clsx(
         "flex items-center justify-between gap-3 rounded-lg border px-3 py-2",
-        "border-[color:var(--color-danger-border)] bg-[color:var(--color-danger-bg)]",
-        "text-sm text-[color:var(--color-foreground)]",
+        `border-danger-border bg-danger-bg`,
+        "text-sm text-(--color-foreground)",
       )}
     >
       <span>{heading}</span>
@@ -66,11 +66,14 @@ function GranularFallback({ label, resetErrorBoundary }: FallbackProps & { label
         onClick={resetErrorBoundary}
         className={clsx(
           "shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium",
-          "border-[color:var(--color-border)] bg-[color:var(--color-card)]",
-          "text-[color:var(--color-foreground)] hover:bg-[color:var(--color-muted)]",
+          "border-border bg-card",
+          `
+            text-(--color-foreground)
+            hover:bg-muted
+          `,
           "focus-visible:ring-2 focus-visible:outline-none",
-          "focus-visible:ring-[color:var(--color-ring)] focus-visible:ring-offset-2",
-          "focus-visible:ring-offset-[color:var(--color-background)]",
+          `focus-visible:ring-(--color-ring) focus-visible:ring-offset-2`,
+          "focus-visible:ring-offset-background",
           "disabled:opacity-50",
         )}
       >
@@ -86,13 +89,15 @@ function GranularFallback({ label, resetErrorBoundary }: FallbackProps & { label
  * failure from killing the rest of the bubble. Phase 2 mounts these
  * inside `MessageBubble.tsx`; this phase only ships the primitive.
  */
-export function GranularBoundary({ children, label }: GranularBoundaryProps) {
+function GranularBoundary({ children, label }: GranularBoundaryProps) {
   return (
     <ErrorBoundary fallbackRender={(props) => <GranularFallback {...props} label={label} />}>
       {children}
     </ErrorBoundary>
   );
 }
+// Suppress noUnusedLocals — retained for Phase 2 integration.
+void GranularBoundary;
 
 /**
  * Full-card fallback for the top-level app boundary. Two affordances:
@@ -110,25 +115,25 @@ function AppFallback({ resetErrorBoundary }: FallbackProps) {
       role="alert"
       className={clsx(
         "flex min-h-screen w-full items-center justify-center px-6 py-12",
-        "bg-[color:var(--color-background)]",
+        "bg-background",
       )}
     >
       <div
         className={clsx(
           "w-full max-w-md rounded-2xl border p-8 text-center",
-          "border-[color:var(--color-border)] bg-[color:var(--color-card)]",
-          "text-[color:var(--color-foreground)] shadow-lg",
+          "border-border bg-card",
+          "text-(--color-foreground) shadow-lg",
         )}
       >
         <p
           className={clsx(
             "mb-2 font-display text-2xl tracking-wide uppercase",
-            "text-[color:var(--color-foreground)]",
+            "text-(--color-foreground)",
           )}
         >
           Something went wrong
         </p>
-        <p className={clsx("mb-6 text-sm", "text-[color:var(--color-muted-foreground)]")}>
+        <p className={clsx("mb-6 text-sm", `text-muted-foreground`)}>
           The chat hit an unexpected error.
         </p>
         <div className="flex items-center justify-center gap-3">
@@ -139,12 +144,15 @@ function AppFallback({ resetErrorBoundary }: FallbackProps) {
             }}
             className={clsx(
               "rounded-full px-4 py-2 text-sm font-medium",
-              "bg-[color:var(--color-primary)] text-[color:var(--color-primary-foreground)]",
-              "shadow-sm shadow-[color:var(--color-primary)]/20",
-              "hover:brightness-110 active:brightness-95",
+              `bg-(--color-primary) text-primary-foreground`,
+              "shadow-sm shadow-(color:--color-primary)/20",
+              `
+                hover:brightness-110
+                active:brightness-95
+              `,
               "focus-visible:ring-2 focus-visible:outline-none",
-              "focus-visible:ring-[color:var(--color-ring)] focus-visible:ring-offset-2",
-              "focus-visible:ring-offset-[color:var(--color-background)]",
+              `focus-visible:ring-(--color-ring) focus-visible:ring-offset-2`,
+              "focus-visible:ring-offset-background",
             )}
           >
             Reload
@@ -154,11 +162,14 @@ function AppFallback({ resetErrorBoundary }: FallbackProps) {
             onClick={resetErrorBoundary}
             className={clsx(
               "rounded-full border px-4 py-2 text-sm font-medium",
-              "border-[color:var(--color-border)] bg-transparent",
-              "text-[color:var(--color-foreground)] hover:bg-[color:var(--color-muted)]",
+              "border-border bg-transparent",
+              `
+                text-(--color-foreground)
+                hover:bg-muted
+              `,
               "focus-visible:ring-2 focus-visible:outline-none",
-              "focus-visible:ring-[color:var(--color-ring)] focus-visible:ring-offset-2",
-              "focus-visible:ring-offset-[color:var(--color-background)]",
+              `focus-visible:ring-(--color-ring) focus-visible:ring-offset-2`,
+              "focus-visible:ring-offset-background",
             )}
           >
             Try again

@@ -35,12 +35,12 @@ export interface ChatTurnTable {
   truncated: boolean;
 }
 
-export interface ChatTurnReasoning {
+interface ChatTurnReasoning {
   summary: string;
   executionPlan: string | null;
 }
 
-export interface ChatTurnClarification {
+interface ChatTurnClarification {
   question: string;
   options: string[] | null;
 }
@@ -50,7 +50,7 @@ export interface ChatTurnError {
   message: string;
 }
 
-export type ChatTurnStatus =
+type ChatTurnStatus =
   "idle" | "running" | "awaiting_clarification" | "done" | "error" | "cancelled";
 
 export interface ChatTurnState {
