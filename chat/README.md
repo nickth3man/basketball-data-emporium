@@ -77,6 +77,7 @@ always validated by `sqlgate.py` before execution, with a model-driven
 repair pass on first failure (`repair.py`).
 
 Key source files:
+
 - `chat_server/pipeline.py` — end-to-end turn orchestration (async generator)
 - `chat_server/agent.py` — Pydantic AI agent + Plan union + tool definitions
 - `chat_server/sqlgate.py` — three-layer governed SQL validation
@@ -120,6 +121,7 @@ npm install
 
 See `.env.example` for all available environment variables. Required
 values beyond `OPENROUTER_API_KEY`:
+
 - `DUCKDB_PATH` — defaults to `../data/nba.duckdb` (relative to `chat/`)
 
 The runtime default model is `anthropic/claude-sonnet-4.6` (set in
@@ -153,7 +155,7 @@ Open **http://localhost:5173** in a browser.
 > **Concurrency note (important).** The DuckDB connection is
 > **read-only** in this project, but the underlying file format forbids
 > mixing read-only and read-write handles in the same process family.
-> Multiple *read-only* connections coexist happily — the chatbot, the
+> Multiple _read-only_ connections coexist happily — the chatbot, the
 > `web/` Express dev server, and CLI inspect-tools can all be open at once.
 > But `data/audit/build_nba.py` (which writes the warehouse) **must** be
 > the only process touching the file at write time.
@@ -180,45 +182,97 @@ uv run pytest --cov chat_server   # with coverage
 
 ```sh
 npm test                          # vitest run (SSE parser, drift guards, smoke)
-npm run test:e2e                  # Playwright (boots both servers; needs
-                                  #   warehouse + OPENROUTER_API_KEY for
-                                  #   the live-turn smoke + cancel UX)
+npm run test:e2e                  # Playwright (boots both servers; runs all
+                                  #   specs including the live smoke test
+                                  #   which needs warehouse + OPENROUTER_API_KEY;
+                                  #   error-path/cancel/not-answerable specs
+                                  #   use mocked SSE and need neither)
 ```
 
-**Drift guards** (OpenAPI + SSE contract — CI runs these; rerun manually
-when you change `chat_server/events.py` or the REST surface):
+**Drift guards** (OpenAPI + SSE + TypeScript API types — CI runs these; rerun
+manually when you change `chat_server/events.py` or the REST surface):
 
 ```sh
 uv run python scripts/export_openapi.py        # writes frontend/openapi.json
 uv run python scripts/export_sse_schema.py     # writes frontend/src/generated/sse-events.schema.json
-git diff --exit-code frontend/openapi.json frontend/src/generated/sse-events.schema.json
+(cd frontend && npm run gen:types)             # regenerates src/generated/api.d.ts
+git diff --exit-code frontend/openapi.json  \
+  frontend/src/generated/sse-events.schema.json \
+  frontend/src/generated/api.d.ts
 ```
 
-If either diff is non-empty the contract drifted — update the generated
-files (or the source) until they match.
+If any diff is non-empty the contract drifted — update the generated
+files (or the source) until they match. Three guards cover the REST
+contract (OpenAPI), the SSE wire format, and the generated TypeScript API
+types (`api.d.ts`).
 
 ---
 
 ## Quality gates
 
-| Layer | Gate | Command |
-| --- | --- | --- |
-| Backend | Lint + format | `uv run ruff check chat_server` / `uv run ruff format --check chat_server` |
-| Backend | Type check | `uv run ty check chat_server` |
-| Backend | Unit + integration | `uv run pytest` |
-| Backend | Unused deps | `uv run deptry chat` |
-| Backend | JSONL log shape | `check-jsonschema` against exported schemas (CI) |
-| Frontend | Type check | `npx tsc --noEmit` |
-| Frontend | Lint | `npx eslint .` |
-| Frontend | Format | `npx prettier --check .` |
-| Frontend | Unit | `npx vitest run` |
-| Frontend | E2E + a11y | `npx playwright test` (Playwright + `@axe-core/playwright`) |
-| Frontend | Build | `npm run build` |
-| Both | Pre-commit | `lefthook.yml` (repo-root); installed by `npm install` in the root. Covers `web/` and `chat/` checks. Pre-push covers `chat/frontend` checks only. |
+| Layer    | Gate                  | Command                                                                                                                                                                                                       |
+| -------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Backend  | Lint + format         | `uv run ruff check chat_server` / `uv run ruff format --check chat_server`                                                                                                                                    |
+| Backend  | Type check            | `uv run ty check chat_server`                                                                                                                                                                                 |
+| Backend  | Unit + integration    | `uv run pytest`                                                                                                                                                                                               |
+| Backend  | Unused deps           | `uv run deptry chat`                                                                                                                                                                                          |
+| Frontend | Type check            | `npx tsc --noEmit`                                                                                                                                                                                            |
+| Frontend | Lint                  | `npx eslint .`                                                                                                                                                                                                |
+| Frontend | Format                | `npx prettier --check .`                                                                                                                                                                                      |
+| Frontend | Unit                  | `npx vitest run`                                                                                                                                                                                              |
+| Frontend | E2E + a11y            | `npx playwright test` (Playwright + `@axe-core/playwright`)                                                                                                                                                   |
+| Frontend | Build                 | `npm run build`                                                                                                                                                                                               |
+| Both     | Pre-commit / pre-push | Repo-root [`lefthook.yml`](../lefthook.yml), installed by `npm install` in repo root. Pre-commit: staged files (ruff, ty, sqlfluff, eslint, tsc, prettier). Pre-push: chat/frontend typecheck + tests + knip. |
 
-All of these run in CI (`.github/workflows/chat.yml`) and via `lefthook`
-hooks. The hooks live in the repo-root [`lefthook.yml`](../lefthook.yml) and
-are installed automatically by the root `npm install` (via the `prepare`
-script). Pre-commit covers both `web/` and `chat/` checks; pre-push covers
-`chat/frontend` checks only. The standalone `chat/lefthook.yml` is now an
-empty stub — all chat hooks have been merged into the root config.
+**Where each gate runs:**
+
+- **Pre-commit** (staged files): ruff lint + format, ty typecheck, sqlfluff, eslint lint, tsc, prettier format.
+- **Pre-push**: chat/frontend tsc, vitest, knip.
+- **CI** (push/PR, `.github/workflows/chat.yml`): all backend gates (ruff check, ruff format check, ty typecheck, deptry, sqlfluff, pytest `-m "not live_llm"`), all frontend gates (tsc, eslint, prettier, vitest, knip, build, size), drift guards (OpenAPI + SSE schema + generated TypeScript API types), and a mocked-SSE Playwright e2e job (excludes `chat.smoke.ts`, which needs a live OpenRouter call).
+- **Scheduled / manual** (`live-llm-validation` job): eval tests (`@pytest.mark.live_llm`) run at 06:00 UTC or via workflow_dispatch, on a self-hosted runner with the DuckDB warehouse (see runbook below).
+
+---
+
+## Live-LLM validation runbook
+
+The `live-llm-validation` job runs eval tests that make real OpenRouter calls.
+It is exempt from push/PR CI and runs only on schedule or manual dispatch.
+
+### Runner setup
+
+Add a self-hosted runner to the repository with these labels:
+
+```
+self-hosted, linux, x64, nba-warehouse
+```
+
+### Secrets
+
+| Name                 | Value                                                                                                                                                              |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `OPENROUTER_API_KEY` | Repository secret (GitHub → Settings → Secrets and variables → Actions → Repository secrets). A valid OpenRouter API key — the live-LLM tests make paid API calls. |
+
+### Repository variable (optional)
+
+| Name                        | Default              | Description                                                                                                                                                                                                  |
+| --------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `CHAT_LIVE_LLM_DUCKDB_PATH` | `../data/nba.duckdb` | Override the DuckDB warehouse path on the runner. Set via GitHub → Settings → Secrets and variables → Actions → Repository variables. Use an absolute path if the warehouse lives outside the checkout tree. |
+
+### Prerequisites on the runner
+
+- The read-only DuckDB warehouse must exist at the resolved `DUCKDB_PATH` (the default is `../data/nba.duckdb` relative to `chat/`, i.e. `data/nba.duckdb` from the repo root). The job verifies this in a dedicated step and fails with a clear message if the file is missing.
+- Python 3.13 and `uv` are installed by the workflow.
+
+### Schedule and trigger
+
+- **Scheduled:** daily at 06:00 UTC (`cron: "0 6 * * *"`).
+- **Manual:** via `workflow_dispatch` in the GitHub Actions UI.
+
+### Fail-closed behavior
+
+The job **intentionally fails hard** when the warehouse is absent or no tests passed:
+
+1. A dedicated **Verify warehouse availability** step checks that the DuckDB file exists and exits with `::error::` if not.
+2. After test execution, a **zero-pass guard** checks whether at least one test passed. If all tests skipped (e.g. placeholder API key, wrong marker config), the job fails — silent skips would produce a false green.
+
+This design ensures the operator knows immediately when the runner or warehouse is misconfigured.

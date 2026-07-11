@@ -20,7 +20,8 @@ This file is **orientation only**: how to run things, where code lives, how the 
   - `meta_quality_check` — pass/fail gates from the last build.
   - `meta_table_fate` — whether a table is `canonical_source` / `derived_rebuild` / `lossless_source_only` / `legacy_do_not_use` / `duplicate_superseded` / `empty_endpoint_shell`. Check before trusting an unfamiliar table.
   - `meta_column_lineage` / `meta_metric_definition` — where a canonical column comes from and how a metric is computed.
-- **App behavior** → read the code, not the docs. In particular, `chat/README.md` predates the retirement of the SQL-template system (commit `abc5177`) and describes an architecture that no longer exists — trust `chat/chat_server/` source over it.
+
+- **App behavior** → read the code, not the docs. The current `chat/README.md` is a setup and architecture overview; trust `chat/chat_server/` source for implementation details and runtime behavior.
 
 ## What this repo is
 
@@ -32,11 +33,11 @@ A DuckDB NBA warehouse plus two independent read-only apps on top of it:
 
 **Port collision:** the web Express API and the chat FastAPI both default to **:8787**, and both frontends default to **:5173**. Run one stack at a time, or override (`API_PORT` for web, `CHAT_PORT` + a Vite `--port` for chat).
 
-**DuckDB concurrency:** multiple *read-only* connections coexist fine (both apps + CLI at once). But `data/audit/build_nba.py` and `data/ingest/ingest.py` write the warehouse — **stop both dev servers before running them**.
+**DuckDB concurrency:** multiple _read-only_ connections coexist fine (both apps + CLI at once). But `data/audit/build_nba.py` and `data/ingest/ingest.py` write the warehouse — **stop both dev servers before running them**.
 
 ## Commands
 
-Root (repo-level tooling only): `npm install` — installs lefthook git hooks via the `prepare` script.
+Root (repo-level tooling): `npm install` — installs lefthook git hooks via the `prepare` script. The root [`lefthook.yml`](./lefthook.yml) covers both `web/` and `chat/` hooks.
 
 ### web/ (run inside `web/`)
 
@@ -64,7 +65,7 @@ uv run ty check chat_server                      # type check
 uv run deptry chat                               # unused/missing deps
 ```
 
-Config is pydantic-settings via env / `.env`: `OPENROUTER_API_KEY` (required), `OPENROUTER_MODEL`, `DUCKDB_PATH` (required; relative paths resolve from `chat/`), `CHAT_LOG_DIR`, `CHAT_DATA_DIR`, `CHAT_PORT`, `CHAT_QUERY_TIMEOUT`, `CHAT_MEMORY_LIMIT`. CI sets `CHAT_SKIP_DB_TESTS=1`.
+Config is pydantic-settings via env / `.env`: `OPENROUTER_API_KEY` (required), `OPENROUTER_MODEL`, `OPENROUTER_MAX_TOKENS` (default 16384), `OPENROUTER_PROVIDER`, `DUCKDB_PATH` (required; relative paths resolve from `chat/`), `CHAT_LOG_DIR`, `CHAT_DATA_DIR`, `CHAT_PORT`, `CHAT_QUERY_TIMEOUT`, `CHAT_MEMORY_LIMIT`, `CHAT_CORS_ORIGINS` (default `"http://localhost:5173"`). CI sets `CHAT_SKIP_DB_TESTS=1`.
 
 ### chat/frontend (run inside `chat/frontend/`)
 
@@ -82,10 +83,11 @@ npm run knip           # dead-code/unused-export scan
 ```sh
 uv run python scripts/export_openapi.py          # rewrites frontend/openapi.json
 uv run python scripts/export_sse_schema.py       # rewrites frontend/src/generated/sse-events.schema.json
-git diff --exit-code frontend/openapi.json frontend/src/generated/sse-events.schema.json
+(cd frontend && npm run gen:types)              # regenerates src/generated/api.d.ts
+git diff --exit-code frontend/openapi.json frontend/src/generated/sse-events.schema.json frontend/src/generated/api.d.ts
 ```
 
-The committed JSON snapshots are the frontend's typed contract (`npm run gen:types` regenerates `src/generated/api.d.ts`). A non-empty diff means the contract drifted — regenerate and commit.
+Three guards cover the REST contract (OpenAPI), the SSE wire format, and the generated TypeScript API types (`api.d.ts`). A non-empty diff means the contract drifted — regenerate and commit.
 
 ### Data layer (run from repo root; stop dev servers first — needs the DuckDB write lock)
 
@@ -101,8 +103,8 @@ python data/audit/build_nba.py --source-db <raw.duckdb> --replace   # full rebui
 
 ### Pre-commit / CI
 
-- Repo-root `lefthook.yml` covers **web/ only** (eslint --fix, prettier --write, typecheck on staged files). `chat/lefthook.yml` holds the chat hook set (ruff, ty, sqlfluff, eslint, tsc, prettier) but is **not** auto-installed by the root install — see the note at the top of that file.
-- CI: `.github/workflows/web.yml` (typecheck, lint, format:check, test, build) and `.github/workflows/chat.yml` (backend ruff/ty/deptry/pytest, frontend tsc/eslint/prettier/vitest, plus the drift-guard job). All must pass.
+- Repo-root [`lefthook.yml`](./lefthook.yml) covers **both web/ and chat/** hooks. **Pre-commit** runs lint + format + typecheck on staged files (Python ruff, SQL sqlfluff, TypeScript eslint/prettier/tsc). **Pre-push** runs chat/frontend typecheck, vitest, and knip. Auto-installed via root `npm install` → `lefthook install`. The standalone `chat/lefthook.yml` is now an empty stub — all chat hooks live in the root config.
+- CI: `.github/workflows/web.yml` on web/ changes (typecheck, lint, format:check, test, build). `.github/workflows/chat.yml` on chat/ changes (backend: ruff check, ruff format check, ty typecheck, deptry, sqlfluff, pytest `-m "not live_llm"`; frontend: tsc, eslint, prettier, vitest, knip, build, size; drift guards: OpenAPI + SSE schema + generated TypeScript API types; plus a mocked-SSE Playwright e2e job). All must pass.
 
 ## Architecture
 
@@ -160,4 +162,4 @@ SqlPlan → validate_governed_sql (sqlgate.py) → dry-run → read-only DuckDB 
 
 ### chat/ frontend (`chat/frontend/src/`)
 
-React 19 + TanStack Query/Table/Virtual + zustand + Tailwind v4 (shadcn-style `components/ui/`). `useChatTurn` consumes the SSE stream via `fetch`/`ReadableStream` (`api/sse.ts`) — `EventSource` is the wrong fit because turns are POSTs. `api/client.ts` is typed by the generated `openapi.json` types. Key components: `ChatTimeline`, `MessageBubble`, `SqlPanel`, `ReasoningPanel`, `ResultTable`, `EvidenceCard`, `ClarifyPrompt`. Playwright e2e specs live in `e2e/`.
+React 19 + TanStack Query/Table + Tailwind v4 (shadcn-style `components/ui/`). `useChatTurn` consumes the SSE stream via `fetch`/`ReadableStream` (`api/sse.ts`) — `EventSource` is the wrong fit because turns are POSTs. `api/client.ts` is typed by the generated `openapi.json` types. Key components: `ChatTimeline`, `MessageBubble`, `SqlPanel`, `ReasoningPanel`, `ResultTable`, `EvidenceCard`, `ClarifyPrompt`. Playwright e2e specs live in `e2e/`.

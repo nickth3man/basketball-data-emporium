@@ -12,16 +12,16 @@
  * failures).
  *
  * The canonical not-answerable question is the Harden 2022-23 PHI-vs-BKN
- * trade split (`season_comparison.player_team_split`,
- * NOT_ANSWERABLE=True). A prompt like "James Harden
- * 2022-23 per-game stats split between Philadelphia and Brooklyn after
- * the trade" routes the agent to that template's not-answerable path.
+ * trade split. A prompt like "James Harden 2022-23 per-game stats split
+ * between Philadelphia and Brooklyn after the trade" routes the agent to
+ * a not-answerable path (the warehouse only carries single-team season
+ * rows per player-year).
  *
  * Why this test mocks the SSE stream
  * ----------------------------------
  * The live agent's routing is non-deterministic and the not-answerable
- * path depends on the agent picking `player_team_split`. To make the
- * test deterministic (and free of live OpenRouter cost), we intercept
+ * path depends on the agent's classification. To make the test
+ * deterministic (and free of live OpenRouter cost), we intercept
  * `POST /api/chat/stream` with Playwright's `page.route()` and inject a
  * canned SSE stream that emits the four-frame not-answerable sequence:
  *
@@ -56,15 +56,17 @@
  *
  * Test infrastructure
  * -------------------
- * Boots BOTH servers via Playwright's `webServer` config in
- * `../playwright.config.ts`. The shared `resetVisibleHistory` helper
- * (mirrored from `chat.smoke.ts` / `chat.error.ts`) wipes any leftover
- * session history so the timeline starts clean.
+ * This is a **mocked-SSE** spec: it intercepts `POST /api/chat/stream`
+ * with a canned response and never reaches the real agent or warehouse.
+ * No live OpenRouter call or DuckDB connection is required.
  *
- * This is a LOCAL smoke. NOT wired into CI yet — needs the FastAPI
- * server on :8787 to be reachable (the `webServer` config handles
- * that) but does NOT need the warehouse or `OPENROUTER_API_KEY` because
- * the SSE route is mocked.
+ * Boots BOTH servers via Playwright's `webServer` config in
+ * `../playwright.config.ts`. This spec is auto-discovered by CI (run on
+ * every push/PR) via the `ls e2e/*.ts | grep -v smoke` glob — any new
+ * `*.spec.ts`, `*.error.ts`, or `*.test.ts` in `e2e/` that mocks the SSE
+ * stream is picked up automatically. The live smoke test (`chat.smoke.ts`)
+ * is excluded from CI; it needs a real `OPENROUTER_API_KEY` and the
+ * DuckDB warehouse.
  */
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type APIRequestContext } from "@playwright/test";

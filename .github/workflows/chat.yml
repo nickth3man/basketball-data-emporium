@@ -114,9 +114,11 @@ jobs:
           node-version: 20
 
       # Runs the standard npm scripts: typecheck, lint, format:check, vitest.
-      # Playwright e2e specs (4 present in e2e/) are not wired into CI —
-      # they require the running app and warehouse, which are not available
-      # in this environment.
+      # Playwright e2e specs run in the dedicated `e2e` job below (mocked-SSE
+      # stream, no warehouse or OpenRouter needed). The live-LLM smoke test
+      # (e2e/chat.smoke.ts) is excluded from that job and from CI entirely;
+      # it is a local/manual live-smoke test that requires both a real
+      # OpenRouter API key and the read-only DuckDB warehouse.
 
       - name: Install dependencies
         # Prefer `npm ci` when a lockfile is present; fall back to
@@ -206,8 +208,15 @@ jobs:
           # `frontend/src/generated/sse-events.schema.json`. Fail if the
           # regenerated file differs from the committed snapshot.
           git diff --exit-code -- frontend/src/generated/sse-events.schema.json
-          # Guard #3 (vitest-side) lives in the `frontend` job; this
-          # CI job covers only the byte-identical snapshots.
+
+      # Guard #3 — typed frontend API contract (generated from openapi.json)
+      - name: TypeScript API types drift
+        working-directory: chat/frontend
+        run: |
+          set -euo pipefail
+          if [ -f package-lock.json ]; then npm ci; else npm install; fi
+          npm run gen:types
+          git diff --exit-code -- src/generated/api.d.ts
 
   e2e:
     if: github.event_name != 'schedule'
@@ -368,8 +377,7 @@ jobs:
 
           # Extract passed-test count from the summary footer.
           # Typical line: "== 3 passed, 2 skipped, 1 warning in 45.32s =="
-          n_pass=$(grep -oP '\d+(?= passed)' "$logfile" | tail -1)
-          n_pass=${n_pass:-0}
+          n_pass=$(grep -oP '\d+(?= passed)' "$logfile" | tail -1 || echo "0")
 
           # Exit code 5 (no tests collected) is a valid failure already.
           # Exit code 0 with 0 passes means all tests skipped — false green.

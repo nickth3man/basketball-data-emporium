@@ -41,7 +41,7 @@ from wherever your warehouse is built/shared and drop it at that path.
 ## Repo layout
 
 ```
-web/                  The app — see AGENTS.md (repo root) for the full breakdown
+web/                  The app — see CLAUDE.md (repo root) for the full breakdown
   server/             Express API: DuckDB queries, routes, team colors, photos
   src/                 Vite/TypeScript frontend: tab views, header search, DOM helpers
   test/                 Vitest unit tests
@@ -63,12 +63,15 @@ npm run test              # vitest run
 npm run build              # production build
 ```
 
-Formatting, linting, typechecking, and tests run automatically via
-[lefthook](https://github.com/evilmartians/lefthook) on `git commit`.
+Pre-commit hooks (lint, format, typecheck on staged files) and pre-push hooks
+(typecheck, tests, knip for chat/frontend) run automatically via
+[lefthook](https://github.com/evilmartians/lefthook), installed by `npm install`
+in the repo root. CI (`.github/workflows/web.yml`) runs the full suite on every
+push/PR to `web/`.
 
 ## Documentation
 
-- [`AGENTS.md`](AGENTS.md) — architecture, conventions, and known
-  data-quality gotchas for anyone (human or AI) working on the codebase.
+- [`CLAUDE.md`](CLAUDE.md) — architecture, conventions, orientation, and
+  quality gates for anyone (human or AI) working on the codebase.
 - [`data/anchors/README.md`](data/anchors/README.md) — the
   Basketball-Reference scraper corpus that supplements the warehouse.

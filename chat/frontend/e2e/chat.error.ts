@@ -1,8 +1,15 @@
 /**
  * E2E error-path tests (error UX).
  *
- * Validates the network-loss / cancel affordances without breaking the
- * happy-path smoke. The two tests are independent (no shared state).
+ * Both tests are **mocked-SSE** specs: they intercept `POST /api/chat/stream`
+ * with `page.route()` and never reach the real agent or warehouse. No live
+ * OpenRouter call or DuckDB connection is required.
+ *
+ * These specs are auto-discovered by CI (run on every push/PR) via the
+ * `ls e2e/*.ts | grep -v smoke` glob — any new `*.error.ts`, `*.spec.ts`, or
+ * `*.test.ts` in `e2e/` that mocks the SSE stream is picked up automatically.
+ * The live smoke test (`chat.smoke.ts`) is excluded from CI; it needs a real
+ * `OPENROUTER_API_KEY` and the DuckDB warehouse.
  *
  *  1. `network loss shows the Connection-lost banner with a Retry button`
  *     — intercepts `POST /api/chat/stream` with `route.abort("failed")`
@@ -10,11 +17,12 @@
  *     No live agent or warehouse call is required for this test.
  *
  *  2. `Cancel restores the composer and shows the inline Cancelled. note`
- *     — sends a real turn, waits for the Cancel button (after the 5 s
- *     cancel-affordance threshold), clicks it, asserts the inline
- *     "Cancelled." note
- *     appears AND the composer re-enables. This makes ONE live OpenRouter
- *     call (~$0.001); the call is cancelled before it can settle.
+ *     — intercepts `POST /api/chat/stream` with a delayed-route handler
+ *     that waits 8 s (past the 5 s cancel-affordance threshold) then aborts.
+ *     The test clicks Cancel before the route handler resolves, asserts the
+ *     inline "Cancelled." note appears AND the composer re-enables.
+ *     No live OpenRouter call is made — the SSE stream never reaches the
+ *     backend.
  *
  * Boots BOTH servers via the Playwright `webServer` config in
  * `../playwright.config.ts`. The shared `resetVisibleHistory` helper
