@@ -3,22 +3,33 @@
 Imported lazily via `get_settings()`. Required env vars (validated on first
 access, not on import, so that the package can be imported in environments
 without secrets configured):
-    OPENROUTER_API_KEY   — required
-    DUCKDB_PATH          — required
-    OPENROUTER_MODEL     — default "anthropic/claude-sonnet-4.6"
-    CHAT_LOG_DIR         — default "./logs"
-    CHAT_PORT            — default 8787
-    CHAT_QUERY_TIMEOUT   — default 300 (seconds; watchdog budget for governed SQL execution)
-    CHAT_MEMORY_LIMIT    — default "8GB" (DuckDB memory_limit, applied at connection open)
-    CHAT_DATA_DIR        — default "./data" (visible session store root)
+
+    OPENROUTER_API_KEY      — required
+    DUCKDB_PATH             — required
+    OPENROUTER_MODEL        — default "anthropic/claude-sonnet-4.6"
+    OPENROUTER_MAX_TOKENS   — default 16384
+    CHAT_CORS_ORIGINS       — default "http://localhost:5173"
+    CHAT_LOG_DIR            — default "./logs"
+    CHAT_PORT               — default 8787
+    CHAT_QUERY_TIMEOUT      — default 300 (seconds; watchdog budget for governed SQL execution)
+    CHAT_MEMORY_LIMIT       — default "8GB" (DuckDB memory_limit, applied at connection open)
+    CHAT_DATA_DIR           — default "./data" (visible session store root)
+
+See also :func:`get_cors_origins` — a lightweight parser that reads
+``CHAT_CORS_ORIGINS`` first from the process environment (highest
+precedence), then from ``chat/.env`` via ``dotenv_values``, without
+building the full ``Settings`` object.  Safe to call at module-import
+time in environments without secrets configured.
 """
 
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field, ValidationError
+from dotenv import dotenv_values
+from pydantic import Field, ValidationError, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
@@ -56,6 +67,42 @@ class Settings(BaseSettings):
     chat_memory_limit: str = Field(default="8GB", min_length=1)
     chat_data_dir: str = Field(default="./data")
 
+    #: Comma-separated CORS origins. Each origin is stripped of trailing
+    #: slashes and whitespace. ``"*"`` is only valid as the sole origin;
+    #: mixing it with specific origins falls back to the default.
+    #: Example:
+    #: ``CHAT_CORS_ORIGINS="http://localhost:5173,http://localhost:4173"``
+    chat_cors_origins: str = Field(
+        default="http://localhost:5173",
+        description="Comma-separated list of allowed CORS origins",
+    )
+
+    @field_validator("chat_cors_origins", mode="before")
+    @classmethod
+    def _normalize_cors_origins(cls, v: str) -> str:
+        """Strip whitespace around commas; the raw string is stored but
+        consumers should call :meth:`parsed_cors_origins` for the typed list."""
+        if not v or not v.strip():
+            return "http://localhost:5173"
+        return ",".join(origin.strip() for origin in v.split(",") if origin.strip())
+
+    def parsed_cors_origins(self) -> list[str]:
+        """Return the CORS origins as a normalized list, each entry stripped
+        of trailing slashes so FastAPI's CORS middleware works correctly.
+
+        ``"*"`` is only valid as the sole origin — mixing it with specific
+        origins falls back to ``["http://localhost:5173"]``.
+        """
+        if not self.chat_cors_origins or self.chat_cors_origins.strip() == "":
+            return ["http://localhost:5173"]
+        raw = [o.strip() for o in self.chat_cors_origins.split(",") if o.strip()]
+        # Wildcard is only valid as the sole origin
+        if "*" in raw:
+            if len(raw) > 1:
+                return ["http://localhost:5173"]
+            return ["*"]
+        return [o.rstrip("/") for o in raw]
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
@@ -80,3 +127,42 @@ def get_settings() -> Settings:
 def reset_settings_cache() -> None:
     """Clear the cached settings; test helper only."""
     get_settings.cache_clear()
+
+
+def get_cors_origins() -> list[str]:
+    """Lightweight CORS origins parser — does **not** build the full
+    ``Settings`` object (and therefore does **not** require
+    ``OPENROUTER_API_KEY`` or ``DUCKDB_PATH``).
+
+    Reads ``CHAT_CORS_ORIGINS`` with the following precedence:
+
+    1. Process environment (``os.environ``) — highest priority.
+    2. ``chat/.env`` file (via ``dotenv_values``) — respects the same
+       ``.env`` that ``Settings`` loads via pydantic-settings.
+    3. Built-in default (``"http://localhost:5173"``).
+
+    Applies the same normalisation as :meth:`Settings.parsed_cors_origins`,
+    and is safe to call at module-import time in environments without
+    secrets configured.
+
+    Rules:
+
+    - Empty or whitespace-only input → ``["http://localhost:5173"]``.
+    - ``"*"`` as the sole origin → ``["*"]``.
+    - ``"*"`` mixed with specific origins → fall back to the default (unsafe
+      configuration is silently corrected).
+    - Non-wildcard origins have trailing slashes stripped.
+    """
+    raw = os.environ.get("CHAT_CORS_ORIGINS")
+    if raw is None:
+        dotenv_vals = dotenv_values(str(_ENV_FILE))
+        raw = dotenv_vals.get("CHAT_CORS_ORIGINS")
+    if not raw or not raw.strip():
+        return ["http://localhost:5173"]
+    origins = [o.strip() for o in raw.split(",") if o.strip()]
+    # Wildcard is only valid as the sole origin.
+    if "*" in origins:
+        if len(origins) > 1:
+            return ["http://localhost:5173"]
+        return ["*"]
+    return [o.rstrip("/") for o in origins]

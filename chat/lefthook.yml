@@ -1,75 +1,8 @@
-# NOTE — This file is intentionally chat/ root-level (separate from the repo-root
-# `lefthook.yml` which already covers the `web/` project).
+# Chat hooks have been merged into the root lefthook.yml at the repo root.
 #
-# Two integration options, pick ONE before relying on this in CI / pre-commit:
+# The root config is auto-installed via `npm install` → `lefthook install`
+# and covers both web/ and chat/ hooks (pre-commit + pre-push).
 #
-#   (a) Merge / extend this `pre-commit.commands` block into the repo-root
-#       `lefthook.yml`. Recommended for normal development — lefthook then runs
-#       both the web/ and chat/ hook sets in a single pre-commit pass.
-#
-#   (b) Run `cd chat && lefthook install` so lefthook discovers this file in
-#       the chat/ dir. Use this if you want fully isolated chat/ tooling
-#       (e.g. contributors touching only `chat/**`).
-#
-# Either way, every hook defines `stage_fixed: true` for formatters so
-# lefthook automatically re-stages the file after fixing it.
-
-pre-commit:
-  parallel: true
-  commands:
-    # --- Backend: Python (ruff lint+format, ty type-check) -----------------
-    chat-py-lint:
-      root: chat/
-      glob: "*.py"
-      run: uv run ruff check --fix {staged_files}
-      stage_fixed: true
-
-    chat-py-format:
-      root: chat/
-      glob: "*.py"
-      run: uv run ruff format {staged_files}
-      stage_fixed: true
-
-    chat-py-type:
-      root: chat/
-      glob: "*.py"
-      run: uv run ty check chat_server {staged_files}
-
-    # --- Backend: SQL (SQLFluff) -------------------------------------------
-    chat-sqlfluff:
-      root: chat/
-      glob: "*.sql"
-      run: uv run sqlfluff lint --dialect duckdb {staged_files}
-
-    # --- Frontend: TS / TSX (eslint, tsc, prettier) ------------------------
-    chat-fe-lint:
-      root: chat/frontend/
-      glob: "*.{ts,tsx,js,jsx}"
-      run: npx eslint --fix {staged_files}
-      stage_fixed: true
-
-    chat-fe-type:
-      root: chat/frontend/
-      glob: "*.{ts,tsx}"
-      run: npx tsc --noEmit
-
-    chat-fe-format:
-      root: chat/frontend/
-      glob: "*.{ts,tsx,js,jsx,json,css,html,md}"
-      run: npx prettier --write {staged_files}
-      stage_fixed: true
-
-pre-push:
-  parallel: true
-  commands:
-    frontend-typecheck:
-      glob: "frontend/**/*.{ts,tsx}"
-      run: cd frontend && npm run typecheck
-    frontend-test:
-      glob: "frontend/**/*.{ts,tsx}"
-      run: cd frontend && npm run test
-    frontend-knip:
-      # Dead-code/unused-export scan. Knip is noisy on first run until the
-      # codebase is cleaned up; move this to a manual `npm run knip` or a
-      # CI-only step if it blocks pushes during initial adoption.
-      run: cd frontend && npm run knip
+# Standalone `cd chat && lefthook install` is no longer needed — it would
+# install a duplicate set of hooks that reference this config, which is now
+# intentionally empty. All chat hooks live in the root config instead.

@@ -174,7 +174,7 @@ dev = [
     { name = "pytest-cov", specifier = ">=6" },
     { name = "ruff", specifier = ">=0.9" },
     { name = "sqlfluff", specifier = ">=3.2,<4.0" },
-    { name = "ty", specifier = ">=0.0.1a5" },
+    { name = "ty", specifier = "~=0.0.56" },
 ]
 
 [[package]]

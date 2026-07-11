@@ -51,12 +51,7 @@ export interface ChatTurnError {
 }
 
 export type ChatTurnStatus =
-  | "idle"
-  | "running"
-  | "awaiting_clarification"
-  | "done"
-  | "error"
-  | "cancelled";
+  "idle" | "running" | "awaiting_clarification" | "done" | "error" | "cancelled";
 
 export interface ChatTurnState {
   status: ChatTurnStatus;
@@ -274,10 +269,7 @@ export type ChatTurnAction =
   | { type: "done" };
 
 /** @internal Exported for useChatTurn.test.tsx reducer tests. */
-export function chatTurnReducer(
-  state: ChatTurnState,
-  action: ChatTurnAction,
-): ChatTurnState {
+export function chatTurnReducer(state: ChatTurnState, action: ChatTurnAction): ChatTurnState {
   return reducer(state, action as Action);
 }
 

@@ -16,6 +16,14 @@ on:
     paths:
       - "chat/**"
       - ".github/workflows/chat.yml"
+  schedule:
+    # Nightly at 06:00 UTC — runs live-LLM eval tests (paid OpenRouter calls)
+    # on a self-hosted runner (label `nba-warehouse`) that has the read-only
+    # DuckDB warehouse.  The job fails clearly when the warehouse is absent
+    # (deliberate: a missing warehouse means no validation happened).
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+    # Manual trigger for live-LLM validation on demand.
 
 # Note on the warehouse: `data/nba.duckdb` (~21.5 GB) is gitignored and not
 # provisioned in CI. Backend tests that depend on it MUST skip gracefully when
@@ -24,6 +32,7 @@ on:
 
 jobs:
   backend:
+    if: github.event_name != 'schedule'
     name: Backend (Python)
     runs-on: ubuntu-latest
     defaults:
@@ -46,9 +55,11 @@ jobs:
           python-version: "3.13"
 
       - name: Install uv
+        # Pin to 0.6.x for deterministic builds. uv.lock revision 3 is
+        # compatible across uv 0.5+; 0.6.x is the current stable track.
         uses: astral-sh/setup-uv@v3
         with:
-          version: latest
+          version: "0.6.x"
           working-directory: chat
 
       - name: Install dependencies
@@ -88,6 +99,7 @@ jobs:
           fi
 
   frontend:
+    if: github.event_name != 'schedule'
     name: Frontend (TypeScript)
     runs-on: ubuntu-latest
     defaults:
@@ -139,6 +151,7 @@ jobs:
         run: npm run size
 
   drift:
+    if: github.event_name != 'schedule'
     # Regenerate the two committed snapshots (OpenAPI + SSE event JSON
     # schema) and assert `git diff --exit-code` over each. The Pydantic /
     # FastAPI code is the source of truth; the committed JSON files are the
@@ -166,7 +179,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v3
         with:
-          version: latest
+          version: "0.6.x"
           working-directory: chat
 
       - name: Install backend dependencies
@@ -197,12 +210,17 @@ jobs:
           # CI job covers only the byte-identical snapshots.
 
   e2e:
+    if: github.event_name != 'schedule'
     name: Playwright e2e (mocked SSE)
     runs-on: ubuntu-latest
     needs: [frontend]
     env:
       CHAT_SKIP_DB_TESTS: "1"
       DUCKDB_PATH: "./data/nba.duckdb"
+      # Dummy placeholder — never a real key. The e2e specs mock the SSE stream
+      # so no OpenRouter call is ever made.  The backend's Settings() requires
+      # a non-empty string to start; this satisfies validation at zero cost.
+      OPENROUTER_API_KEY: "sk-dummy-placeholder-for-e2e-tests"
     defaults:
       run:
         working-directory: chat/frontend
@@ -222,7 +240,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v3
         with:
-          version: latest
+          version: "0.6.x"
           working-directory: chat
 
       - name: Install backend dependencies
@@ -240,8 +258,15 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      - name: Run e2e tests (deterministic mocked-SSE specs only)
-        run: npx playwright test e2e/chat.notanswerable.spec.ts e2e/chat.clarification.spec.ts e2e/chat.error.ts --project=chromium
+      - name: Run e2e tests (mocked-SSE specs, auto-discovered)
+        # Discover all e2e/ specs except chat.smoke.ts (which requires a live
+        # OpenRouter call + warehouse). New .spec.ts / .error.ts / .test.ts
+        # files are automatically picked up as long as they mock the SSE stream
+        # and don't need live backend credentials.
+        run: |
+          specs=$(ls e2e/*.ts | grep -v smoke | tr '\n' ' ')
+          echo "Discovered specs: $specs"
+          npx playwright test $specs --project=chromium
 
       - name: Upload test results on failure
         if: failure()
@@ -253,3 +278,110 @@ jobs:
             chat/frontend/playwright-report/
           if-no-files-found: warn
           retention-days: 3
+
+  live-llm-validation:
+    # Nightly / manual validation of eval tests that make real OpenRouter calls.
+    # These tests are marked `@pytest.mark.live_llm` and require:
+    #   - A self-hosted runner with label `nba-warehouse`
+    #   - The read-only DuckDB warehouse at the configured DUCKDB_PATH
+    #   - OPENROUTER_API_KEY set as a repository secret
+    # Normal push/PR CI filters these tests out via `-m "not live_llm"`.
+    #
+    # The job fails clearly when the warehouse is absent — deliberate:
+    # silent skips produce a false-green no-op, which is worse than a
+    # red build that prompts the operator to set up the runner.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    name: Live LLM validation (eval tests)
+    runs-on: [self-hosted, linux, x64, nba-warehouse]
+    defaults:
+      run:
+        working-directory: chat
+    env:
+      # Forward the secret key for live OpenRouter calls. GitHub masks this
+      # in logs automatically; the test layer's `@skip_no_llm` handles absent
+      # or placeholder values gracefully (never logs the raw key).
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+
+      # Path to the read-only DuckDB warehouse on the self-hosted runner.
+      # Override via the repository variable CHAT_LIVE_LLM_DUCKDB_PATH
+      # (set in GitHub repo Settings → Secrets and variables → Actions →
+      #  Repository variables).
+      #
+      # Default: `../data/nba.duckdb` (relative to `chat/`, resolves to
+      # `data/nba.duckdb` from the repo root).  Use an absolute path if the
+      # warehouse lives outside the checkout tree.
+      DUCKDB_PATH: ${{ vars.CHAT_LIVE_LLM_DUCKDB_PATH || '../data/nba.duckdb' }}
+
+      # NOT setting CHAT_SKIP_DB_TESTS — the live_llm tests need the real
+      # warehouse. The prerequisite step below validates presence explicitly.
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "0.6.x"
+          working-directory: chat
+
+      - name: Install dependencies
+        run: uv sync --dev
+
+      - name: Verify warehouse availability
+        run: |
+          set -euo pipefail
+          resolved="$DUCKDB_PATH"
+          if [ ! -f "$resolved" ]; then
+            echo "::error::Warehouse not found at DUCKDB_PATH='$resolved'"
+            echo ""
+            echo "This job requires a self-hosted runner (label 'nba-warehouse')"
+            echo "with the read-only DuckDB warehouse accessible at the path"
+            echo "above.  The warehouse is not committed to the repository."
+            echo ""
+            echo "To configure:"
+            echo "  1. Add a self-hosted runner to the repository with labels:"
+            echo "     self-hosted, linux, x64, nba-warehouse"
+            echo "  2. Ensure the DuckDB file exists on the runner at the path"
+            echo "     set by DUCKDB_PATH"
+            echo "  3. Optionally override the path via the repository variable:"
+            echo "     CHAT_LIVE_LLM_DUCKDB_PATH"
+            echo "     (GitHub repo → Settings → Secrets and variables →"
+            echo "      Actions → Repository variables)"
+            exit 1
+          fi
+          echo "✓ Warehouse found at: $resolved"
+
+      - name: Run live-LLM eval tests
+        # Run only tests carrying the `live_llm` marker.  Use -rA for a
+        # verbose pass/skip/fail summary per test.  The count guard below
+        # ensures at least one test actually executed (not all-skipped),
+        # preventing a false-green when prerequisites are misconfigured.
+        run: |
+          set -euo pipefail
+          logfile="$RUNNER_TEMP/pytest-live-llm-output.txt"
+          ! uv run pytest -q --tb=short -m "live_llm" -rA 2>&1 | tee "$logfile"
+          rc=${PIPESTATUS[0]}
+
+          # Extract passed-test count from the summary footer.
+          # Typical line: "== 3 passed, 2 skipped, 1 warning in 45.32s =="
+          n_pass=$(grep -oP '\d+(?= passed)' "$logfile" | tail -1)
+          n_pass=${n_pass:-0}
+
+          # Exit code 5 (no tests collected) is a valid failure already.
+          # Exit code 0 with 0 passes means all tests skipped — false green.
+          if [ "$n_pass" -eq 0 ] && [ "$rc" -eq 0 ]; then
+            echo ""
+            echo "::error::All live_llm tests skipped — nothing was validated."
+            echo "Check that DUCKDB_PATH points to a valid warehouse and"
+            echo "OPENROUTER_API_KEY is set to a non-placeholder value."
+            grep -E '^===' "$logfile" || true
+            rm -f "$logfile"
+            exit 1
+          fi
+
+          rm -f "$logfile"
+          exit "$rc"

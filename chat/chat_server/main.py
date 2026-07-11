@@ -8,9 +8,8 @@ Or as a script:
 
     uv run python -m chat_server.main
 
-Phase 0 serves only the meta routes (`/api/health`, `/api/config`). Phase 1
-adds the data layer; Phase 2 adds sessions + logging; subsequent phases
-add the chat agent and SSE.
+Phase 0 serves only the meta routes (`/api/health`, `/api/config`). Subsequent
+phases add sessions, logging, the chat agent, and SSE streaming.
 """
 
 from __future__ import annotations
@@ -23,14 +22,12 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .config import get_settings
+from .config import get_cors_origins, get_settings
 from .log_retention import sweep_all
 from .logging_setup import setup_logging
 from .routes import chat, meta, sessions
 
 log = logging.getLogger(__name__)
-
-_VITE_DEV_ORIGIN = "http://localhost:5173"
 
 APP_VERSION = "0.1.0"
 APP_TITLE = "Basketball Data Chatbot API"
@@ -62,9 +59,10 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(title=APP_TITLE, version=APP_VERSION, lifespan=lifespan)
 
+cors_origins = get_cors_origins()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[_VITE_DEV_ORIGIN],
+    allow_origins=cors_origins,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],

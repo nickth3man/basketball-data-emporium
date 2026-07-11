@@ -3,11 +3,11 @@
 A local-web chat interface over the project's existing DuckDB warehouse
 (`data/nba.duckdb`): read-only, no auth, OpenRouter-backed, and
 ground-truth answers only — every numeric claim comes from a query against
-the warehouse, never from model memory. v1 ships with **20 predefined SQL
-templates** organized into **10 analytical families**, an agent that picks a
-template (never writes SQL), SSE streaming, inline citations, collapsible
-SQL + reasoning panels, and a transparent "not answerable with evidence"
-path for questions the warehouse can't support.
+the warehouse, never from model memory.
+
+The agent **generates SQL** (it is not limited to a fixed template set).
+Generated SQL passes through a **governed validation gate** before
+execution, ensuring safety and correctness. Answers stream over SSE.
 
 ---
 
@@ -16,28 +16,32 @@ path for questions the warehouse can't support.
 Two processes, one immutable warehouse:
 
 ```
-┌────────────────────────────────┐         ┌─────────────────────────────────┐
-│  Frontend  (chat/frontend/)    │  SSE    │  Backend  (chat/chat_server/)    │
-│  Vite + React 19 + TS +        │ ──────▶ │  FastAPI :8787                  │
-│  Tailwind v4 + shadcn-style    │         │       │                         │
-│                                │         │       ▼                         │
-│  ChatTimeline · MessageBubble  │         │  Pydantic AI agent (OpenRouter) │
-│  SqlPanel · ReasoningPanel     │         │       │   ↓ (template + params) │
-│  ResultTable · EvidenceCard    │         │       ▼                         │
-│                                │         │  Template registry (20 .sql     │
-│                                │         │   + .py pairs, 10 families)    │
-│                                │         │       │   ↓ (render + validate) │
-│                                │         │       ▼                         │
-│                                │         │  SQLGlot allowlist gate         │
-│                                │         │       │   ↓ (single SELECT)     │
-└────────────────────────────────┘         │       ▼                         │
-                                            │  DuckDBSingleton (read-only)    │
-                                            │       │                         │
-                                            │       ▼                         │
-                                            │  data/nba.duckdb (~21.5 GB)     │
-                                            │  + Answer Composer (Pydantic)   │
-                                            │  + JSONL log store              │
-                                            └─────────────────────────────────┘
+┌────────────────────────────────┐         ┌──────────────────────────────────┐
+│  Frontend  (chat/frontend/)    │  SSE    │  Backend  (chat/chat_server/)     │
+│  Vite + React 19 + TS +        │ ──────▶ │  FastAPI :8787                   │
+│  Tailwind v4 + shadcn-style    │         │        │                         │
+│                                │         │        ▼                         │
+│  ChatTimeline · MessageBubble  │         │  Pydantic AI agent (OpenRouter)  │
+│  SqlPanel · ReasoningPanel     │         │        │  ↓ (Plan union)         │
+│  ResultTable · EvidenceCard    │         │        ▼                         │
+│                                │         │  Plan: ClarifyPlan |             │
+│                                │         │  NotAnswerablePlan | SqlPlan     │
+│                                │         │        │  ↓ (SqlPlan only)       │
+│                                │         │        ▼                         │
+│                                │         │  governed validation gate         │
+│                                │         │  (sqlgate.py: 3-layer check)     │
+│                                │         │        │  ↓                      │
+│                                │         │        ▼                         │
+│                                │         │  read-only DuckDB dry-run/exec   │
+│                                │         │        │  ↓                      │
+│                                │         │        ▼                         │
+│                                │         │  Answer Composer + SSE stream    │
+│                                │         │  (composer.py → events.py)       │
+│                                │         │        │                         │
+│                                │         │        ▼                         │
+│                                │         │  data/nba.duckdb (~21.5 GB)      │
+│                                │         │  + JSONL log store               │
+│                                │         └──────────────────────────────────┘
 ```
 
 **Data flow (UI → DB → UI):**
@@ -47,21 +51,40 @@ Two processes, one immutable warehouse:
    consumes the SSE stream via `fetch`/`ReadableStream` (`api/sse.ts`)
    — `EventSource` is the wrong fit because turns are POSTs.
 3. The backend (`pipeline.py`) walks the turn:
-   **agent (Pydantic AI / OpenRouter) → template lookup → SQL render
-   → SQLGlot validation → DuckDB read-only execute → composer
-   (Pydantic response models) → SSE event stream**.
-4. The composer attaches inline citations (per table / metric / gap),
+   **agent (Pydantic AI / OpenRouter) → Plan union → governed SQL validation
+   (sqlgate.py) → read-only DuckDB execute → composer → SSE event stream**.
+4. Plans are a discriminated union:
+   - **SqlPlan** — valid SQL is run through a three-layer governance gate
+     (see `sqlgate.py`): single read-only SELECT, forbidden ops blocked,
+     approved table prefixes only (`dim_`/`fact_`/`mart_`/`analytics_`),
+     live-schema check, and fan-out / chasm detection.
+   - **ClarifyPlan** — the agent asks for more information (round-tripped
+     via `ClarifyPrompt`).
+   - **NotAnswerablePlan** — transparent response when the warehouse can't
+     answer the question.
+5. The composer attaches inline citations (per table / metric / gap),
    produces a transparent `not-answerable-with-evidence` answer when no
-   template fits, and emits `chat` events: `turn_started`,
-   `intent_classified`, `query_started`/`query_finished`, `table_ready`,
-   `reasoning`, `citation`, `answer_delta`/`answer_finished`, `error`.
-5. Everything goes to `chat/logs/{sessions,queries,model}/<date>/...` as
+   plan can satisfy the question, and emits SSE `ChatEvent` types:
+   `turn_started`, `intent_classified`, `query_started`/`query_finished`,
+   `table_ready`, `reasoning`, `citation`, `answer_delta`/`answer_finished`,
+   `clarification_needed`, `error`.
+6. Everything goes to `chat/logs/{sessions,queries,model}/<date>/...` as
    JSONL (7-day rolling retention; secrets redacted by
    `loggingredactor`).
 
-The agent **never** emits SQL. `validate_template_sql()`
-(`chat_server/validation.py`) plus a per-template `ALLOWED_TABLES`
-allowlist make the backend **safe even if the agent tries to misbehave**.
+The backend is **safe even if the agent tries to misbehave**: SQL is
+always validated by `sqlgate.py` before execution, with a model-driven
+repair pass on first failure (`repair.py`).
+
+Key source files:
+- `chat_server/pipeline.py` — end-to-end turn orchestration (async generator)
+- `chat_server/agent.py` — Pydantic AI agent + Plan union + tool definitions
+- `chat_server/sqlgate.py` — three-layer governed SQL validation
+- `chat_server/composer.py` — answer composition from query results
+- `chat_server/repair.py` — model-driven repair of failed SQL validation
+- `chat_server/clarify.py` — clarification round-trip handling
+- `chat_server/events.py` — SSE event vocabulary (contract with frontend)
+- `chat_server/semantic_catalog/` — YAML models (tables, joins, metrics)
 
 ---
 
@@ -86,8 +109,6 @@ allowlist make the backend **safe even if the agent tries to misbehave**.
 ```sh
 # 1. Backend env (from chat/)
 cp .env.example .env             # fill OPENROUTER_API_KEY
-#    OPENROUTER_MODEL defaults to mistralai/mistral-small-2603
-#    DUCKDB_PATH defaults to ../data/nba.duckdb (relative to chat/)
 
 # 2. Backend deps
 uv sync                          # installs from pyproject.toml + uv.lock
@@ -97,9 +118,12 @@ cd frontend
 npm install
 ```
 
-The v1 default model is `mistralai/mistral-small-2603` (cheap and
-reliable enough for template-routing). Switch to `anthropic/claude-sonnet-4.6`
-or another before live testing — see the Phase 8 model-selection note.
+See `.env.example` for all available environment variables. Required
+values beyond `OPENROUTER_API_KEY`:
+- `DUCKDB_PATH` — defaults to `../data/nba.duckdb` (relative to `chat/`)
+
+The runtime default model is `anthropic/claude-sonnet-4.6` (set in
+`chat_server/config.py`). Override via `OPENROUTER_MODEL` in `.env`.
 
 ---
 
@@ -182,7 +206,6 @@ files (or the source) until they match.
 | Backend | Lint + format | `uv run ruff check chat_server` / `uv run ruff format --check chat_server` |
 | Backend | Type check | `uv run ty check chat_server` |
 | Backend | Unit + integration | `uv run pytest` |
-| Backend | SQL lint | `uv run sqlfluff lint --dialect duckdb chat_server/templates` |
 | Backend | Unused deps | `uv run deptry chat` |
 | Backend | JSONL log shape | `check-jsonschema` against exported schemas (CI) |
 | Frontend | Type check | `npx tsc --noEmit` |
@@ -191,108 +214,11 @@ files (or the source) until they match.
 | Frontend | Unit | `npx vitest run` |
 | Frontend | E2E + a11y | `npx playwright test` (Playwright + `@axe-core/playwright`) |
 | Frontend | Build | `npm run build` |
-| Both | Pre-commit | `chat/lefthook.yml` (extends or runs alongside repo-root `lefthook.yml`) |
+| Both | Pre-commit | `lefthook.yml` (repo-root); installed by `npm install` in the root. Covers `web/` and `chat/` checks. Pre-push covers `chat/frontend` checks only. |
 
-All of these run in CI (`.github/workflows/chat.yml`) and on pre-commit via
-`lefthook`. See [`chat/lefthook.yml`](./lefthook.yml) for the chat-specific
-hook set.
-
----
-
-## Template authoring
-
-Add a new query capability by dropping **one file pair** under
-`chat_server/templates/<family>/`:
-
-- `<template_id>.sql` — parameterized SQL using DuckDB `$name`
-  placeholders. Reads **only** from the template's `ALLOWED_TABLES`.
-- `<template_id>.py` — module-level constants:
-
-```python
-from pydantic import BaseModel, Field
-
-class Params(BaseModel):
-    min_ppg: float = Field(default=25.0, ge=0)
-
-TEMPLATE_ID  = "season_thresholds.fifty_forty_ninety"
-TITLE        = "50-40-90 seasons with minimum PPG"
-DESCRIPTION  = "Players who shot >=50% FG, >=40% 3P, >=90% FT in a season."
-ALLOWED_TABLES = {"mart_player_season"}
-RESULT_SCHEMA  = {"player_id": int, "full_name": str, ...}
-ANSWER_POLICY  = "ranked_list"
-DEFAULT_LIMIT  = 50
-EXAMPLES  = ["50-40-90 seasons with at least 25 PPG"]
-TESTS     = [{"params": {"min_ppg": 25.0}, "expect_min_rows": 1,
-              "expect_contains_player": "Stephen Curry"}]
-```
-
-The registry loader (`chat_server/templates/__init__.py` + `_loader.py`)
-discovers every `.sql` / `.py` pair, validates the rendered SQL via
-SQLGlot at import time (fail-fast — a template that doesn't validate is
-a build error), and registers it under `TEMPLATE_ID`. Group files under
-one of the family subdirectories so the dotted template id matches the
-folder. See `templates/season_thresholds/fifty_forty_ninety.{sql,py}`
-for the canonical pattern.
-
-Add a pytest fixture under `chat_tests/test_templates.py` (parameterised)
-to lock the answer shape against the live warehouse.
-
----
-
-## Coverage (v1)
-
-The v1 template registry covers 18 of the 20 benchmark questions
-directly, with the remaining two handled as
-**transparent not-answerable-with-evidence** responses:
-
-- **18 designed-to-be-answerable** — across the Simple / Medium / Heavy
-  latency tiers. Each has a deterministic pytest fixture
-  against `data/nba.duckdb` and a Playwright smoke covering the happy
-  path. Five of the Heavy-tier templates are spike-gated and may
-  decline to not-answerable-with-evidence on warehouse cost.
-- **1 outright not-answerable-with-evidence:**
-  `season_comparison.player_team_split` returns the attempted SQL +
-  the evidence query that proves why the Harden 2022-23 PHI-vs-BKN
-  trade split can't be answered (the warehouse only canonicalizes the
-  post-trade team-roster rows).
-- **1 conditional not-answerable-with-evidence:**
-  `lineup_court.fiveman_shared_court` may fall back when the
-  possession-stitched net-rating computation exceeds the 300 s Heavy
-  budget — the registry emits the attempted SQL + an evidence query.
-
-**Template families — 10:**
-
-| Family | Templates | Covers |
-| --- | --- | --- |
-| `season_thresholds` | 2 | 50-40-90, rookie-vs-final slices |
-| `career_demographic` | 2 | country + GP thresholds, draft value |
-| `season_comparison` | 3 | per-100, era pace, team-split |
-| `player_game_conditional` | 5 | margin split, streak / rare stat lines, milestone age, career aggregates |
-| `team_coach` | 1 | franchise-final-season ORtg |
-| `teammate_overlap` | 1 | two-player shared team-seasons |
-| `shot_zones` | 1 | corner-3 / zone splits |
-| `pbp_aggregate` | 2 | largest scoring run, fouls by period |
-| `clutch_terminal` | 2 | clutch TS%, buzzer-beaters |
-| `lineup_court` | 1 | 5-man shared-court minutes + net rating |
-
-**Total: 20 templates / 10 families.**
-
-**Warehouse adaptations** worth knowing when extending the registry:
-
-- **Win shares** are not in `mart_player_season`; the
-  `career_demographic.hs_draftee_career_ws` template pulls WS via
-  `src_agg_player_season_advanced` (a BBR source-backed table — allowed
-  per the original §3 decision #3).
-- **Lineups** are stitched together from
-  `fact_lineup_player` (canonical roster map) and
-  `src_agg_lineup_efficiency` (lineup-stats source table) inside the
-  `lineup_court` family.
-
----
-
-## Project status
-
-v1 (Phase 6 template breadth + Phase 7 observability/error-UX polish)
-is the current target. Phase 8 (hardening — adversarial prompt review, load
-testing, model-selection live test, final docs) is the shippable
-milestone.
+All of these run in CI (`.github/workflows/chat.yml`) and via `lefthook`
+hooks. The hooks live in the repo-root [`lefthook.yml`](../lefthook.yml) and
+are installed automatically by the root `npm install` (via the `prepare`
+script). Pre-commit covers both `web/` and `chat/` checks; pre-push covers
+`chat/frontend` checks only. The standalone `chat/lefthook.yml` is now an
+empty stub — all chat hooks have been merged into the root config.

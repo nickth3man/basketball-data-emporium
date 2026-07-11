@@ -1,15 +1,90 @@
+# Root lefthook config — covers web/ and chat/ hooks.
+# Installed automatically via root `npm install` → `lefthook install`.
+#
+# Migration note: chat/ hooks were merged here from the standalone
+# chat/lefthook.yml (now a stub). See that file for history.
+
 pre-commit:
   parallel: true
   commands:
+
+    # ---- web/ (vanilla TS SPA) -----------------------------------------------
     web-lint:
       root: web/
       glob: "*.{ts,tsx,js,jsx}"
       run: npx eslint --fix {staged_files}
+      stage_fixed: true
+
     web-format:
       root: web/
       glob: "*.{ts,tsx,js,jsx,json,css,html,md}"
       run: npx prettier --write {staged_files}
+      stage_fixed: true
+
     web-typecheck:
       root: web/
       glob: "*.{ts,tsx}"
       run: npm run typecheck
+
+    # ---- chat/ backend Python ------------------------------------------------
+    chat-py-lint:
+      root: chat/
+      glob: "*.py"
+      run: uv run ruff check --fix {staged_files}
+      stage_fixed: true
+
+    chat-py-format:
+      root: chat/
+      glob: "*.py"
+      run: uv run ruff format {staged_files}
+      stage_fixed: true
+
+    chat-py-type:
+      root: chat/
+      glob: "*.py"
+      run: uv run ty check chat_server {staged_files}
+
+    # ---- chat/ backend SQL ---------------------------------------------------
+    chat-sqlfluff:
+      root: chat/
+      glob: "*.sql"
+      run: uv run sqlfluff lint --dialect duckdb {staged_files}
+
+    # ---- chat/frontend (React 19 + Tailwind) ---------------------------------
+    chat-fe-lint:
+      root: chat/frontend/
+      glob: "*.{ts,tsx,js,jsx}"
+      run: npx eslint --fix {staged_files}
+      stage_fixed: true
+
+    chat-fe-type:
+      root: chat/frontend/
+      glob: "*.{ts,tsx}"
+      run: npx tsc --noEmit
+
+    chat-fe-format:
+      root: chat/frontend/
+      glob: "*.{ts,tsx,js,jsx,json,css,html,md}"
+      run: npx prettier --write {staged_files}
+      stage_fixed: true
+
+pre-push:
+  parallel: true
+  commands:
+
+    # ---- chat/frontend pre-push checks (read-only, no formatting mutations) --
+    chat-fe-typecheck:
+      root: chat/frontend/
+      glob: "**/*.{ts,tsx}"
+      run: npm run typecheck
+
+    chat-fe-test:
+      root: chat/frontend/
+      glob: "**/*.{ts,tsx}"
+      run: npm run test
+
+    chat-fe-knip:
+      # Dead-code/unused-export scan. Runs on every push; no `glob` filter so it
+      # always fires (same as original standalone config behaviour).
+      root: chat/frontend/
+      run: npm run knip

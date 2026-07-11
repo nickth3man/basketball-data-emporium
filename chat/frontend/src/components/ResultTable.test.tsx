@@ -45,7 +45,10 @@ const floatTable: ChatTurnTable = {
 
 const nullValueTable: ChatTurnTable = {
   columns: [{ name: "name" }, { name: "pts" }],
-  rows: [{ name: "LeBron", pts: null }, { name: null, pts: 25 }],
+  rows: [
+    { name: "LeBron", pts: null },
+    { name: null, pts: 25 },
+  ],
   rowCount: 2,
   truncated: false,
 };

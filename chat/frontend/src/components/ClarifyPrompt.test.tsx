@@ -30,7 +30,9 @@ describe("ClarifyPrompt", () => {
 
     screen.getByRole("button", { name: "First option" }).focus();
     expect(input).not.toHaveFocus();
-    rerender(<ClarifyPrompt question="Second question?" options={["First option"]} onAnswer={vi.fn()} />);
+    rerender(
+      <ClarifyPrompt question="Second question?" options={["First option"]} onAnswer={vi.fn()} />,
+    );
     expect(input).toHaveFocus();
   });
 });

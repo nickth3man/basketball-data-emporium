@@ -26,7 +26,9 @@ dependencies = [
 [dependency-groups]
 dev = [
     "ruff>=0.9",
-    "ty>=0.0.1a5",
+    # Pinned to the ~=0.0.x compatible release series to eliminate the
+    # floating alpha-only range risk from the earlier >=0.0.1a5 specifier.
+    "ty~=0.0.56",
     "pytest>=8",
     "pytest-asyncio>=0.25",
     "pytest-cov>=6",

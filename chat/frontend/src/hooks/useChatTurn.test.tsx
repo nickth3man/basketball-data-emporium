@@ -392,7 +392,9 @@ describe("useChatTurn", () => {
   // Keep existing clarification round-trip test
   describe("clarification", () => {
     it("persists clarification after stream completion and completes a follow-up", async () => {
-      mockedStreamChat.mockReturnValueOnce(clarificationStream()).mockReturnValueOnce(answerStream());
+      mockedStreamChat
+        .mockReturnValueOnce(clarificationStream())
+        .mockReturnValueOnce(answerStream());
       const { result } = renderHook(() => useChatTurn("session-1"));
 
       await act(async () => {

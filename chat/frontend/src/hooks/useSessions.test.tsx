@@ -9,12 +9,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useSessions } from "@/hooks/useSessions";
-import {
-  listSessions,
-  getHealth,
-  createSession,
-  deleteSession,
-} from "@/api/client";
+import { listSessions, getHealth, createSession, deleteSession } from "@/api/client";
 
 vi.mock("@/api/client", () => ({
   listSessions: vi.fn(),
