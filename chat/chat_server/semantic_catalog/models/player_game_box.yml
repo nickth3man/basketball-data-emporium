@@ -46,7 +46,13 @@ description: >
   was Kobe's highest scoring game", "most rebounds in a single game this
   season", or "LeBron's stats against the Celtics in the 2012 playoffs".
   For game-level details (scores, attendance, arena) join to the games
-  model via game_id.
+  model via game_id. Player-vs-player co-appearance / shared-game
+  questions (e.g. "Kobe vs Duncan shared-game record", "LeBron and Curry
+  co-appearance stats") are answered via a self-join on game_id with
+  different team_id and positive min — see the co-appearance caveat for
+  the full derivation pattern. This produces shared-game records and
+  per-player per-game stats for games both were active, NOT on-court
+  matchup minutes or direct defensive assignment data.
 
 grain: one row per (game_id, player_id)
 
@@ -322,6 +328,19 @@ caveats:
     Team-level context (home/away, win/loss, opponent_team_id) is
     denormalized into this table. For full game details (scores,
     attendance, arena, overtime) use the games join via game_id.
+  - >
+    Player co-appearance / head-to-head derivation (e.g. "Kobe vs Duncan
+    shared-game record") is achievable via a self-join on game_id with
+    three filters: (1) different team_id to exclude same-team All-Star
+    rows, (2) positive minutes (`a.min > 0`, `b.min > 0`) for both
+    aliases to exclude DNP/inactive rows, and (3) a clear join alias
+    distinction (e.g. `FROM fact_player_game_box a JOIN
+    fact_player_game_box b ON a.game_id = b.game_id`). This produces
+    shared-game records and per-player per-game stats when both were
+    active, NOT on-court matchup minutes or direct defensive assignment
+    data. The raw player-matchup endpoints (src_fact_player_matchups*
+    tables) are empty_endpoint_shell entries and should not be queried
+    directly.
 
 synonyms:
   - box score
@@ -330,6 +349,10 @@ synonyms:
   - per-game stats
   - game-by-game
   - player box score
+  - head to head
+  - player matchup
+  - co-appearance
+  - shared game
 
 example_questions:
   - What was Kobe Bryant's highest scoring game?
@@ -339,3 +362,5 @@ example_questions:
   - Highest plus-minus in a single game this season?
   - List all of Wilt Chamberlain's 60-point games.
   - Average points per game for Michael Jordan in the 1992 playoffs.
+  - "Kobe vs Duncan shared-game record: who scored more when they shared the floor?"
+  - LeBron and Curry co-appearance stats in the 2015-16 season.

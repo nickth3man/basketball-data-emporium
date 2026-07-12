@@ -177,9 +177,13 @@ def test_gate_failure_enters_repair_before_execution(monkeypatch, tmp_path):
 
 def test_query_ref_marks_non_catalog_tables_as_warehouse():
     catalog = load_catalog()
-    report = ValidationReport(valid=True, tables_referenced={"dim_player", "mart_player_career"})
+    # dim_team and fact_official_assignment are in ALLOWED_TABLES_FOR_AGENT
+    # but neither is a catalog model base table.
+    report = ValidationReport(
+        valid=True, tables_referenced={"dim_team", "fact_official_assignment"}
+    )
 
     ref = _query_ref(report, catalog)
 
     assert ref.source == "warehouse"
-    assert ref.tables == ["dim_player", "mart_player_career"]
+    assert ref.tables == ["dim_team", "fact_official_assignment"]

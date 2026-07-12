@@ -1,8 +1,8 @@
 """Tests for the semantic catalog package.
 
-Five tests cover the loader's contract end to end:
+Seven tests cover the loader's contract end to end:
 
-* ``test_load_catalog_returns_all_models`` -- the 8 expected business
+* ``test_load_catalog_returns_all_models`` -- the 12 expected business
   models are all parsed and addressable.
 * ``test_player_career_model_grounding`` -- the fully-grounded reference
   model points at a real warehouse table (skipped when the warehouse is
@@ -13,6 +13,10 @@ Five tests cover the loader's contract end to end:
   files declare the same ``model`` name.
 * ``test_measures_have_additivity`` -- every measure carries a valid
   additivity value from the closed enum.
+* ``test_player_model_grounding`` -- the ``player`` model is grounded
+  against the live warehouse.
+* ``test_franchise_model_grounding`` -- the ``franchise`` model is
+  grounded against the live warehouse.
 """
 
 from __future__ import annotations
@@ -41,6 +45,8 @@ EXPECTED_MODELS: frozenset[str] = frozenset(
         "head_to_head",
         "draft",
         "player_game_box",
+        "player",
+        "franchise",
     }
 )
 
@@ -58,7 +64,7 @@ def _clear_cache() -> Iterator[None]:
 
 
 def test_load_catalog_returns_all_models() -> None:
-    """``load_catalog()`` returns exactly the 8 expected model names."""
+    """``load_catalog()`` returns exactly the 12 expected model names."""
     catalog = load_catalog()
     assert set(catalog.list_models()) == EXPECTED_MODELS
 
@@ -142,3 +148,51 @@ def test_measures_have_additivity() -> None:
             if measure.additivity not in valid:
                 bad.append(f"{m}.{measure.name}={measure.additivity!r}")
     assert not bad, "measures with invalid additivity: " + ", ".join(bad)
+
+
+@skip_no_db
+def test_player_model_grounding() -> None:
+    """``player`` points at a real warehouse table (dim_player)."""
+    import duckdb
+
+    from chat_server.config import get_settings
+
+    db_path = get_settings().duckdb_path
+    model = load_catalog().get_model("player")
+    con = duckdb.connect(db_path, read_only=True)
+    try:
+        rows = con.execute(
+            "SELECT 1 FROM information_schema.tables "
+            "WHERE table_schema = 'main' AND table_name = ? LIMIT 1",
+            [model.base_table.name],
+        ).fetchall()
+    finally:
+        con.close()
+    assert rows, (
+        f"player.base_table.name={model.base_table.name!r} is not present "
+        "in the warehouse's information_schema.tables"
+    )
+
+
+@skip_no_db
+def test_franchise_model_grounding() -> None:
+    """``franchise`` points at a real warehouse table (dim_team_era)."""
+    import duckdb
+
+    from chat_server.config import get_settings
+
+    db_path = get_settings().duckdb_path
+    model = load_catalog().get_model("franchise")
+    con = duckdb.connect(db_path, read_only=True)
+    try:
+        rows = con.execute(
+            "SELECT 1 FROM information_schema.tables "
+            "WHERE table_schema = 'main' AND table_name = ? LIMIT 1",
+            [model.base_table.name],
+        ).fetchall()
+    finally:
+        con.close()
+    assert rows, (
+        f"franchise.base_table.name={model.base_table.name!r} is not present "
+        "in the warehouse's information_schema.tables"
+    )

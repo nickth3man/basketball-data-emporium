@@ -40,6 +40,7 @@ from sqlglot.errors import SqlglotError
 from chat_server.semantic_catalog.schema import Join as CatalogJoin
 
 from .db import DuckDBSingleton
+from .schema_context import ALLOWED_TABLES_FOR_AGENT
 
 if TYPE_CHECKING:
     from chat_server.semantic_catalog import SemanticCatalog
@@ -125,6 +126,12 @@ def validate_select_sql(sql: str, allowed_tables: set[str]) -> ValidationReport:
             tables.add(table.name)
             if table.name not in allowed_tables:
                 errors.append(f"table '{table.name}' is not allowed by the approved warehouse set")
+    if not errors and not tables:
+        errors.append(
+            "governed SQL must reference at least one warehouse table "
+            "(no FROM or FROM-less SELECT); inline -- comments may "
+            "truncate the query and lose table references"
+        )
     for func in ast.find_all(exp.Func):
         try:
             name = func.sql_name().lower()
@@ -136,15 +143,25 @@ def validate_select_sql(sql: str, allowed_tables: set[str]) -> ValidationReport:
 
 
 async def build_live_schema(db: DuckDBSingleton) -> dict[str, dict[str, str]]:
-    """Return a process-local live snapshot of approved main-schema tables."""
+    """Return a process-local live snapshot of approved main-schema tables.
+
+    A table is approved if its name starts with one of the canonical
+    approved prefixes (``dim_`` / ``fact_`` / ``mart_`` / ``analytics_``)
+    OR if it is explicitly listed in
+    ``schema_context.ALLOWED_TABLES_FOR_AGENT``.  The union ensures that
+    source-backed tables behind curated catalog models (e.g.
+    ``src_fact_bref_team_season_summary``) pass the gate without broadly
+    allowing all ``src_*`` exploration.
+    """
     result = await db.execute(
         """SELECT table_name, column_name, data_type FROM information_schema.columns
-           WHERE table_schema = 'main' ORDER BY table_name, ordinal_position"""
+           WHERE table_schema = 'main' ORDER BY table_name, ordinal_position""",
+        limit=100_000,
     )
     schema: dict[str, dict[str, str]] = {}
     for row in result.rows:
         table = str(row["table_name"])
-        if table.startswith(_APPROVED_TABLE_PREFIXES):
+        if table.startswith(_APPROVED_TABLE_PREFIXES) or table in ALLOWED_TABLES_FOR_AGENT:
             schema.setdefault(table, {})[str(row["column_name"])] = str(row["data_type"])
     return schema
 

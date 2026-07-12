@@ -27,10 +27,12 @@ ALLOWED = {"mart_player_season", "dim_player", "fact_game_result"}
 # ---------------------------------------------------------------------------
 
 
-def test_simple_select_no_tables_is_valid() -> None:
+def test_tableless_select_rejected() -> None:
+    """SELECT without a FROM clause referencing a warehouse table
+    must now be rejected by the empty-tableset gate."""
     r = validate_select_sql("SELECT 1 AS x", ALLOWED)
-    assert r.valid is True
-    assert r.errors == []
+    assert r.valid is False
+    assert any("must reference" in e.lower() for e in r.errors), r.errors
     assert r.tables_referenced == set()
 
 
@@ -78,10 +80,12 @@ def test_select_with_multiple_ctes_is_valid() -> None:
     assert r.tables_referenced.isdisjoint({"a", "b"})
 
 
-def test_empty_allowlist_with_no_tables_is_valid() -> None:
-    """`SELECT 1` touches no tables, so the allowlist check is a no-op."""
+def test_empty_allowlist_with_no_tables_rejected() -> None:
+    """`SELECT 1` without a warehouse table reference is rejected
+    even with an empty allowlist (empty-tableset gate fires first)."""
     r = validate_select_sql("SELECT 1 + 2", set())
-    assert r.valid is True
+    assert r.valid is False
+    assert any("must reference" in e.lower() for e in r.errors), r.errors
 
 
 # ---------------------------------------------------------------------------
@@ -185,6 +189,48 @@ def test_parse_error_truncated_query_rejected() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Empty-tableset gate: tableless SELECT and comment-truncated patterns
+# ---------------------------------------------------------------------------
+
+
+def test_tableless_select_via_comment_truncated_rejected() -> None:
+    """A SELECT whose FROM clause is commented out by a ``--`` line
+    comment must be rejected by the empty-tableset gate.
+
+    This exercises the conv_026 same-line comment-truncated pattern:
+    the ``--`` on the line before the table reference causes sqlglot to
+    parse only ``SELECT *`` with no FROM clause, producing an empty
+    tables set.
+    """
+    r = validate_select_sql(
+        "SELECT *\n-- FROM dim_player\nWHERE 1 = 1",
+        ALLOWED,
+    )
+    assert r.valid is False
+    assert any("must reference" in e.lower() for e in r.errors), r.errors
+
+
+def test_cte_over_dim_player_still_passes() -> None:
+    """A CTE referencing a real warehouse table must still pass the
+    empty-tableset gate because the CTE's body references dim_player."""
+    sql = "WITH p AS (SELECT player_id, full_name FROM dim_player) SELECT * FROM p"
+    r = validate_select_sql(sql, ALLOWED)
+    assert r.valid is True
+    assert r.tables_referenced == {"dim_player"}
+
+
+def test_tableless_select_via_block_comment_rejected() -> None:
+    """A SELECT whose only table reference is inside a ``/* */`` block
+    comment must be rejected."""
+    r = validate_select_sql(
+        "SELECT *\n/* FROM dim_player */\nWHERE 1 = 1",
+        ALLOWED,
+    )
+    assert r.valid is False
+    assert any("must reference" in e.lower() for e in r.errors), r.errors
+
+
+# ---------------------------------------------------------------------------
 # API shape sanity
 # ---------------------------------------------------------------------------
 
@@ -197,6 +243,7 @@ def test_validation_report_shape() -> None:
     assert isinstance(r.valid, bool)
     assert isinstance(r.errors, list)
     assert isinstance(r.tables_referenced, set)
-    # Defaults: empty errors + tables when not yet populated.
-    assert r.errors == []
+    # SELECT 1 is rejected by the empty-tableset gate; errors is non-empty.
+    assert r.valid is False
+    assert len(r.errors) >= 1
     assert r.tables_referenced == set()

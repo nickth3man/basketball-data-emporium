@@ -49,7 +49,7 @@ from pydantic_core import PydanticUndefined
 
 from .config import get_settings
 from .db import DuckDBSingleton, get_db
-from .schema_context import SchemaContext, get_schema_context
+from .schema_context import ALLOWED_TABLES_FOR_AGENT, SchemaContext, get_schema_context
 from .semantic_catalog import SemanticCatalog, load_catalog
 
 logger = logging.getLogger(__name__)
@@ -213,8 +213,11 @@ GOVERNED SQL COOKBOOK — use these patterns:
    SELECT ps.season_year, ps.<metric> - b.metric AS delta
    FROM mart_player_season ps CROSS JOIN baseline b WHERE ps.player_id = <player_id>.
 4. Team season record: SELECT ts.team, SUM(ts.w) AS wins, SUM(ts.l) AS losses
-   FROM src_fact_bref_team_season_summary ts WHERE ts.season = <start_year>
-   AND ts.is_playoffs = FALSE AND ts.team_id = <team_id> GROUP BY ts.team.
+   FROM src_fact_bref_team_season_summary ts WHERE ts.season = <end_year>
+   AND ts.team_id = <team_id> GROUP BY ts.team. ts.season is the season END
+   year (2016 = 2015-16 season). is_playoffs is a playoff-qualification flag,
+   NOT a separate postseason row — do NOT filter it to FALSE (that would
+   exclude valid regular-season rows for playoff teams).
 5. Career similarity: WITH target AS (SELECT career_ppg, career_rpg, career_apg
    FROM mart_player_career WHERE player_id = <player_id>)
    SELECT pc.player_id, ABS(pc.career_ppg - t.career_ppg) + ABS(pc.career_rpg - t.career_rpg)
@@ -223,6 +226,65 @@ GOVERNED SQL COOKBOOK — use these patterns:
 6. PREFER writing SQL directly with ILIKE patterns for player/team names
    (e.g., WHERE player_name ILIKE '%Russell%'). Only use lookup_player /
    lookup_team tools if you need the exact ID and can't match by name.
+
+ 7. Player-vs-player co-appearance (shared-game record): Use two aliases of
+    fact_player_game_box joined on game_id, different team_id, positive min
+    on both, with player name resolution through dim_player.
+    The self-join produces one row per shared game; aggregate to one row with
+    per-player averages. a.is_win / b.is_win on the shared-game rows already
+    provide each player's team record (wins / losses) for games both appeared.
+    Example pattern (gold for conv_026 "Kobe vs Duncan record"):
+    SELECT COUNT(*) AS shared_games,
+      SUM(CASE WHEN a.is_win THEN 1 ELSE 0 END) AS player_a_wins,
+      COUNT(*) - SUM(CASE WHEN a.is_win THEN 1 ELSE 0 END) AS player_a_losses,
+      ROUND(AVG(a.pts), 1) AS player_a_ppg,
+      ROUND(AVG(b.pts), 1) AS player_b_ppg
+    FROM fact_player_game_box a
+    JOIN dim_player p1 ON a.player_id = p1.player_id AND LOWER(p1.full_name) = 'player one'
+    JOIN fact_player_game_box b ON a.game_id = b.game_id
+    JOIN dim_player p2 ON b.player_id = p2.player_id AND LOWER(p2.full_name) = 'player two'
+    WHERE a.team_id <> b.team_id AND a.min > 0 AND b.min > 0
+
+ 8. Franchise "seasons until milestone X" (e.g., first 30-win season):
+    Resolve team IDs via lookup_team or SELECT DISTINCT team_id from dim_team
+    (dim_team has 72 rows / 43 ids — multiple name variants per team — so
+    always SELECT DISTINCT). Compute debut season and milestone season,
+    then include `+ 1` for inclusive count.
+    Pattern:
+    WITH team AS (
+      SELECT DISTINCT team_id FROM dim_team WHERE nickname ILIKE '%<team_nickname>%'
+    ),
+    debut AS (
+      SELECT MIN(ts.season) AS debut_season
+      FROM src_fact_bref_team_season_summary ts
+      WHERE ts.team_id IN (SELECT team_id FROM team)
+    ),
+    milestone AS (
+      SELECT MIN(ts.season) AS milestone_season
+      FROM src_fact_bref_team_season_summary ts
+      WHERE ts.team_id IN (SELECT team_id FROM team)
+        AND ts.w >= <threshold>   -- e.g. 30 for first 30-win season
+    )
+    SELECT debut.debut_season, milestone.milestone_season,
+           milestone.milestone_season - debut.debut_season + 1 AS seasons_to_milestone
+    FROM debut CROSS JOIN milestone
+    IMPORTANT: Use src_fact_bref_team_season_summary, NOT dim_team_era.
+    Do NOT join through dim_team_era. Never filter on is_playoffs being
+    false (is_playoffs is a playoff-qualification flag, NOT a separate
+    postseason row, so filtering it out would exclude regular-season rows
+    for playoff teams).
+    ts.season is the season END year (2016 = 2015-16 season).
+
+ENTITY ROUTING RULES:
+- When the user names two specific players (e.g. "Kobe vs Duncan", "LeBron vs
+  Curry"), NEVER route to the head_to_head model (mart_head_to_head). That
+  model is TEAM-vs-TEAM only and includes franchise games where one or both
+  players did not appear. Even joining mart_head_to_head just for team context
+  can fan the one-row co-appearance result across multiple (team, opponent,
+  season) rows and produce incorrect counts. Use the player co-appearance
+  pattern (item 7) via fact_player_game_box self-join — fact_player_game_box
+  contains is_win / is_home / opponent_team_id denormalized on every row, so
+  team context does not require any external join.
 
 Warehouse reference (allowlist + metrics, supplementary to the catalog):
 {schema_context}
@@ -256,11 +318,14 @@ Rules for every governed SQL answer:
    as a transparency contract, not boilerplate — a vague restatement of the
    question is useless; name the specific yardsticks you applied.
 10. For SOFT ambiguity (a subjective term with a reasonable default, like
-   "similar players"), PREFER to execute your best-guess query and surface the
-   interpretation (rule 9) over asking the user to clarify first — the user can
-   refine after seeing concrete results. Reserve answer_mode = clarify (rule 6)
-   for HARD ambiguity (which of several players, which season, an unresolved
-   pronoun) where guessing would waste a query.
+    "similar players"), PREFER to execute your best-guess query and surface the
+    interpretation (rule 9) over asking the user to clarify first — the user can
+    refine after seeing concrete results. Reserve answer_mode = clarify (rule 6)
+    for HARD ambiguity (which of several players, which season, an unresolved
+    pronoun) where guessing would waste a query.
+11. Do NOT include inline -- or /* */ comments inside generated SQL. Raw SQL
+    must contain query tokens only — no explanatory text. Inline comments can
+    truncate the query, causing the gate to reject it as tableless.
 """
 
 
@@ -596,21 +661,29 @@ def _register_tools(agent: Agent[AgentDeps, Plan]) -> None:
     @agent.tool
     async def list_warehouse_tables(ctx: RunContext[AgentDeps]) -> list[str]:
         """List approved live warehouse tables when the catalog lacks coverage."""
+        allowed_sources = sorted(
+            t
+            for t in ALLOWED_TABLES_FOR_AGENT
+            if not t.startswith(("dim_", "fact_", "mart_", "analytics_"))
+        )
         result = await ctx.deps.db.execute(
             """SELECT DISTINCT table_name FROM information_schema.columns
                WHERE table_schema = 'main' AND (table_name LIKE 'dim_%' OR table_name LIKE 'fact_%'
-                 OR table_name LIKE 'mart_%' OR table_name LIKE 'analytics_%')
-               ORDER BY table_name"""
+                 OR table_name LIKE 'mart_%' OR table_name LIKE 'analytics_%'
+                 OR table_name = ANY($allowed_sources))
+               ORDER BY table_name""",
+            {"allowed_sources": allowed_sources},
         )
         return [str(row["table_name"]) for row in result.rows]
 
     @agent.tool
     async def describe_table(ctx: RunContext[AgentDeps], table: str) -> list[dict]:
         """Describe an approved live warehouse table's columns and types."""
-        if not table.startswith(("dim_", "fact_", "mart_", "analytics_")):
-            raise ModelRetry(
-                "Only approved dim_, fact_, mart_, and analytics_ tables may be inspected."
-            )
+        if not (
+            table.startswith(("dim_", "fact_", "mart_", "analytics_"))
+            or table in ALLOWED_TABLES_FOR_AGENT
+        ):
+            raise ModelRetry("Only approved warehouse tables may be inspected.")
         result = await ctx.deps.db.execute(
             """SELECT column_name, data_type FROM information_schema.columns
                WHERE table_schema = 'main' AND table_name = $table ORDER BY ordinal_position""",
@@ -627,7 +700,10 @@ def _register_tools(agent: Agent[AgentDeps, Plan]) -> None:
         """Preview up to five rows from an approved table after describing it."""
         if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", table):
             raise ModelRetry(f"Invalid table identifier: {table!r}")
-        if not table.startswith(("dim_", "fact_", "mart_", "analytics_")):
+        if not (
+            table.startswith(("dim_", "fact_", "mart_", "analytics_"))
+            or table in ALLOWED_TABLES_FOR_AGENT
+        ):
             raise ModelRetry("Only approved warehouse tables may be previewed.")
         if not 1 <= n <= 5:
             raise ModelRetry("preview n must be between 1 and 5.")

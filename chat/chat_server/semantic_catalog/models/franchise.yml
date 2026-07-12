@@ -1,0 +1,186 @@
+# Semantic catalog model: franchise
+#
+# Fully grounded against the live warehouse.
+# Every base_table column referenced in `dimensions` below was confirmed
+# against the live warehouse via:
+#
+#   duckdb ../data/nba.duckdb -readonly -list -c \
+#     "SELECT column_name, data_type FROM information_schema.columns
+#      WHERE table_name = 'dim_team_era' ORDER BY ordinal_position"
+#   duckdb ../data/nba.duckdb -readonly -list -c \
+#     "SELECT team_id, COUNT(*) AS eras
+#      FROM dim_team_era GROUP BY team_id
+#      HAVING COUNT(*) > 1 ORDER BY eras DESC"
+#   duckdb ../data/nba.duckdb -readonly -list -c \
+#     "SELECT DISTINCT franchise_name FROM dim_team_era"
+#
+# Confirmed schema (dim_team_era):
+#   team_history_sk BIGINT, team_id BIGINT, city VARCHAR,
+#   nickname VARCHAR, abbreviation VARCHAR, franchise_name VARCHAR,
+#   league_id VARCHAR, valid_from_year INTEGER, valid_to_year INTEGER,
+#   valid_from VARCHAR, valid_to VARCHAR, is_current BOOLEAN.
+#
+# dim_team_era is in the agent's allowlist (ALLOWED_TABLES_FOR_AGENT).
+#
+# Warehouse facts:
+# - 90 rows covering 30 distinct team_ids (current NBA franchises).
+# - Several franchises have multiple era rows (e.g. Lakers:
+#   Minneapolis -> Los Angeles).
+# - `franchise_name` is NULL for every row in the current warehouse
+#   (all 90 rows have franchise_name = NULL). Use `nickname` or
+#   collapse via `SELECT DISTINCT team_id FROM dim_team_era` as the
+#   stable franchise identifier.
+# - Source naming quirks: `nickname` at the era level carries the
+#   team name at that time (e.g. 'SuperSonics' for Seattle before
+#   relocation to Oklahoma City).
+#
+# Conventions (matching player_career.yml):
+# - All `expr` strings are written against the `fe.` alias declared in
+#   `base_table`.
+# - `additivity` follows the canonical Cube.js recipes: `sum` for
+#   countable metrics, `count_distinct` for distinct counts.
+# - Grain is one row per (team_id, era). There is no formal relationship
+#   between franchise and team_season or head_to_head because joining
+#   on `team_id` alone would be many-to-many (a team_id spans one or
+#   more eras). See caveats for the explicit collapse recipe.
+
+model: franchise
+
+description: >
+  Franchise-era dimension: one row per (team_id, era) covering the
+  franchise name, city, and abbreviation during a contiguous time
+  span. Use for questions like "what was the Lakers franchise called
+  when they were in Minneapolis", "list all team eras for the
+  Kings franchise", or as the starting point for a stable team_id
+  lineage before joining to team-season or head-to-head facts.
+  NOTE: 30 distinct team_ids represent the current NBA franchise
+  lineages; a team_id carries over across relocations (e.g. Lakers
+  keep team_id 1610612747 from Minneapolis to Los Angeles).
+
+grain: one row per (team_id, era)
+
+base_table:
+  name: dim_team_era
+  alias: fe
+
+dimensions:
+  - name: team_id
+    expr: fe.team_id
+    description: >
+      Stable canonical team_id across relocations. A franchise like the
+      Lakers has one team_id through all its eras (Minneapolis, then
+      Los Angeles). This is the collapse key: use `SELECT DISTINCT
+      team_id FROM dim_team_era` to get the 30 current franchise
+      lineages before joining to team-season or head-to-head tables.
+
+  - name: team_history_sk
+    expr: fe.team_history_sk
+    description: Surrogate key for the team-era row (BIGINT, unique per era).
+
+  - name: city
+    expr: fe.city
+    description: City where the team was based during this era (e.g. 'Minneapolis', 'Los Angeles').
+
+  - name: nickname
+    expr: fe.nickname
+    description: Team nickname during this era (e.g. 'Lakers', 'SuperSonics', 'Thunder').
+
+  - name: abbreviation
+    expr: fe.abbreviation
+    description: Team abbreviation during this era (e.g. 'LAL', 'SEA', 'OKC').
+
+  - name: franchise_name
+    expr: fe.franchise_name
+    description: >
+      Intended as a stable franchise identifier across eras, but is
+      NULL for every row in the current warehouse (0 of 90 rows have
+      a non-NULL value). Do not use for filtering; collapse via team_id.
+
+  - name: league_id
+    expr: fe.league_id
+    description: League identifier (VARCHAR, e.g. 'NBA').
+
+  - name: valid_from_year
+    expr: fe.valid_from_year
+    description: First year this era is valid (INTEGER, inclusive).
+
+  - name: valid_to_year
+    expr: fe.valid_to_year
+    description: Last year this era is valid (INTEGER, inclusive); 9999 for the current era.
+
+  - name: valid_from
+    expr: fe.valid_from
+    description: First season string this era is valid (VARCHAR, e.g. '1948-49').
+
+  - name: valid_to
+    expr: fe.valid_to
+    description: Last season string this era is valid (VARCHAR, e.g. '1959-60'); NULL for current.
+
+  - name: is_current
+    expr: fe.is_current
+    description: Whether this era is the current/active one for the team (BOOLEAN).
+
+measures:
+  - name: distinct_team_ids
+    expr: COUNT(DISTINCT fe.team_id)
+    description: Distinct franchise lineages in scope.
+    additivity: count_distinct
+
+  - name: era_count
+    expr: COUNT(*)
+    description: Total number of team-era rows in scope.
+    additivity: sum
+
+joins: []
+  # NOTE: No formal joins declared. Joining franchise to team_season
+  # on team_id alone produces a many-to-many relationship because one
+  # stable team_id has multiple era rows in dim_team_era (a relocation
+  # or rebrand does not change the team_id). team_season has one row
+  # per team_id per season. The safe approach is:
+  #
+  #   WITH franchise_teams AS (
+  #     SELECT DISTINCT team_id FROM dim_team_era
+  #   )
+  #   SELECT ft.team_id, ts.w, ts.l
+  #   FROM franchise_teams ft
+  #   JOIN src_fact_bref_team_season_summary ts ON ft.team_id = ts.team_id
+  #   WHERE ts.season = 2016;
+  #
+  # This collapses dim_team_era to 30 distinct team_ids before the
+  # join, avoiding any fanout from multiple era rows for the same
+  # team_id.
+
+caveats:
+  - >
+    No formal joins declared. Joining franchise (dim_team_era) on
+    `team_id` directly to a fact table like team_season is many-to-many
+    at the era grain: one franchise can have multiple era rows, each
+    with the same team_id. Always collapse via `SELECT DISTINCT team_id
+    FROM dim_team_era` before joining. If you need the franchise name
+    for display, join AFTER the collapse (e.g. left join back to
+    dim_team_era on team_id WHERE is_current = true).
+  - >
+    `franchise_name` is NULL for all 90 rows in the current warehouse.
+    The franchise identifier is `team_id`, which is stable across all
+    eras of the same franchise (e.g. team_id 1610612747 covers both
+    Minneapolis and Los Angeles Lakers eras).
+  - >
+    Source naming quirks: the `nickname` field holds the era-specific
+    name (e.g. 'SuperSonics' for the Seattle era, 'Thunder' for the
+    Oklahoma City era). The `city` field captures the era's location
+    ('Seattle', 'Oklahoma City'). When a question asks for the
+    franchise's current name, filter `is_current = true`.
+
+synonyms:
+  - franchise
+  - team history
+  - team era
+  - franchise lineage
+  - franchise name by year
+
+example_questions:
+  - What was the Lakers franchise called when they were in Minneapolis?
+  - List all team eras for the Sacramento Kings.
+  - When did the Thunder move from Seattle?
+  - Show all current NBA franchises.
+  - Which team_ids represent the same franchise over time?

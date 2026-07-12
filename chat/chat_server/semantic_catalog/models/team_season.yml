@@ -5,24 +5,24 @@
 # was confirmed against the live warehouse via:
 #
 #   duckdb ../data/nba.duckdb -readonly -list -c \
-#     "SELECT table_name FROM information_schema.tables
-#      WHERE table_schema = 'main' AND table_name LIKE '%team%' ORDER BY 1"
-#   duckdb ../data/nba.duckdb -readonly -list -c \
 #     "SELECT column_name, data_type FROM information_schema.columns
 #      WHERE table_name = 'src_fact_bref_team_season_summary'
 #      ORDER BY ordinal_position"
 #   duckdb ../data/nba.duckdb -readonly -list -c \
-#     "SELECT season, season_end_year, COUNT(*),
-#             SUM(CASE WHEN playoffs THEN 1 ELSE 0 END)
+#     "SELECT season, is_playoffs, COUNT(DISTINCT team_id)
 #      FROM src_fact_bref_team_season_summary GROUP BY 1,2 ORDER BY 1"
+#   duckdb ../data/nba.duckdb -readonly -list -c \
+#     "SELECT season = season_end_year AS same
+#      FROM src_fact_bref_team_season_summary GROUP BY same"
 #
 # Confirmed schema (selected):
-#   team_id BIGINT, season INTEGER (start year, e.g. 2025),
-#   season_end_year INTEGER, league VARCHAR, lg VARCHAR,
+#   team_id BIGINT, season INTEGER (ending year, e.g. 2016 for 2015-16),
+#   season_end_year INTEGER (identical to season in all 1,770 rows),
+#   league VARCHAR, lg VARCHAR,
 #   team VARCHAR (full name), abbreviation VARCHAR,
-#   source_team_abbrev VARCHAR, playoffs BOOLEAN, is_playoffs BOOLEAN
-#     (note: the table has TWO duplicate playoff-flag columns -- identical
-#     truth values; we expose is_playoffs as the canonical flag),
+#   source_team_abbrev VARCHAR, is_playoffs BOOLEAN, playoffs BOOLEAN
+#     (duplicate playoff-flag columns -- identical truth values;
+#     is_playoffs is the canonical flag),
 #   age INTEGER,
 #   w INTEGER, l INTEGER, pw INTEGER, pl INTEGER,
 #   mov DOUBLE, sos DOUBLE, srs DOUBLE,
@@ -47,20 +47,22 @@
 #   `non_additive` for ratings and rates (o_rtg, d_rtg, n_rtg, pace,
 #   mov, srs, sos, percentages) which are already per-team averages and
 #   must NOT be re-summed across rows.
-# - There is no VARCHAR `season_year` column; the season is the INTEGER
-#   `season` (start year). Playoffs rows are flagged via `is_playoffs`
-#   and live alongside regular-season rows for the same (team, season).
+# - Grain is one row per (team_id, season). `is_playoffs` is a
+#   playoff-qualification flag on that row, NOT a separate postseason row.
+#   wins/losses are regular-season totals; the flag tells you whether the
+#   team reached the playoffs.
 
 model: team_season
 
 description: >
   Team-level season aggregates from Basketball-Reference team season
-  summaries (one row per team, season, and playoffs/regular split).
-  Use for questions like "what was the best record in 2015-16",
-  "Lakers wins by season", "Warriors offensive rating in 2016-17",
-  or "team pace trends in the 2020s".
+  summaries. One row per (team_id, season) with regular-season
+  wins/losses and a boolean `is_playoffs` flag indicating whether the
+  team reached the playoffs. Use for questions like "what was the best
+  record in 2015-16", "Lakers wins by season", "Warriors offensive
+  rating in 2016-17", or "team pace trends in the 2020s".
 
-grain: one row per (team_id, season, is_playoffs)
+grain: one row per (team_id, season)
 
 base_table:
   name: src_fact_bref_team_season_summary
@@ -69,19 +71,35 @@ base_table:
 dimensions:
   - name: team_id
     expr: ts.team_id
-    description: Canonical team_id; teams that relocated (e.g. SuperSonics->Thunder) carry distinct team_ids over time.
+    description: >
+      Canonical team_id; relocations and rebrands share the same stable
+      team_id in this warehouse (e.g. Lakers keep team_id 1610612747
+      across Minneapolis and Los Angeles eras). Collapsing across a
+      franchise lineage requires a `SELECT DISTINCT team_id FROM
+      dim_team_era` CTE before joining to this table because
+      dim_team_era has multiple rows per team_id.
 
   - name: season
     expr: ts.season
-    description: Season start year as INTEGER (e.g. 2025 for the 2025-26 season).
+    description: >
+      Season ending year as INTEGER (e.g. 2016 for the 2015-16 season).
+      This is the only season identifier needed; `season_end_year` is
+      identical in every row.
 
   - name: season_end_year
     expr: ts.season_end_year
-    description: Season end year as INTEGER (e.g. 2026 for the 2025-26 season).
+    description: >
+      Season end year as INTEGER, identical to `season` in every row
+      (confirmed across all 1,770 warehouse rows). Duplicate column
+      retained for compatibility; prefer `season`.
 
   - name: is_playoffs
     expr: ts.is_playoffs
-    description: TRUE for playoff-tournament rows, FALSE for regular-season rows. Same as ts.playoffs (duplicate column).
+    description: >
+      TRUE when the team made the playoffs this season (playoff-
+      qualification flag). FALSE for teams that did not. NOT a separate
+      postseason row -- wins/losses are always regular-season totals.
+      Identical to the duplicate `ts.playoffs` column.
 
   - name: league
     expr: ts.league
@@ -102,17 +120,17 @@ dimensions:
 measures:
   - name: wins
     expr: SUM(ts.w)
-    description: Wins for the (team, season, is_playoffs) row.
+    description: Regular-season wins for this (team, season).
     additivity: sum
 
   - name: losses
     expr: SUM(ts.l)
-    description: Losses for the (team, season, is_playoffs) row.
+    description: Regular-season losses for this (team, season).
     additivity: sum
 
   - name: games
     expr: SUM(ts.w + ts.l)
-    description: Games played (wins + losses) for the row.
+    description: Regular-season games played (wins + losses) for this (team, season).
     additivity: sum
 
   - name: expected_wins
@@ -127,7 +145,7 @@ measures:
 
   - name: win_pct
     expr: SUM(ts.w) / NULLIF(SUM(ts.w + ts.l), 0)
-    description: Win percentage (w / (w + l)); NULL when no games. non_additive to discourage re-averaging.
+    description: Regular-season win percentage (w / (w + l)); NULL when no games. non_additive to discourage re-averaging.
     additivity: non_additive
 
   - name: offensive_rating
@@ -198,18 +216,18 @@ caveats:
     fact_bref_team_season_summary source CSV). It is explicitly allowlisted
     for governed SQL because this catalog model is its supported interface.
   - >
-    Grain is (team, season, is_playoffs): for each (team, season) the
-    table has BOTH a regular-season row (is_playoffs=false) and a
-    playoffs-tournament row (is_playoffs=true). Aggregating wins or
-    offensive_rating across the table without filtering is_playoffs
-    blends regular-season and postseason; filter to one value when the
-    question is about one competition.
+    `season` is the ending year (2016 means 2015-16). `season_end_year`
+    is an identical duplicate column. Wins and losses are regular-season
+    totals; `is_playoffs` is a boolean flag indicating playoff qualification,
+    NOT a separate postseason row.
   - >
     Relocated franchises (e.g. Seattle SuperSonics -> Oklahoma City
-    Thunder, Charlotte Bobcats -> Charlotte Hornets) carry distinct
-    team_ids across the relocation boundary; SUMming wins across a
-    whole franchise history requires joining through dim_team / a
-    future team-dimension business model.
+    Thunder, Charlotte Bobcats -> Charlotte Hornets) share the same
+    stable team_id in this warehouse. `dim_team_era` has multiple era
+    rows per team_id (one row per location/rebrand). SUMming wins across
+    a whole franchise history requires collapsing through `dim_team_era`
+    first -- use a `SELECT DISTINCT team_id FROM dim_team_era` CTE before
+    joining to this table.
 
 synonyms:
   - team record

@@ -1,0 +1,243 @@
+# Semantic catalog model: player
+#
+# Fully grounded against the live warehouse.
+# Every base_table column referenced in `dimensions` below was confirmed
+# against the live warehouse via:
+#
+#   duckdb ../data/nba.duckdb -readonly -list -c \
+#     "SELECT column_name, data_type FROM information_schema.columns
+#      WHERE table_name = 'dim_player' ORDER BY ordinal_position"
+#
+# Confirmed schema (dim_player):
+#   player_id BIGINT, full_name VARCHAR, first_name VARCHAR,
+#   last_name VARCHAR, is_active BOOLEAN, current_team_id BIGINT,
+#   position VARCHAR, current_jersey_number VARCHAR,
+#   height VARCHAR, weight BIGINT, birth_date DATE, country VARCHAR,
+#   college_id BIGINT, draft_year BIGINT, draft_round BIGINT,
+#   draft_number BIGINT, from_year BIGINT, to_year BIGINT,
+#   bbr_player_id VARCHAR, bbr_primary_position VARCHAR,
+#   bbr_height_inches SMALLINT, bbr_weight_lbs SMALLINT,
+#   bbr_colleges VARCHAR, is_hall_of_fame BOOLEAN,
+#   death_date DATE, canonical_source VARCHAR.
+#
+# dim_player is in the agent's allowlist (ALLOWED_TABLES_FOR_AGENT).
+#
+# Conventions (matching player_career.yml):
+# - All `expr` strings are written against the `dp.` alias declared in
+#   `base_table`.
+# - `additivity` follows the canonical Cube.js recipes:
+#   `sum` for countable metrics (active_player_count),
+#   `count_distinct` for DISTINCT player counts usable in cross-grain
+#   aggregates.
+# - Grain is one row per player_id — this is the canonical player
+#   dimension. All joins fan OUT from here to season / game / award /
+#   draft rows.
+# - Every join is grounded against existing catalog model aliases:
+#   pc (player_career), ps (player_season), bg (player_game_box),
+#   aw (awards), d (draft).
+
+model: player
+
+description: >
+  Canonical player dimension: one row per player with grounded biography
+  and demographics. Use for questions like "how tall is Victor
+  Wembanyama", "which players are from France", "show players who went
+  to Kentucky", "list Hall of Fame players", or as the starting point
+  before joining to season/game/career/award/draft facts. Grain is one
+  row per player_id — every join fans out to many rows.
+
+grain: one row per player
+
+base_table:
+  name: dim_player
+  alias: dp
+
+dimensions:
+  - name: player_id
+    expr: dp.player_id
+    description: Canonical player_id (BIGINT); joins to every player-keyed fact or dimension.
+
+  - name: full_name
+    expr: dp.full_name
+    description: Player full display name (e.g. 'LeBron James').
+
+  - name: first_name
+    expr: dp.first_name
+    description: Player given name.
+
+  - name: last_name
+    expr: dp.last_name
+    description: Player family name (surname).
+
+  - name: is_active
+    expr: dp.is_active
+    description: Whether the player is currently active in the NBA (BOOLEAN).
+
+  - name: current_team_id
+    expr: dp.current_team_id
+    description: Team id of the player's current team; NULL if not under contract.
+
+  - name: position
+    expr: dp.position
+    description: Primary position abbreviation (e.g. 'F', 'G', 'C'); may be combined like 'G-F'.
+
+  - name: height
+    expr: dp.height
+    description: Height as a display string (e.g. '6-8'); prefer bbr_height_inches for numeric queries.
+
+  - name: weight
+    expr: dp.weight
+    description: Listed weight in pounds (BIGINT).
+
+  - name: birth_date
+    expr: dp.birth_date
+    description: Date of birth (DATE); usable for age-at-season queries when joined to a season-year dimension.
+
+  - name: country
+    expr: dp.country
+    description: Listed country / nationality (VARCHAR, e.g. 'USA', 'France', 'Canada'); 81 distinct values in the warehouse. Represents the player's listed nationality, not a verified country of birth.
+
+  - name: draft_year
+    expr: dp.draft_year
+    description: Year the player was drafted (BIGINT); NULL for undrafted players.
+
+  - name: draft_round
+    expr: dp.draft_round
+    description: Draft round number (BIGINT, 1 or 2); NULL for undrafted.
+
+  - name: draft_number
+    expr: dp.draft_number
+    description: Overall draft pick number (BIGINT); NULL for undrafted.
+
+  - name: from_year
+    expr: dp.from_year
+    description: First NBA season year (BIGINT, e.g. 2003 for LeBron James).
+
+  - name: to_year
+    expr: dp.to_year
+    description: Last NBA season year (BIGINT); NULL for active players.
+
+  - name: bbr_player_id
+    expr: dp.bbr_player_id
+    description: Basketball-Reference player id (VARCHAR, e.g. 'jamesle01').
+
+  - name: bbr_primary_position
+    expr: dp.bbr_primary_position
+    description: Basketball-Reference primary position classification (e.g. 'SF', 'PG', 'C').
+
+  - name: bbr_height_inches
+    expr: dp.bbr_height_inches
+    description: Height in inches (SMALLINT) from Basketball-Reference; preferred source for numeric height queries.
+
+  - name: bbr_weight_lbs
+    expr: dp.bbr_weight_lbs
+    description: Weight in pounds (SMALLINT) from Basketball-Reference.
+
+  - name: bbr_colleges
+    expr: dp.bbr_colleges
+    description: College(s) attended as a VARCHAR string (e.g. 'Duke', 'North Carolina', 'Kentucky'). 956 distinct college values in the warehouse.
+
+  - name: is_hall_of_fame
+    expr: dp.is_hall_of_fame
+    description: Whether the player is enshrined in the Naismith Memorial Basketball Hall of Fame (BOOLEAN).
+
+  - name: death_date
+    expr: dp.death_date
+    description: Date of death (DATE); NULL for living players.
+
+measures:
+  - name: distinct_players
+    expr: COUNT(DISTINCT dp.player_id)
+    description: Distinct player count in scope.
+    additivity: count_distinct
+
+  - name: active_player_count
+    expr: SUM(CASE WHEN dp.is_active THEN 1 ELSE 0 END)
+    description: Count of currently active players in scope.
+    additivity: sum
+
+  - name: hall_of_fame_count
+    expr: SUM(CASE WHEN dp.is_hall_of_fame THEN 1 ELSE 0 END)
+    description: Count of Hall of Fame players in scope.
+    additivity: sum
+
+joins:
+  - name: career_lookup
+    model: player_career
+    type: one_to_one
+    left_on: dp.player_id
+    right_on: pc.player_id
+    description: >
+      Join to career totals/averages. One player dimension row maps to
+      exactly one row in player_career (one-to-one). Use for "players
+      with 30k career points who went to Kentucky" or "Hall of Fame
+      career leaders by PPG" cross-model questions.
+
+  - name: season_breakdown
+    model: player_season
+    type: one_to_many
+    left_on: dp.player_id
+    right_on: ps.player_id
+    description: >
+      Fan out from one player row to the player's per-season rows in
+      player_season. One-to-many: each player appears across many
+      (team, season_year, season_type) rows. Use for "player seasons
+      by a German player" or "most recent season for every active
+      player" queries.
+
+  - name: game_log
+    model: player_game_box
+    type: one_to_many
+    left_on: dp.player_id
+    right_on: bg.player_id
+    description: >
+      Fan out from one player row to the player's per-game box-score
+      rows in player_game_box. One-to-many: thousands of games per
+      career. Use for "highest scoring game by a player shorter than
+      6 feet" or "40-point games by international players" queries.
+
+  - name: awards_history
+    model: awards
+    type: one_to_many
+    left_on: dp.player_id
+    right_on: aw.player_id
+    description: >
+      Fan out to the player's award/honor rows in awards. One-to-many:
+      a player can have multiple awards across seasons. Use for
+      "international players with MVP awards" or "Hall of Famers by
+      college program with most All-NBA selections" queries.
+
+  - name: draft_record
+    model: draft
+    type: one_to_many
+    left_on: dp.player_id
+    right_on: d.player_id
+    description: >
+      Fan out to the player's draft pick record(s) in draft. One-to-many:
+      fact_draft can contain repeated historical draft rows for some
+      players (e.g. a player selected in multiple drafts or via
+      territorial pick + regular draft). Undrafted players have no match
+      (left join yields NULLs). Use for "top-5 picks from North Carolina"
+      or "second-round picks who are Hall of Famers" queries.
+
+caveats:
+  - >
+    This is the canonical player dimension (one row per player).
+    Every join fans OUT to many rows except career_lookup, which is
+    one-to-one. When joining to fact tables, additive measures on the
+    many side require a GROUP BY on the player dimension key to avoid
+    double-counting.
+
+synonyms:
+  - player
+  - player info
+  - player biography
+  - player demographics
+  - player profile
+
+example_questions:
+  - How tall is Victor Wembanyama?
+  - Which players are from France?
+  - Show all Hall of Fame players who went to UCLA.
+  - List all active players over 7 feet tall.
+  - What college did Michael Jordan attend?

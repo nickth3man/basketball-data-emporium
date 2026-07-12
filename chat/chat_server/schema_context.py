@@ -101,7 +101,8 @@ _TABLE_PURPOSES: dict[str, str] = {
     "dim_arena": "Arenas dimension (city, opened, capacity).",
     "dim_date": "Date dimension (calendar metadata).",
     "fact_player_game_box": (
-        "One row per (player, game). Box-score + is_win/is_home/opponent_team_id."
+        "One row per (player, game). Box-score + is_win/is_home/opponent_team_id. "
+        "Self-join on game_id for player-vs-player co-appearance (shared-game record)."
     ),
     "fact_player_game_advanced": (
         "Advanced per-game: off/def/net rating, pace, ts_pct, poss, fta_rate."
@@ -121,7 +122,8 @@ _TABLE_PURPOSES: dict[str, str] = {
     "src_fact_bref_team_season_summary": (
         "Basketball-Reference team season summaries (w/l, pythagorean wins/losses, "
         "offensive/defensive/net ratings, pace, true-shooting, eFG, attendance). "
-        "Grain: (team_id, season INT, is_playoffs BOOL). Source-backed."
+        "Grain: (team_id, season). is_playoffs is a playoff-qualification flag "
+        "(TRUE/FALSE), NOT a separate postseason row. Source-backed."
     ),
 }
 

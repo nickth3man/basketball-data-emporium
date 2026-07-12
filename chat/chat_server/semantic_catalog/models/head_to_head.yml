@@ -48,12 +48,15 @@
 model: head_to_head
 
 description: >
-  Head-to-head aggregates between two franchises, sliced by season.
-  One row per (team_id, opponent_team_id, season_year). Use this model
-  for questions like "Lakers vs Celtics all-time record", "Warriors vs
-  Cavaliers in the 2015-16 finals", or "team A's average margin vs team
-  B". NOTE: this is a team-vs-team model — there is no player-vs-player
-  matchup mart in the warehouse (see caveats).
+  TEAM-vs-TEAM ONLY — head-to-head aggregates between two franchises or
+  teams, sliced by season. One row per (team_id, opponent_team_id,
+  season_year). NEVER use this model when either named entity is a player.
+  Use for questions like "Lakers vs Celtics all-time record", "Warriors vs
+  Cavaliers in the 2015-16 finals", or "team A's average margin vs team B".
+  For player-vs-player co-appearance / shared-game questions (e.g. "Kobe vs
+  Duncan record in games they both played"), use the player_game_box model
+  via a self-join on game_id with different team_id and positive min for
+  both players — see player_game_box caveats for the derivation pattern.
 
 grain: one row per (team_id, opponent_team_id, season_year)
 
@@ -128,18 +131,16 @@ joins: []
 
 caveats:
   - >
-    TEAM-vs-TEAM ONLY. The NBA-domain reference
-    (nba_api.playervsplayer — Overall / OnOffCourt / ShotArea* /
-    ShotDistance* / PlayerInfo / VsPlayerInfo result sets) is a
-    PLAYER-vs-PLAYER endpoint. There is no player-vs-player matchup
-    mart in the warehouse: the raw player matchup data lives in
-    src_fact_player_matchups / src_fact_player_matchups_detail /
-    src_fact_player_matchups_shot_detail (confirmed in
-    information_schema.tables) but has not yet been promoted into a
-    canonical mart. Questions phrased as "LeBron vs Durant" or
-    "Curry vs Thompson on-court net rating" cannot be answered from
-    this model and should be flagged as out-of-scope until a
-    player-matchup mart is built.
+    TEAM-vs-TEAM ONLY. Do NOT use this model when either named entity
+    is a player. Player co-appearance / shared-game questions (e.g.
+    "Kobe vs Duncan shared-game record", "LeBron vs Curry career
+    co-appearance stats") ARE answerable from the warehouse via a
+    fact_player_game_box self-join: same game_id, different team_id,
+    positive minutes for both aliases. See the player_game_box model
+    for caveats with the full derivation. What remains unavailable
+    from this warehouse is the on-court matchup / direct defensive
+    assignment data (nba_api.playervsplayer endpoints), which has not
+    been promoted into a canonical mart.
   - >
     Symmetric rows are BOTH present: (team_id=A, opponent_team_id=B)
     and (team_id=B, opponent_team_id=A) carry mirrored wins/losses and
