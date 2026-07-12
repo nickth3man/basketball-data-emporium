@@ -336,7 +336,10 @@ def test_load_model_history_validates_and_trims(store: SessionStore):
     # JSON and get re-validated by ModelMessagesTypeAdapter — the
     # timestamp tzinfo may be a fresh TzInfo(0) on the deserialized copy.
     revalidated = ModelMessagesTypeAdapter.validate_python(loaded)
-    assert revalidated[-1].parts[0].content == msgs[-1].parts[0].content
+    last_revalidated = revalidated[-1].parts[0]
+    last_msg = msgs[-1].parts[0]
+    assert isinstance(last_revalidated, TextPart) and isinstance(last_msg, TextPart)
+    assert last_revalidated.content == last_msg.content
 
 
 def test_corrupt_history_degrades_to_empty(store: SessionStore):

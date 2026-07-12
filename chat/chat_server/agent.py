@@ -86,7 +86,7 @@ class ClarifyPlan(BaseModel):
 
     answer_mode: Literal["clarify"] = "clarify"
     question_interpretation: str = ""
-    clarification: Clarification = Field(
+    clarification: str | Clarification = Field(
         ...,
         description="The specific disambiguation question (plus options where useful).",
     )

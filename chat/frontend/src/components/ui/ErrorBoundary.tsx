@@ -67,10 +67,8 @@ function GranularFallback({ label, resetErrorBoundary }: FallbackProps & { label
         className={clsx(
           "shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium",
           "border-border bg-card",
-          `
-            text-(--color-foreground)
-            hover:bg-muted
-          `,
+          `text-(--color-foreground)`,
+          `hover:bg-muted`,
           "focus-visible:ring-2 focus-visible:outline-none",
           `focus-visible:ring-(--color-ring) focus-visible:ring-offset-2`,
           "focus-visible:ring-offset-background",
@@ -146,10 +144,8 @@ function AppFallback({ resetErrorBoundary }: FallbackProps) {
               "rounded-full px-4 py-2 text-sm font-medium",
               `bg-(--color-primary) text-primary-foreground`,
               "shadow-sm shadow-(color:--color-primary)/20",
-              `
-                hover:brightness-110
-                active:brightness-95
-              `,
+              `hover:brightness-110`,
+              `active:brightness-95`,
               "focus-visible:ring-2 focus-visible:outline-none",
               `focus-visible:ring-(--color-ring) focus-visible:ring-offset-2`,
               "focus-visible:ring-offset-background",
@@ -163,10 +159,8 @@ function AppFallback({ resetErrorBoundary }: FallbackProps) {
             className={clsx(
               "rounded-full border px-4 py-2 text-sm font-medium",
               "border-border bg-transparent",
-              `
-                text-(--color-foreground)
-                hover:bg-muted
-              `,
+              `text-(--color-foreground)`,
+              `hover:bg-muted`,
               "focus-visible:ring-2 focus-visible:outline-none",
               `focus-visible:ring-(--color-ring) focus-visible:ring-offset-2`,
               "focus-visible:ring-offset-background",

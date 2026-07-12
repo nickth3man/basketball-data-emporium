@@ -29,34 +29,52 @@ export function ReasoningPanel({ summary, executionPlan }: ReasoningPanelProps) 
     <details
       open
       className={cn(
-        "group rounded-lg border border-[color:var(--color-border)]",
-        "bg-[color:var(--color-muted)]/40",
+        "group rounded-lg border border-border",
+        "bg-muted/40",
       )}
     >
       <summary
         className={cn(
-          "flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-sm font-medium select-none",
-          "transition-colors hover:bg-[color:var(--color-muted)]",
-          "focus-visible:ring-2 focus-visible:ring-[color:var(--color-ring)] focus-visible:outline-none",
-          "focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-card)]",
+          `
+            flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-sm
+            font-medium select-none
+          `,
+          `
+            transition-colors
+            hover:bg-muted
+          `,
+          `
+            focus-visible:ring-2 focus-visible:ring-(--color-ring)
+            focus-visible:outline-none
+          `,
+          `focus-visible:ring-offset-2 focus-visible:ring-offset-card`,
           "[&::-webkit-details-marker]:hidden",
         )}
       >
         <ChevronRight
-          className="h-4 w-4 text-[color:var(--color-muted-foreground)] transition-transform duration-200 group-open:rotate-90"
+          className="
+            size-4 text-muted-foreground transition-transform duration-200
+            group-open:rotate-90
+          "
           aria-hidden="true"
         />
-        <Lightbulb className="h-4 w-4 text-[color:var(--color-accent-orange)]" aria-hidden="true" />
+        <Lightbulb className="size-4 text-(--color-accent-orange)" aria-hidden="true" />
         Reasoning
       </summary>
-      <div className="flex flex-col gap-2 px-3 pt-0.5 pb-3 text-sm leading-relaxed">
-        <p className="text-[color:var(--color-foreground)]/90">{summary}</p>
+      <div className="flex flex-col gap-2 px-3 pt-0.5 pb-3 text-sm/relaxed">
+        <p className="text-(--color-foreground)/90">{summary}</p>
         {executionPlan !== null && executionPlan !== undefined && executionPlan.length > 0 && (
           <>
-            <p className="font-display text-[0.65rem] font-semibold tracking-[0.12em] text-[color:var(--color-muted-foreground)] uppercase">
+            <p className="
+              font-display text-[0.65rem] font-semibold tracking-[0.12em]
+              text-muted-foreground uppercase
+            ">
               Execution plan
             </p>
-            <pre className="m-0 overflow-x-auto rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-card)] p-2.5 font-mono text-xs leading-relaxed whitespace-pre-wrap">
+            <pre className="
+              m-0 overflow-x-auto rounded-md border border-border bg-card p-2.5
+              font-mono text-xs/relaxed whitespace-pre-wrap
+            ">
               {executionPlan}
             </pre>
           </>

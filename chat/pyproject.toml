@@ -92,8 +92,8 @@ python-version = "3.12"
 # - `package_module_name_map` maps `opentelemetry-api` (which has no
 #   top-level module by the same name) to its actual import name.
 known_first_party = ["chat_server"]
-extend_exclude = ["chat_tests"]
-per_rule_ignores = {"DEP001" = ["opentelemetry-api"], "DEP003" = ["pydantic_core"]}
+extend_exclude = ["chat_tests", "chat/evals"]
+per_rule_ignores = {"DEP001" = ["opentelemetry-api"], "DEP003" = ["pydantic_core", "dotenv"]}
 package_module_name_map = {"opentelemetry-api" = "opentelemetry"}
 
 [build-system]

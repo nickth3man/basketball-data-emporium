@@ -55,9 +55,9 @@ export const MessageBubble = memo(function MessageBubble({
         <article
           aria-label="You said"
           className={cn(
-            "max-w-[85%] rounded-2xl rounded-br-md px-3.5 py-2 text-sm leading-relaxed",
-            "bg-[color:var(--color-primary)] text-[color:var(--color-primary-foreground)]",
-            "shadow-sm shadow-[color:var(--color-primary)]/25",
+            `max-w-[85%] rounded-2xl rounded-br-md px-3.5 py-2 text-sm/relaxed`,
+            `bg-(--color-primary) text-primary-foreground`,
+            "shadow-sm shadow-(color:--color-primary)/25",
           )}
         >
           <p className="whitespace-pre-wrap">{content}</p>
@@ -107,9 +107,9 @@ const AssistantBubble = memo(function AssistantBubble({
       <div
         aria-hidden="true"
         className={cn(
-          "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg",
-          "bg-[color:var(--color-primary)]/12 text-[color:var(--color-primary)]",
-          "ring-1 ring-[color:var(--color-primary)]/20 ring-inset",
+          "mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg",
+          "bg-(--color-primary)/12 text-(--color-primary)",
+          "ring-1 ring-(--color-primary)/20 ring-inset",
         )}
       >
         <span className="font-display text-sm leading-none font-bold">B</span>
@@ -119,22 +119,33 @@ const AssistantBubble = memo(function AssistantBubble({
         aria-label="Assistant answered"
         className={cn(
           "flex w-full max-w-[92%] flex-col gap-2.5 rounded-2xl rounded-tl-md",
-          "border border-[color:var(--color-border)] bg-[color:var(--color-card)] px-4 py-3 text-sm",
+          `border border-border bg-card px-4 py-3 text-sm`,
           // Left accent border — the signature "data card" cue.
-          "border-l-[3px] border-l-[color:var(--color-accent-orange)]",
+          "border-l-[3px] border-l-(--color-accent-orange)",
           "shadow-sm shadow-black/5",
         )}
       >
         {/* Author row — name + streaming pill / duration. */}
         <div className="flex items-center gap-2">
-          <span className="font-display text-xs font-semibold tracking-tight text-[color:var(--color-foreground)]">
+          <span className="
+            font-display text-xs font-semibold tracking-tight
+            text-(--color-foreground)
+          ">
             Assistant
           </span>
           {isStreaming && (
-            <span className="inline-flex items-center gap-1 text-[0.7rem] text-[color:var(--color-muted-foreground)]">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[color:var(--color-accent-orange)] opacity-75" />
-                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[color:var(--color-accent-orange)]" />
+            <span className="
+              inline-flex items-center gap-1 text-[0.7rem] text-muted-foreground
+            ">
+              <span className="relative flex size-1.5">
+                <span className="
+                  absolute inline-flex size-full animate-ping rounded-full
+                  bg-(--color-accent-orange) opacity-75
+                " />
+                <span className="
+                  relative inline-flex size-1.5 rounded-full
+                  bg-(--color-accent-orange)
+                " />
               </span>
               answering…
             </span>
@@ -142,7 +153,7 @@ const AssistantBubble = memo(function AssistantBubble({
           {turn?.queryDurationMs !== null &&
             turn?.queryDurationMs !== undefined &&
             !isStreaming && (
-              <span className="text-[0.7rem] text-[color:var(--color-muted-foreground)]">
+              <span className="text-[0.7rem] text-muted-foreground">
                 · {(turn.queryDurationMs / 1000).toFixed(2)}s
               </span>
             )}
@@ -173,17 +184,24 @@ const AssistantBubble = memo(function AssistantBubble({
                 void handleCopy();
               }}
               className={cn(
-                "inline-flex items-center gap-1 rounded-md px-2 py-1 text-[0.7rem] font-medium",
-                "text-[color:var(--color-muted-foreground)] transition-colors",
-                "hover:bg-[color:var(--color-muted)] hover:text-[color:var(--color-foreground)]",
-                "focus-visible:ring-2 focus-visible:ring-[color:var(--color-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-card)] focus-visible:outline-none",
+                `
+                  inline-flex items-center gap-1 rounded-md px-2 py-1
+                  text-[0.7rem] font-medium
+                `,
+                "text-muted-foreground transition-colors",
+                `hover:bg-muted hover:text-(--color-foreground)`,
+                `
+                  focus-visible:ring-2 focus-visible:ring-(--color-ring)
+                  focus-visible:ring-offset-2 focus-visible:ring-offset-card
+                  focus-visible:outline-none
+                `,
               )}
               aria-label={copied ? "Answer copied to clipboard" : "Copy answer to clipboard"}
             >
               {copied ? (
-                <Check className="h-3 w-3 text-[color:var(--color-ok-fg)]" aria-hidden="true" />
+                <Check className="size-3 text-ok-fg" aria-hidden="true" />
               ) : (
-                <Copy className="h-3 w-3" aria-hidden="true" />
+                <Copy className="size-3" aria-hidden="true" />
               )}
               {copied ? "Copied" : "Copy"}
             </button>
@@ -204,7 +222,7 @@ function TypingDots() {
       {[0, 1, 2].map((i) => (
         <span
           key={i}
-          className="typing-dot h-1.5 w-1.5 rounded-full bg-[color:var(--color-primary)]"
+          className="typing-dot size-1.5 rounded-full bg-(--color-primary)"
         />
       ))}
     </div>
@@ -225,7 +243,9 @@ function BubbleRow({ align, reduce, children }: BubbleRowProps) {
       transition={
         reduce ? { duration: 0 } : { type: "spring", stiffness: 380, damping: 30, mass: 0.6 }
       }
-      className={cn("flex w-full gap-2.5", align === "end" ? "justify-end" : "justify-start")}
+      className={cn("flex w-full gap-2.5", align === "end" ? "justify-end" : `
+        justify-start
+      `)}
     >
       {children}
     </motion.div>

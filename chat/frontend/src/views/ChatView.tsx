@@ -345,12 +345,15 @@ export function ChatView() {
       />
 
       {showClarify && state.clarification && (
-        <div className="border-t border-[color:var(--color-border)] bg-[color:var(--color-muted)]/40 px-4 py-3 sm:px-6">
-          {/* eslint-disable-next-line jsx-a11y/prefer-tag-over-role -- explicit live-region role is part of the chat contract. */}
+        <div className="
+          border-t border-border bg-muted/40 px-4 py-3
+          sm:px-6
+        ">
+          { }
           <p
             role="status"
             aria-live="polite"
-            className="mb-2 text-sm text-[color:var(--color-muted-foreground)]"
+            className="mb-2 text-sm text-muted-foreground"
           >
             Your answer is needed to continue.
           </p>
@@ -371,25 +374,28 @@ export function ChatView() {
             role="alert"
             aria-live="assertive"
             className={cn(
-              "flex items-center justify-between gap-3 border-t px-4 py-3 sm:px-6",
-              "border-[color:var(--color-danger-border)] bg-[color:var(--color-danger-bg)]",
+              `
+                flex items-center justify-between gap-3 border-t px-4 py-3
+                sm:px-6
+              `,
+              `border-danger-border bg-danger-bg`,
             )}
           >
             <div className="flex items-start gap-2.5">
               <AlertTriangle
-                className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--color-danger-fg)]"
+                className="mt-0.5 size-4 shrink-0 text-danger-fg"
                 aria-hidden="true"
               />
               <div className="flex flex-col gap-0.5">
-                <p className="font-medium text-[color:var(--color-danger-fg)]">
+                <p className="font-medium text-danger-fg">
                   {bannerText.title}
                 </p>
                 {bannerText.detail.length > 0 && (
-                  <p className="text-xs text-[color:var(--color-danger-fg)] opacity-80">
+                  <p className="text-xs text-danger-fg opacity-80">
                     {bannerText.detail}
                   </p>
                 )}
-                <p className="text-[0.7rem] text-[color:var(--color-danger-fg)] opacity-60">
+                <p className="text-[0.7rem] text-danger-fg opacity-60">
                   Code: {lastError.code}
                 </p>
               </div>
@@ -402,7 +408,7 @@ export function ChatView() {
               onClick={handleRetry}
               aria-label={retryAriaLabel}
             >
-              <RotateCw className="h-3.5 w-3.5" aria-hidden="true" />
+              <RotateCw className="size-3.5" aria-hidden="true" />
               Retry
             </Button>
           </div>
@@ -414,13 +420,16 @@ export function ChatView() {
           role="status"
           aria-live="polite"
           className={cn(
-            "flex items-center justify-between gap-3 border-t px-4 py-2.5 sm:px-6",
-            "border-[color:var(--color-border)] bg-[color:var(--color-muted)]",
-            "text-sm text-[color:var(--color-muted-foreground)]",
+            `
+              flex items-center justify-between gap-3 border-t px-4 py-2.5
+              sm:px-6
+            `,
+            "border-border bg-muted",
+            "text-sm text-muted-foreground",
           )}
         >
           <span className="inline-flex items-center gap-2">
-            <Ban className="h-3.5 w-3.5" aria-hidden="true" />
+            <Ban className="size-3.5" aria-hidden="true" />
             Cancelled.
           </span>
           <Button
@@ -431,7 +440,7 @@ export function ChatView() {
             onClick={handleRetry}
             aria-label={retryAriaLabel}
           >
-            <RotateCw className="h-3.5 w-3.5" aria-hidden="true" />
+            <RotateCw className="size-3.5" aria-hidden="true" />
             Retry
           </Button>
         </div>
@@ -482,20 +491,30 @@ interface HeaderProps {
 
 function Header({ health, sessionId, onCleared, onOpenPalette }: HeaderProps) {
   return (
-    <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[color:var(--color-border)] bg-[color:var(--color-card)]/60 px-4 py-3 backdrop-blur-sm sm:px-6">
+    <header className="
+      flex flex-wrap items-center justify-between gap-3 border-b border-border
+      bg-card/60 px-4 py-3 backdrop-blur-sm
+      sm:px-6
+    ">
       <div className="flex items-center gap-3">
         <div
           aria-hidden="true"
-          className="flex h-9 w-9 items-center justify-center rounded-xl bg-[color:var(--color-primary)]/12 text-[color:var(--color-primary)] ring-1 ring-[color:var(--color-primary)]/25 ring-inset"
+          className="
+            flex size-9 items-center justify-center rounded-xl
+            bg-(--color-primary)/12 text-(--color-primary) ring-1
+            ring-(--color-primary)/25 ring-inset
+          "
         >
           {/* Baller brand mark — bold Oswald "B" monogram tile. */}
           <span className="font-display text-base leading-none font-bold">B</span>
         </div>
         <div className="flex flex-col">
-          <h1 className="font-display text-base leading-tight font-semibold tracking-tight">
+          <h1 className="
+            font-display text-base/tight font-semibold tracking-tight
+          ">
             Basketball Data Chatbot
           </h1>
-          <p className="text-xs text-[color:var(--color-muted-foreground)]">
+          <p className="text-xs text-muted-foreground">
             Answers grounded in the warehouse — never from model memory.
           </p>
         </div>
@@ -508,13 +527,20 @@ function Header({ health, sessionId, onCleared, onOpenPalette }: HeaderProps) {
           aria-label="Open command palette"
           title="Command palette (⌘K)"
           className={cn(
-            "inline-flex h-8 items-center gap-1 rounded-lg border border-[color:var(--color-border)]",
-            "bg-[color:var(--color-card)] px-2 text-xs text-[color:var(--color-muted-foreground)]",
-            "transition-colors hover:bg-[color:var(--color-muted)] hover:text-[color:var(--color-foreground)]",
-            "focus-visible:ring-2 focus-visible:ring-[color:var(--color-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-card)] focus-visible:outline-none",
+            `inline-flex h-8 items-center gap-1 rounded-lg border border-border`,
+            `bg-card px-2 text-xs text-muted-foreground`,
+            `
+              transition-colors
+              hover:bg-muted hover:text-(--color-foreground)
+            `,
+            `
+              focus-visible:ring-2 focus-visible:ring-(--color-ring)
+              focus-visible:ring-offset-2 focus-visible:ring-offset-card
+              focus-visible:outline-none
+            `,
           )}
         >
-          <CommandIcon className="h-3.5 w-3.5" aria-hidden="true" />
+          <CommandIcon className="size-3.5" aria-hidden="true" />
           <kbd className="font-sans text-[0.7rem]">⌘K</kbd>
         </button>
         {sessionId !== null && <ClearHistoryButton sessionId={sessionId} onCleared={onCleared} />}
@@ -534,16 +560,22 @@ function HealthBadge({ status }: { status: HealthStatus }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[0.7rem] font-medium",
+        `
+          inline-flex items-center gap-1.5 rounded-lg border px-2 py-1
+          text-[0.7rem] font-medium
+        `,
         tone,
       )}
       title={`API status: ${label}`}
     >
-      <span className="relative flex h-1.5 w-1.5">
+      <span className="relative flex size-1.5">
         {status === "ok" && (
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-current opacity-60" />
+          <span className="
+            absolute inline-flex size-full animate-ping rounded-full bg-current
+            opacity-60
+          " />
         )}
-        <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-current" />
+        <span className="relative inline-flex size-1.5 rounded-full bg-current" />
       </span>
       db: {label}
     </span>
@@ -590,15 +622,22 @@ function Composer({
     <form
       onSubmit={onSubmit}
       className={cn(
-        "flex flex-col gap-2 border-t border-[color:var(--color-border)] bg-[color:var(--color-card)]/60 px-4 py-3 backdrop-blur-sm sm:px-6",
+        `
+          flex flex-col gap-2 border-t border-border bg-card/60 px-4 py-3
+          backdrop-blur-sm
+          sm:px-6
+        `,
       )}
       aria-busy={isRunning}
     >
       <div
         className={cn(
-          "flex items-end gap-2 rounded-2xl border bg-[color:var(--color-background)] p-1.5",
-          "transition-colors focus-within:border-[color:var(--color-primary)]/50",
-          "border-[color:var(--color-border)] shadow-sm",
+          `flex items-end gap-2 rounded-2xl border bg-background p-1.5`,
+          `
+            transition-colors
+            focus-within:border-(--color-primary)/50
+          `,
+          "border-border shadow-sm",
         )}
       >
         <label htmlFor="chat-composer" className="sr-only">
@@ -614,15 +653,24 @@ function Composer({
           rows={2}
           disabled={disabled}
           className={cn(
-            "min-h-[2.5rem] flex-1 resize-y rounded-xl bg-transparent px-3 py-2 text-sm",
-            "text-[color:var(--color-foreground)] placeholder:text-[color:var(--color-muted-foreground)]",
-            "focus-visible:outline-none disabled:opacity-50",
+            `
+              min-h-10 flex-1 resize-y rounded-xl bg-transparent px-3 py-2
+              text-sm
+            `,
+            `
+              text-(--color-foreground)
+              placeholder:text-muted-foreground
+            `,
+            `
+              focus-visible:outline-none
+              disabled:opacity-50
+            `,
           )}
         />
         <div className="flex items-center gap-1">
           {isRunning && !showCancel ? (
             <Button type="button" variant="ghost" size="icon" disabled aria-label="Running">
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
             </Button>
           ) : null}
           <Button
@@ -633,9 +681,9 @@ function Composer({
             aria-label="Send message"
           >
             {isRunning ? (
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
             ) : (
-              <Send className="h-4 w-4" aria-hidden="true" />
+              <Send className="size-4" aria-hidden="true" />
             )}
           </Button>
         </div>
@@ -647,33 +695,41 @@ function Composer({
       {showCancel && (
         <div className="flex justify-end">
           <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
-            <Square className="h-3 w-3" aria-hidden="true" />
+            <Square className="size-3" aria-hidden="true" />
             Cancel
           </Button>
         </div>
       )}
 
-      <div className="flex items-center justify-between text-xs text-[color:var(--color-muted-foreground)]">
+      <div className="
+        flex items-center justify-between text-xs text-muted-foreground
+      ">
         <span className="inline-flex items-center gap-1.5">
-          <kbd className="rounded border border-[color:var(--color-border)] bg-[color:var(--color-muted)] px-1.5 py-0.5 font-sans text-[0.65rem]">
+          <kbd className="
+            rounded-sm border border-border bg-muted px-1.5 py-0.5 font-sans
+            text-[0.65rem]
+          ">
             Enter
           </kbd>
           to send
           <span className="opacity-40">·</span>
-          <kbd className="rounded border border-[color:var(--color-border)] bg-[color:var(--color-muted)] px-1.5 py-0.5 font-sans text-[0.65rem]">
+          <kbd className="
+            rounded-sm border border-border bg-muted px-1.5 py-0.5 font-sans
+            text-[0.65rem]
+          ">
             Shift+Enter
           </kbd>
           for newline
           {historyLoading ? <span className="opacity-70">· loading history…</span> : null}
           {historyError !== null ? (
-            <span className="text-[color:var(--color-danger-fg)]">
+            <span className="text-danger-fg">
               · history error: {historyError}
             </span>
           ) : null}
         </span>
         {showTimer && (
           <span className="inline-flex items-center gap-1">
-            <Timer className="h-3 w-3" aria-hidden="true" />
+            <Timer className="size-3" aria-hidden="true" />
             {formatElapsed(turnElapsed)}
           </span>
         )}

@@ -186,7 +186,10 @@ export function ResultTable({ table }: ResultTableProps) {
 
   if (table.columns.length === 0) {
     return (
-      <p className="rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-muted)]/40 px-3 py-2 text-sm text-[color:var(--color-muted-foreground)]">
+      <p className="
+        rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm
+        text-muted-foreground
+      ">
         No rows.
       </p>
     );
@@ -195,11 +198,17 @@ export function ResultTable({ table }: ResultTableProps) {
   return (
     <section
       aria-label={`Result table with ${table.columns.length} column${table.columns.length === 1 ? "" : "s"}`}
-      className="flex flex-col gap-0 overflow-hidden rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-card)]"
+      className="
+        flex flex-col gap-0 overflow-hidden rounded-lg border border-border
+        bg-card
+      "
     >
-      <header className="flex items-center justify-between gap-2 border-b border-[color:var(--color-border)] bg-[color:var(--color-muted)]/40 px-3 py-2 text-[0.7rem] text-[color:var(--color-muted-foreground)]">
+      <header className="
+        flex items-center justify-between gap-2 border-b border-border
+        bg-muted/40 px-3 py-2 text-[0.7rem] text-muted-foreground
+      ">
         <span className="inline-flex items-center gap-1.5">
-          <Table2 className="h-3.5 w-3.5" aria-hidden="true" />
+          <Table2 className="size-3.5" aria-hidden="true" />
           <span>
             {sortedRows.length.toLocaleString()} of {totalRowCount.toLocaleString()} row
             {totalRowCount === 1 ? "" : "s"}
@@ -213,28 +222,39 @@ export function ResultTable({ table }: ResultTableProps) {
             void handleCopyCsv();
           }}
           className={cn(
-            "inline-flex items-center gap-1 rounded-md border border-[color:var(--color-border)]",
-            "bg-[color:var(--color-card)] px-2 py-1 text-xs font-medium",
-            "transition-colors hover:bg-[color:var(--color-muted)]",
-            "focus-visible:ring-2 focus-visible:ring-[color:var(--color-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-card)] focus-visible:outline-none",
+            `inline-flex items-center gap-1 rounded-md border border-border`,
+            "bg-card px-2 py-1 text-xs font-medium",
+            `
+              transition-colors
+              hover:bg-muted
+            `,
+            `
+              focus-visible:ring-2 focus-visible:ring-(--color-ring)
+              focus-visible:ring-offset-2 focus-visible:ring-offset-card
+              focus-visible:outline-none
+            `,
           )}
           aria-label={copied ? "CSV copied to clipboard" : "Copy result rows as CSV"}
         >
           {copied ? (
-            <Check className="h-3 w-3 text-[color:var(--color-ok-fg)]" aria-hidden="true" />
+            <Check className="size-3 text-ok-fg" aria-hidden="true" />
           ) : (
-            <Copy className="h-3 w-3" aria-hidden="true" />
+            <Copy className="size-3" aria-hidden="true" />
           )}
           {copied ? "Copied" : "Copy CSV"}
         </button>
       </header>
       <div
         ref={scrollRef}
-        className="relative overflow-auto focus-visible:ring-2 focus-visible:ring-[color:var(--color-ring)] focus-visible:outline-none focus-visible:ring-inset"
+        className="
+          relative overflow-auto
+          focus-visible:ring-2 focus-visible:ring-(--color-ring)
+          focus-visible:outline-none focus-visible:ring-inset
+        "
         style={{ maxHeight: MAX_TABLE_HEIGHT }}
       >
         <table className="w-full border-collapse text-sm">
-          <thead className="sticky top-0 z-10 bg-[color:var(--color-muted)] backdrop-blur-sm">
+          <thead className="sticky top-0 z-10 bg-muted backdrop-blur-sm">
             {tableInstance.getHeaderGroups().map((hg) => (
               <tr key={hg.id}>
                 {hg.headers.map((header) => {
@@ -247,16 +267,32 @@ export function ResultTable({ table }: ResultTableProps) {
                       key={header.id}
                       scope="col"
                       aria-sort={canSort ? ariaSort : undefined}
-                      className="border-b border-[color:var(--color-border)] px-2.5 py-2 text-left font-display text-[0.7rem] font-semibold tracking-[0.06em] text-[color:var(--color-muted-foreground)] uppercase"
+                      className="
+                        border-b border-border px-2.5 py-2 text-left
+                        font-display text-[0.7rem] font-semibold
+                        tracking-[0.06em] text-muted-foreground uppercase
+                      "
                     >
                       {canSort ? (
                         <button
                           type="button"
                           onClick={header.column.getToggleSortingHandler()}
                           className={cn(
-                            "inline-flex items-center gap-1 rounded px-1 py-0.5 transition-colors",
-                            "hover:bg-[color:var(--color-background)] hover:text-[color:var(--color-foreground)]",
-                            "focus-visible:ring-2 focus-visible:ring-[color:var(--color-ring)] focus-visible:ring-offset-1 focus-visible:ring-offset-[color:var(--color-muted)] focus-visible:outline-none",
+                            `
+                              inline-flex items-center gap-1 rounded-sm px-1
+                              py-0.5 transition-colors
+                            `,
+                            `
+                              hover:bg-background
+                              hover:text-(--color-foreground)
+                            `,
+                            `
+                              focus-visible:ring-2
+                              focus-visible:ring-(--color-ring)
+                              focus-visible:ring-offset-1
+                              focus-visible:ring-offset-muted
+                              focus-visible:outline-none
+                            `,
                           )}
                           aria-label={`Sort by ${header.column.columnDef.header as string} ${ariaSort === "ascending" ? "descending" : "ascending"}`}
                         >
@@ -277,14 +313,20 @@ export function ResultTable({ table }: ResultTableProps) {
               <tr
                 key={row.id}
                 className={cn(
-                  "transition-colors hover:bg-[color:var(--color-muted)]/50",
-                  rowIdx % 2 === 1 && "bg-[color:var(--color-muted)]/25",
+                  `
+                    transition-colors
+                    hover:bg-muted/50
+                  `,
+                  rowIdx % 2 === 1 && "bg-muted/25",
                 )}
               >
                 {row.getVisibleCells().map((cell) => (
                   <td
                     key={cell.id}
-                    className="border-b border-[color:var(--color-border)]/60 px-2.5 py-1.5 align-top tabular-nums"
+                    className="
+                      border-b border-border/60 px-2.5 py-1.5 align-top
+                      tabular-nums
+                    "
                   >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>
@@ -299,7 +341,7 @@ export function ResultTable({ table }: ResultTableProps) {
 }
 
 function SortIcon({ dir }: { dir: false | "asc" | "desc" }) {
-  if (dir === "asc") return <ArrowUp className="h-3 w-3" aria-hidden="true" />;
-  if (dir === "desc") return <ArrowDown className="h-3 w-3" aria-hidden="true" />;
-  return <ChevronsUpDown className="h-3 w-3 opacity-40" aria-hidden="true" />;
+  if (dir === "asc") return <ArrowUp className="size-3" aria-hidden="true" />;
+  if (dir === "desc") return <ArrowDown className="size-3" aria-hidden="true" />;
+  return <ChevronsUpDown className="size-3 opacity-40" aria-hidden="true" />;
 }

@@ -79,7 +79,7 @@ def test_clarify_requires_clarification() -> None:
 
 
 def test_bare_str_clarification_is_coerced() -> None:
-    plan = ClarifyPlan(clarification="Which season?")  # type: ignore[arg-type]
+    plan = ClarifyPlan(clarification="Which season?")
     assert isinstance(plan.clarification, Clarification)
     assert plan.clarification.question == "Which season?"
     assert plan.clarification.options == []
@@ -88,6 +88,7 @@ def test_bare_str_clarification_is_coerced() -> None:
 def test_structured_clarification_round_trips() -> None:
     c = Clarification(question="Which metric?", options=["averages", "totals"])
     plan = ClarifyPlan(clarification=c)
+    assert isinstance(plan.clarification, Clarification)
     assert plan.clarification.options == ["averages", "totals"]
 
 

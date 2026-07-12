@@ -85,10 +85,13 @@ export function CommandMenu({
       label="Command menu"
       overlayClassName="fixed inset-0 z-50 bg-black/50 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=open]:fade-in"
       contentClassName={cn(
-        "fixed left-1/2 top-[18%] z-50 w-[min(92vw,640px)] -translate-x-1/2",
-        "overflow-hidden rounded-2xl border border-[color:var(--color-border)]",
-        "bg-[color:var(--color-card)] shadow-2xl shadow-black/30",
-        "data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:zoom-in-95",
+        "fixed top-[18%] left-1/2 z-50 w-[min(92vw,640px)] -translate-x-1/2",
+        "overflow-hidden rounded-2xl border border-border",
+        "bg-card shadow-2xl shadow-black/30",
+        `
+          data-[state=open]:animate-in data-[state=open]:zoom-in-95
+          data-[state=open]:fade-in
+        `,
       )}
       // CommandDialog renders its own <Command> root; these props flow
       // into it, so the Input/List below share its state. Do NOT wrap
@@ -100,13 +103,16 @@ export function CommandMenu({
       <CommandInput
         placeholder="Type a command or search questions…"
         className={cn(
-          "border-b border-[color:var(--color-border)] bg-transparent px-4 py-3",
-          "font-sans text-sm text-[color:var(--color-foreground)] placeholder:text-[color:var(--color-muted-foreground)]",
+          "border-b border-border bg-transparent px-4 py-3",
+          `
+            font-sans text-sm text-(--color-foreground)
+            placeholder:text-muted-foreground
+          `,
           "focus-visible:outline-none",
         )}
       />
       <CommandList className="max-h-[min(50vh,360px)] overflow-y-auto p-2">
-        <CommandEmpty className="py-6 text-center text-sm text-[color:var(--color-muted-foreground)]">
+        <CommandEmpty className="py-6 text-center text-sm text-muted-foreground">
           No results.
         </CommandEmpty>
 
@@ -118,13 +124,15 @@ export function CommandMenu({
               onSelect={run(() => onPickQuestion(q))}
               className={cmdkItemClass}
             >
-              <TrendingUp className="mr-2 h-4 w-4 shrink-0 text-[color:var(--color-primary)]" />
+              <TrendingUp className="
+                mr-2 size-4 shrink-0 text-(--color-primary)
+              " />
               <span className="truncate">{q}</span>
             </CommandItem>
           ))}
         </CommandGroup>
 
-        <CommandSeparator className="my-1 h-px bg-[color:var(--color-border)]" />
+        <CommandSeparator className="my-1 h-px bg-border" />
 
         <CommandGroup heading="Actions" className={cmdkGroupClass}>
           <CommandItem
@@ -133,7 +141,7 @@ export function CommandMenu({
             disabled={!hasHistory}
             className={cmdkItemClass}
           >
-            <Clipboard className="mr-2 h-4 w-4 shrink-0" />
+            <Clipboard className="mr-2 size-4 shrink-0" />
             Copy last answer
           </CommandItem>
           <CommandItem
@@ -142,14 +150,17 @@ export function CommandMenu({
             disabled={!hasHistory}
             className={cmdkItemClass}
           >
-            <Eraser className="mr-2 h-4 w-4 shrink-0" />
+            <Eraser className="mr-2 size-4 shrink-0" />
             Clear history
           </CommandItem>
         </CommandGroup>
 
-        <div className="flex items-center justify-between gap-2 px-3 py-2 text-[0.7rem] text-[color:var(--color-muted-foreground)]">
+        <div className="
+          flex items-center justify-between gap-2 px-3 py-2 text-[0.7rem]
+          text-muted-foreground
+        ">
           <span className="inline-flex items-center gap-1">
-            <Command className="h-3 w-3" aria-hidden="true" /> K to toggle
+            <Command className="size-3" aria-hidden="true" /> K to toggle
           </span>
           <span>esc to close</span>
         </div>
@@ -160,13 +171,22 @@ export function CommandMenu({
 
 const cmdkItemClass = cn(
   "flex cursor-pointer items-center rounded-lg px-2.5 py-2 text-sm",
-  "text-[color:var(--color-foreground)] data-[selected=true]:bg-[color:var(--color-muted)]",
+  `
+    text-(--color-foreground)
+    data-[selected=true]:bg-muted
+  `,
   "data-[disabled=true]:opacity-40",
 );
 
 const cmdkGroupClass = cn(
-  "[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5",
-  "[&_[cmdk-group-heading]]:font-display [&_[cmdk-group-heading]]:text-[0.65rem]",
-  "[&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase",
-  "[&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:text-[color:var(--color-muted-foreground)]",
+  "**:[[cmdk-group-heading]]:px-2 **:[[cmdk-group-heading]]:py-1.5",
+  `
+    **:[[cmdk-group-heading]]:font-display
+    **:[[cmdk-group-heading]]:text-[0.65rem]
+  `,
+  "**:[[cmdk-group-heading]]:font-semibold **:[[cmdk-group-heading]]:uppercase",
+  `
+    **:[[cmdk-group-heading]]:tracking-wider
+    **:[[cmdk-group-heading]]:text-muted-foreground
+  `,
 );

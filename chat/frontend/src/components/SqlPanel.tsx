@@ -84,26 +84,45 @@ export function SqlPanel({ sql }: SqlPanelProps) {
   );
 
   return (
-    <section className="overflow-hidden rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-muted)]/40">
-      <header className="flex items-center justify-between gap-2 border-b border-[color:var(--color-border)] bg-[color:var(--color-card)]/60 px-2 py-1.5">
+    <section className="
+      overflow-hidden rounded-lg border border-border bg-muted/40
+    ">
+      <header className="
+        flex items-center justify-between gap-2 border-b border-border
+        bg-card/60 px-2 py-1.5
+      ">
         <button
           type="button"
           aria-expanded={expanded}
           aria-controls={codeId}
           onClick={() => setExpanded((v) => !v)}
           className={cn(
-            "flex cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-1 text-sm font-medium select-none",
-            "transition-colors hover:bg-[color:var(--color-muted)]",
-            "focus-visible:ring-2 focus-visible:ring-[color:var(--color-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-card)] focus-visible:outline-none",
+            `
+              flex cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-1
+              text-sm font-medium select-none
+            `,
+            `
+              transition-colors
+              hover:bg-muted
+            `,
+            `
+              focus-visible:ring-2 focus-visible:ring-(--color-ring)
+              focus-visible:ring-offset-2 focus-visible:ring-offset-card
+              focus-visible:outline-none
+            `,
           )}
         >
           <ChevronRight
-            className="h-3.5 w-3.5 text-[color:var(--color-muted-foreground)] transition-transform duration-200"
+            className="
+              size-3.5 text-muted-foreground transition-transform duration-200
+            "
             style={{ transform: expanded ? "rotate(90deg)" : undefined }}
             aria-hidden="true"
           />
-          <Database className="h-3.5 w-3.5 text-[color:var(--color-primary)]" aria-hidden="true" />
-          <span className="font-display text-xs font-semibold tracking-[0.1em] uppercase">SQL</span>
+          <Database className="size-3.5 text-(--color-primary)" aria-hidden="true" />
+          <span className="
+            font-display text-xs font-semibold tracking-widest uppercase
+          ">SQL</span>
         </button>
         <button
           type="button"
@@ -111,17 +130,24 @@ export function SqlPanel({ sql }: SqlPanelProps) {
             void handleCopy();
           }}
           className={cn(
-            "inline-flex items-center gap-1 rounded-md border border-[color:var(--color-border)]",
-            "bg-[color:var(--color-card)] px-2 py-1 text-xs font-medium",
-            "transition-colors hover:bg-[color:var(--color-muted)]",
-            "focus-visible:ring-2 focus-visible:ring-[color:var(--color-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-card)] focus-visible:outline-none",
+            `inline-flex items-center gap-1 rounded-md border border-border`,
+            "bg-card px-2 py-1 text-xs font-medium",
+            `
+              transition-colors
+              hover:bg-muted
+            `,
+            `
+              focus-visible:ring-2 focus-visible:ring-(--color-ring)
+              focus-visible:ring-offset-2 focus-visible:ring-offset-card
+              focus-visible:outline-none
+            `,
           )}
           aria-label={copied ? "SQL copied to clipboard" : "Copy SQL to clipboard"}
         >
           {copied ? (
-            <Check className="h-3 w-3 text-[color:var(--color-ok-fg)]" aria-hidden="true" />
+            <Check className="size-3 text-ok-fg" aria-hidden="true" />
           ) : (
-            <Copy className="h-3 w-3" aria-hidden="true" />
+            <Copy className="size-3" aria-hidden="true" />
           )}
           {copied ? "Copied" : "Copy"}
         </button>
@@ -134,8 +160,11 @@ export function SqlPanel({ sql }: SqlPanelProps) {
         </pre>
       )}
       {!expanded && (
-        <div className="flex items-center gap-1.5 px-3 py-1.5 text-[0.7rem] text-[color:var(--color-muted-foreground)]">
-          <Terminal className="h-3 w-3" aria-hidden="true" />
+        <div className="
+          flex items-center gap-1.5 px-3 py-1.5 text-[0.7rem]
+          text-muted-foreground
+        ">
+          <Terminal className="size-3" aria-hidden="true" />
           <span className="truncate font-mono">
             {sql.replace(/\s+/g, " ").trim().slice(0, 80)}
             {sql.length > 80 ? "…" : ""}

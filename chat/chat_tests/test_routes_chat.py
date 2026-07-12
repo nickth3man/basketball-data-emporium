@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import json
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Sequence
 from typing import Any
 
 from fastapi.testclient import TestClient
@@ -39,7 +39,7 @@ def _make_query_ref() -> QueryRef:
     return QueryRef(source="catalog", tables=["mart_player_career"])
 
 
-def _make_mock_run_turn(events: list[ChatEvent], **kwargs: Any):
+def _make_mock_run_turn(events: Sequence[ChatEvent], **kwargs: Any):
     """Return an async generator function that yields *events*.
 
     Extra keyword arguments are evaluated lazily at call time so test
@@ -62,7 +62,7 @@ def _make_mock_run_turn(events: list[ChatEvent], **kwargs: Any):
 
 
 def _make_mock_run_turn_with_result_setter(
-    events: list[ChatEvent],
+    events: Sequence[ChatEvent],
     set_result: Any = None,
 ):
     """Like ``_make_mock_run_turn`` but mutates *result* before yielding.
