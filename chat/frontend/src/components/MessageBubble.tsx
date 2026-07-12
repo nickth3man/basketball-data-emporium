@@ -75,45 +75,51 @@ interface AssistantBubbleProps {
   reduce: boolean | null;
 }
 
+interface AssistantViewState {
+  reasoning: ChatTurnState["reasoning"];
+  table: ChatTurnState["table"];
+  sql: string | null;
+  citations: ChatTurnState["citations"];
+  queryDurationMs: number | null;
+  isStreaming: boolean;
+  isEmptyStream: boolean;
+}
+
+function assistantViewState(turn: ChatTurnState | undefined, content: string): AssistantViewState {
+  if (!turn) {
+    return {
+      reasoning: null,
+      table: null,
+      sql: null,
+      citations: [],
+      queryDurationMs: null,
+      isStreaming: false,
+      isEmptyStream: false,
+    };
+  }
+
+  const isStreaming = turn.status === "running";
+  return {
+    reasoning: turn.reasoning,
+    table: turn.table,
+    sql: turn.sql,
+    citations: turn.citations,
+    queryDurationMs: turn.queryDurationMs,
+    isStreaming,
+    isEmptyStream: isStreaming && content.length === 0,
+  };
+}
+
 const AssistantBubble = memo(function AssistantBubble({
   content,
   turn,
   reduce,
 }: AssistantBubbleProps) {
-  const reasoning = turn?.reasoning ?? null;
-  const table = turn?.table ?? null;
-  const sql = turn?.sql ?? null;
-  const citations = turn?.citations ?? [];
-  const isStreaming = turn?.status === "running";
-  const isEmptyStream = isStreaming && content.length === 0;
-  const [, copyToClipboard] = useCopyToClipboard();
-  const [copied, setCopied] = useState<boolean>(false);
-
-  const handleCopy = useCallback(async (): Promise<void> => {
-    if (content.length === 0) return;
-    const ok = await copyToClipboard(content);
-    if (ok) {
-      toast.success("Answer copied");
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1500);
-    } else {
-      toast.error("Couldn't copy — clipboard unavailable");
-    }
-  }, [content, copyToClipboard]);
+  const view = assistantViewState(turn, content);
 
   return (
     <BubbleRow reduce={reduce} align="start">
-      {/* Bot avatar — a small accent square with the Baller "B" monogram. */}
-      <div
-        aria-hidden="true"
-        className={cn(
-          "mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg",
-          "bg-(--color-primary)/12 text-(--color-primary)",
-          "ring-1 ring-(--color-primary)/20 ring-inset",
-        )}
-      >
-        <span className="font-display text-sm leading-none font-bold">B</span>
-      </div>
+      <AssistantAvatar />
 
       <article
         aria-label="Assistant answered"
@@ -125,92 +131,160 @@ const AssistantBubble = memo(function AssistantBubble({
           "shadow-sm shadow-black/5",
         )}
       >
-        {/* Author row — name + streaming pill / duration. */}
-        <div className="flex items-center gap-2">
-          <span className="
-            font-display text-xs font-semibold tracking-tight
-            text-(--color-foreground)
-          ">
-            Assistant
-          </span>
-          {isStreaming && (
-            <span className="
-              inline-flex items-center gap-1 text-[0.7rem] text-muted-foreground
-            ">
-              <span className="relative flex size-1.5">
-                <span className="
-                  absolute inline-flex size-full animate-ping rounded-full
-                  bg-(--color-accent-orange) opacity-75
-                " />
-                <span className="
-                  relative inline-flex size-1.5 rounded-full
-                  bg-(--color-accent-orange)
-                " />
-              </span>
-              answering…
-            </span>
-          )}
-          {turn?.queryDurationMs !== null &&
-            turn?.queryDurationMs !== undefined &&
-            !isStreaming && (
-              <span className="text-[0.7rem] text-muted-foreground">
-                · {(turn.queryDurationMs / 1000).toFixed(2)}s
-              </span>
-            )}
-        </div>
+        <AssistantHeader isStreaming={view.isStreaming} queryDurationMs={view.queryDurationMs} />
 
-        {/* Answer body. */}
-        {isEmptyStream ? <TypingDots /> : <MarkdownContent content={content} />}
+        <AnswerBody content={content} isEmptyStream={view.isEmptyStream} />
 
-        {/* Rich panels — composed as they arrive from the stream. */}
-        {(reasoning || (sql !== null && sql.length > 0) || table || citations.length > 0) && (
-          <div className="flex flex-col gap-2 pt-0.5">
-            {reasoning && (
-              <ReasoningPanel summary={reasoning.summary} executionPlan={reasoning.executionPlan} />
-            )}
-            {sql !== null && sql.length > 0 && <SqlPanel sql={sql} />}
-            {table && <AnswerChart table={table} />}
-            {table && <ResultTable table={table} />}
-            {citations.length > 0 && <EvidenceCard citations={citations} />}
-          </div>
-        )}
-
-        {/* Footer actions — copy answer (hidden while streaming / empty). */}
-        {!isStreaming && content.length > 0 && (
-          <div className="flex items-center justify-end pt-0.5">
-            <button
-              type="button"
-              onClick={() => {
-                void handleCopy();
-              }}
-              className={cn(
-                `
-                  inline-flex items-center gap-1 rounded-md px-2 py-1
-                  text-[0.7rem] font-medium
-                `,
-                "text-muted-foreground transition-colors",
-                `hover:bg-muted hover:text-(--color-foreground)`,
-                `
-                  focus-visible:ring-2 focus-visible:ring-(--color-ring)
-                  focus-visible:ring-offset-2 focus-visible:ring-offset-card
-                  focus-visible:outline-none
-                `,
-              )}
-              aria-label={copied ? "Answer copied to clipboard" : "Copy answer to clipboard"}
-            >
-              {copied ? (
-                <Check className="size-3 text-ok-fg" aria-hidden="true" />
-              ) : (
-                <Copy className="size-3" aria-hidden="true" />
-              )}
-              {copied ? "Copied" : "Copy"}
-            </button>
-          </div>
-        )}
+        <AssistantPanels
+          reasoning={view.reasoning}
+          sql={view.sql}
+          table={view.table}
+          citations={view.citations}
+        />
+        <AnswerCopyButton content={content} isStreaming={view.isStreaming} />
       </article>
     </BubbleRow>
   );
 });
+
+function AssistantAvatar() {
+  return (
+    <div
+      aria-hidden="true"
+      className={cn(
+        "mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg",
+        "bg-(--color-primary)/12 text-(--color-primary)",
+        "ring-1 ring-(--color-primary)/20 ring-inset",
+      )}
+    >
+      <span className="font-display text-sm leading-none font-bold">B</span>
+    </div>
+  );
+}
+
+interface AssistantHeaderProps {
+  isStreaming: boolean;
+  queryDurationMs: number | null;
+}
+
+function AssistantHeader({ isStreaming, queryDurationMs }: AssistantHeaderProps) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="font-display text-xs font-semibold tracking-tight text-(--color-foreground)">
+        Assistant
+      </span>
+      {isStreaming && (
+        <span className="inline-flex items-center gap-1 text-[0.7rem] text-muted-foreground">
+          <span className="relative flex size-1.5">
+            <span className="absolute inline-flex size-full animate-ping rounded-full bg-(--color-accent-orange) opacity-75" />
+            <span className="relative inline-flex size-1.5 rounded-full bg-(--color-accent-orange)" />
+          </span>
+          answering…
+        </span>
+      )}
+      {!isStreaming && queryDurationMs !== null && (
+        <span className="text-[0.7rem] text-muted-foreground">
+          · {(queryDurationMs / 1000).toFixed(2)}s
+        </span>
+      )}
+    </div>
+  );
+}
+
+function AnswerBody({ content, isEmptyStream }: { content: string; isEmptyStream: boolean }) {
+  return isEmptyStream ? <TypingDots /> : <MarkdownContent content={content} />;
+}
+
+interface AssistantPanelsProps {
+  reasoning: ChatTurnState["reasoning"];
+  sql: string | null;
+  table: ChatTurnState["table"];
+  citations: ChatTurnState["citations"];
+}
+
+function AssistantPanels({ reasoning, sql, table, citations }: AssistantPanelsProps) {
+  const hasSql = sql !== null && sql.length > 0;
+  if (!reasoning && !hasSql && !table && citations.length === 0) return null;
+
+  return (
+    <div className="flex flex-col gap-2 pt-0.5">
+      <ReasoningDetails reasoning={reasoning} />
+      <SqlDetails sql={hasSql ? sql : null} />
+      <TableDetails table={table} />
+      <CitationDetails citations={citations} />
+    </div>
+  );
+}
+
+function ReasoningDetails({ reasoning }: Pick<AssistantPanelsProps, "reasoning">) {
+  if (!reasoning) return null;
+  return <ReasoningPanel summary={reasoning.summary} executionPlan={reasoning.executionPlan} />;
+}
+
+function SqlDetails({ sql }: Pick<AssistantPanelsProps, "sql">) {
+  return sql ? <SqlPanel sql={sql} /> : null;
+}
+
+function TableDetails({ table }: Pick<AssistantPanelsProps, "table">) {
+  if (!table) return null;
+  return (
+    <>
+      <AnswerChart table={table} />
+      <ResultTable table={table} />
+    </>
+  );
+}
+
+function CitationDetails({ citations }: Pick<AssistantPanelsProps, "citations">) {
+  return citations.length > 0 ? <EvidenceCard citations={citations} /> : null;
+}
+
+interface AnswerCopyButtonProps {
+  content: string;
+  isStreaming: boolean;
+}
+
+function AnswerCopyButton({ content, isStreaming }: AnswerCopyButtonProps) {
+  const [, copyToClipboard] = useCopyToClipboard();
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = useCallback(async (): Promise<void> => {
+    const copiedSuccessfully = await copyToClipboard(content);
+    if (!copiedSuccessfully) {
+      toast.error("Couldn't copy — clipboard unavailable");
+      return;
+    }
+
+    toast.success("Answer copied");
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1500);
+  }, [content, copyToClipboard]);
+
+  if (isStreaming || content.length === 0) return null;
+
+  return (
+    <div className="flex items-center justify-end pt-0.5">
+      <button
+        type="button"
+        onClick={() => void handleCopy()}
+        className={cn(
+          `inline-flex items-center gap-1 rounded-md px-2 py-1 text-[0.7rem] font-medium`,
+          "text-muted-foreground transition-colors",
+          `hover:bg-muted hover:text-(--color-foreground)`,
+          `focus-visible:ring-2 focus-visible:ring-(--color-ring) focus-visible:ring-offset-2 focus-visible:ring-offset-card focus-visible:outline-none`,
+        )}
+        aria-label={copied ? "Answer copied to clipboard" : "Copy answer to clipboard"}
+      >
+        {copied ? (
+          <Check className="size-3 text-ok-fg" aria-hidden="true" />
+        ) : (
+          <Copy className="size-3" aria-hidden="true" />
+        )}
+        {copied ? "Copied" : "Copy"}
+      </button>
+    </div>
+  );
+}
 
 function TypingDots() {
   // Decorative only — ChatTimeline's sr-only polite region already
@@ -220,10 +294,7 @@ function TypingDots() {
   return (
     <div className="flex items-center gap-1 py-1" aria-hidden="true">
       {[0, 1, 2].map((i) => (
-        <span
-          key={i}
-          className="typing-dot size-1.5 rounded-full bg-(--color-primary)"
-        />
+        <span key={i} className="typing-dot size-1.5 rounded-full bg-(--color-primary)" />
       ))}
     </div>
   );
@@ -243,9 +314,7 @@ function BubbleRow({ align, reduce, children }: BubbleRowProps) {
       transition={
         reduce ? { duration: 0 } : { type: "spring", stiffness: 380, damping: 30, mass: 0.6 }
       }
-      className={cn("flex w-full gap-2.5", align === "end" ? "justify-end" : `
-        justify-start
-      `)}
+      className={cn("flex w-full gap-2.5", align === "end" ? "justify-end" : `justify-start`)}
     >
       {children}
     </motion.div>

@@ -26,36 +26,18 @@ export interface ReasoningPanelProps {
 
 export function ReasoningPanel({ summary, executionPlan }: ReasoningPanelProps) {
   return (
-    <details
-      open
-      className={cn(
-        "group rounded-lg border border-border",
-        "bg-muted/40",
-      )}
-    >
+    <details open className={cn("group rounded-lg border border-border", "bg-muted/40")}>
       <summary
         className={cn(
-          `
-            flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-sm
-            font-medium select-none
-          `,
-          `
-            transition-colors
-            hover:bg-muted
-          `,
-          `
-            focus-visible:ring-2 focus-visible:ring-(--color-ring)
-            focus-visible:outline-none
-          `,
+          `flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-sm font-medium select-none`,
+          `transition-colors hover:bg-muted`,
+          `focus-visible:ring-2 focus-visible:ring-(--color-ring) focus-visible:outline-none`,
           `focus-visible:ring-offset-2 focus-visible:ring-offset-card`,
           "[&::-webkit-details-marker]:hidden",
         )}
       >
         <ChevronRight
-          className="
-            size-4 text-muted-foreground transition-transform duration-200
-            group-open:rotate-90
-          "
+          className="size-4 text-muted-foreground transition-transform duration-200 group-open:rotate-90"
           aria-hidden="true"
         />
         <Lightbulb className="size-4 text-(--color-accent-orange)" aria-hidden="true" />
@@ -65,16 +47,10 @@ export function ReasoningPanel({ summary, executionPlan }: ReasoningPanelProps) 
         <p className="text-(--color-foreground)/90">{summary}</p>
         {executionPlan !== null && executionPlan !== undefined && executionPlan.length > 0 && (
           <>
-            <p className="
-              font-display text-[0.65rem] font-semibold tracking-[0.12em]
-              text-muted-foreground uppercase
-            ">
+            <p className="font-display text-[0.65rem] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
               Execution plan
             </p>
-            <pre className="
-              m-0 overflow-x-auto rounded-md border border-border bg-card p-2.5
-              font-mono text-xs/relaxed whitespace-pre-wrap
-            ">
+            <pre className="m-0 overflow-x-auto rounded-md border border-border bg-card p-2.5 font-mono text-xs/relaxed whitespace-pre-wrap">
               {executionPlan}
             </pre>
           </>

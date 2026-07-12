@@ -33,6 +33,18 @@ from pydantic import Field, ValidationError, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
+_DEFAULT_CORS_ORIGIN = "http://localhost:5173"
+
+
+def _parse_cors_origins(raw: str | None) -> list[str]:
+    """Normalize a comma-separated CORS value using the application rules."""
+    if not raw or not raw.strip():
+        return [_DEFAULT_CORS_ORIGIN]
+
+    origins = [origin.strip() for origin in raw.split(",") if origin.strip()]
+    if "*" not in origins:
+        return [origin.rstrip("/") for origin in origins]
+    return ["*"] if len(origins) == 1 else [_DEFAULT_CORS_ORIGIN]
 
 
 class Settings(BaseSettings):
@@ -73,7 +85,7 @@ class Settings(BaseSettings):
     #: Example:
     #: ``CHAT_CORS_ORIGINS="http://localhost:5173,http://localhost:4173"``
     chat_cors_origins: str = Field(
-        default="http://localhost:5173",
+        default=_DEFAULT_CORS_ORIGIN,
         description="Comma-separated list of allowed CORS origins",
     )
 
@@ -83,7 +95,7 @@ class Settings(BaseSettings):
         """Strip whitespace around commas; the raw string is stored but
         consumers should call :meth:`parsed_cors_origins` for the typed list."""
         if not v or not v.strip():
-            return "http://localhost:5173"
+            return _DEFAULT_CORS_ORIGIN
         return ",".join(origin.strip() for origin in v.split(",") if origin.strip())
 
     def parsed_cors_origins(self) -> list[str]:
@@ -93,15 +105,7 @@ class Settings(BaseSettings):
         ``"*"`` is only valid as the sole origin — mixing it with specific
         origins falls back to ``["http://localhost:5173"]``.
         """
-        if not self.chat_cors_origins or self.chat_cors_origins.strip() == "":
-            return ["http://localhost:5173"]
-        raw = [o.strip() for o in self.chat_cors_origins.split(",") if o.strip()]
-        # Wildcard is only valid as the sole origin
-        if "*" in raw:
-            if len(raw) > 1:
-                return ["http://localhost:5173"]
-            return ["*"]
-        return [o.rstrip("/") for o in raw]
+        return _parse_cors_origins(self.chat_cors_origins)
 
 
 @lru_cache(maxsize=1)
@@ -157,12 +161,4 @@ def get_cors_origins() -> list[str]:
     if raw is None:
         dotenv_vals = dotenv_values(str(_ENV_FILE))
         raw = dotenv_vals.get("CHAT_CORS_ORIGINS")
-    if not raw or not raw.strip():
-        return ["http://localhost:5173"]
-    origins = [o.strip() for o in raw.split(",") if o.strip()]
-    # Wildcard is only valid as the sole origin.
-    if "*" in origins:
-        if len(origins) > 1:
-            return ["http://localhost:5173"]
-        return ["*"]
-    return [o.rstrip("/") for o in origins]
+    return _parse_cors_origins(raw)

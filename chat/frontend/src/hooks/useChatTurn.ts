@@ -84,7 +84,7 @@ const initialState: ChatTurnState = {
   turnId: null,
 };
 
-type Action =
+export type ChatTurnAction =
   | { type: "reset" }
   | { type: "running" }
   | { type: "event"; ev: ChatEvent }
@@ -92,7 +92,77 @@ type Action =
   | { type: "cancelled" }
   | { type: "done" };
 
-function reducer(state: ChatTurnState, action: Action): ChatTurnState {
+function reduceEvent(state: ChatTurnState, ev: ChatEvent): ChatTurnState {
+  const events = [...state.events, ev];
+
+  switch (ev.event) {
+    case "turn_started":
+      return { ...state, events, turnId: ev.turn_id };
+    case "intent_classified":
+      return { ...state, events, queryRef: ev.query_ref };
+    case "clarification_needed":
+      return {
+        ...state,
+        events,
+        status: "awaiting_clarification",
+        clarification: {
+          question: ev.question,
+          options: ev.options ?? null,
+        },
+      };
+    case "query_started":
+      return {
+        ...state,
+        events,
+        sql: ev.sql,
+        queryRef: ev.query_ref,
+      };
+    case "query_finished":
+      return { ...state, events, queryDurationMs: ev.duration_ms };
+    case "table_ready":
+      return {
+        ...state,
+        events,
+        table: {
+          columns: ev.columns,
+          rows: ev.rows,
+          rowCount: ev.row_count,
+          truncated: ev.truncated,
+        },
+      };
+    case "reasoning":
+      return {
+        ...state,
+        events,
+        reasoning: {
+          summary: ev.summary,
+          executionPlan: ev.execution_plan ?? null,
+        },
+      };
+    case "citation":
+      return {
+        ...state,
+        events,
+        citations: [...state.citations, ev],
+      };
+    case "answer_delta":
+      return { ...state, events, answer: state.answer + ev.delta };
+    case "answer_finished":
+      return { ...state, events, answer: ev.answer };
+    case "error":
+      return {
+        ...state,
+        events,
+        status: "error",
+        error: { code: ev.code, message: ev.message },
+      };
+    default:
+      // Future union additions remain harmless until their state behavior is defined.
+      return state;
+  }
+}
+
+function reducer(state: ChatTurnState, action: ChatTurnAction): ChatTurnState {
   switch (action.type) {
     case "reset":
       return initialState;
@@ -118,77 +188,8 @@ function reducer(state: ChatTurnState, action: Action): ChatTurnState {
         status: "error",
         error: { code: action.code, message: action.message },
       };
-    case "event": {
-      const ev = action.ev;
-      const events = [...state.events, ev];
-      switch (ev.event) {
-        case "turn_started":
-          return { ...state, events, turnId: ev.turn_id };
-        case "intent_classified":
-          return { ...state, events, queryRef: ev.query_ref };
-        case "clarification_needed":
-          return {
-            ...state,
-            events,
-            status: "awaiting_clarification",
-            clarification: {
-              question: ev.question,
-              options: ev.options ?? null,
-            },
-          };
-        case "query_started":
-          return {
-            ...state,
-            events,
-            sql: ev.sql,
-            queryRef: ev.query_ref,
-          };
-        case "query_finished":
-          return { ...state, events, queryDurationMs: ev.duration_ms };
-        case "table_ready":
-          return {
-            ...state,
-            events,
-            table: {
-              columns: ev.columns,
-              rows: ev.rows,
-              rowCount: ev.row_count,
-              truncated: ev.truncated,
-            },
-          };
-        case "reasoning":
-          return {
-            ...state,
-            events,
-            reasoning: {
-              summary: ev.summary,
-              executionPlan: ev.execution_plan ?? null,
-            },
-          };
-        case "citation":
-          return {
-            ...state,
-            events,
-            citations: [...state.citations, ev],
-          };
-        case "answer_delta":
-          return { ...state, events, answer: state.answer + ev.delta };
-        case "answer_finished":
-          return { ...state, events, answer: ev.answer };
-        case "error":
-          return {
-            ...state,
-            events,
-            status: "error",
-            error: { code: ev.code, message: ev.message },
-          };
-        default:
-          // Defensive: future union additions would land here and be
-          // appended to the event log without mutating state. The TS
-          // compiler catches a missing case on the next build.
-          return state;
-      }
-    }
+    case "event":
+      return reduceEvent(state, action.ev);
     default:
       return state;
   }
@@ -258,19 +259,9 @@ export function useChatTurn(sessionId: string | null): UseChatTurnResult {
   return { state, send, cancel, reset };
 }
 
-// --- Testing-only exports --------------------------------------------------
-/** @internal Exported for useChatTurn.test.tsx reducer tests. */
-export type ChatTurnAction =
-  | { type: "reset" }
-  | { type: "running" }
-  | { type: "event"; ev: ChatEvent }
-  | { type: "error"; code: string; message: string }
-  | { type: "cancelled" }
-  | { type: "done" };
-
 /** @internal Exported for useChatTurn.test.tsx reducer tests. */
 export function chatTurnReducer(state: ChatTurnState, action: ChatTurnAction): ChatTurnState {
-  return reducer(state, action as Action);
+  return reducer(state, action);
 }
 
 /** @internal Exported for useChatTurn.test.tsx reducer tests. */

@@ -64,6 +64,31 @@ def _is_under_retention(path: Path, cutoff: float) -> bool:
         return False
 
 
+def _delete_expired_files(root: Path, cutoff: float) -> int:
+    removed = 0
+    for dirpath, dirnames, filenames in os.walk(root, topdown=True, followlinks=False):
+        directory = Path(dirpath)
+        dirnames[:] = [name for name in dirnames if not (directory / name).is_symlink()]
+        for name in filenames:
+            path = directory / name
+            if path.is_symlink() or not _is_under_retention(path, cutoff):
+                continue
+            try:
+                path.unlink()
+                removed += 1
+            except OSError as exc:
+                log.warning("sweep_logs: failed to delete %s: %s", path, exc)
+    return removed
+
+
+def _remove_empty_directories(root: Path) -> None:
+    for dirpath, dirnames, filenames in os.walk(root, topdown=False, followlinks=False):
+        if Path(dirpath) == root or dirnames or filenames:
+            continue
+        with contextlib.suppress(OSError):
+            os.rmdir(dirpath)
+
+
 def sweep_logs(
     root: Path,
     retention_days: int = RETENTION_DAYS,
@@ -88,28 +113,8 @@ def sweep_logs(
         return 0
 
     cutoff = _cutoff_epoch(retention_days, now=now)
-    removed = 0
-    for dirpath, dirnames, filenames in os.walk(root, topdown=True, followlinks=False):
-        dirnames[:] = [d for d in dirnames if not (Path(dirpath) / d).is_symlink()]
-        for name in filenames:
-            path = Path(dirpath) / name
-            if path.is_symlink():
-                continue
-            if not _is_under_retention(path, cutoff):
-                continue
-            try:
-                path.unlink()
-                removed += 1
-            except OSError as exc:
-                log.warning("sweep_logs: failed to delete %s: %s", path, exc)
-
-    for dirpath, dirnames, filenames in os.walk(root, topdown=False, followlinks=False):
-        if Path(dirpath) == root:
-            continue
-        if not dirnames and not filenames:
-            with contextlib.suppress(OSError):
-                os.rmdir(dirpath)
-
+    removed = _delete_expired_files(root, cutoff)
+    _remove_empty_directories(root)
     return removed
 
 

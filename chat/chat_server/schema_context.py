@@ -128,6 +128,61 @@ _TABLE_PURPOSES: dict[str, str] = {
 }
 
 
+def _allowed_table_section(table_purposes: dict[str, str]) -> list[str]:
+    lines = ["ALLOWED WAREHOUSE TABLES (only these tables may be queried):"]
+    if not table_purposes:
+        return [*lines, "  (none discovered)"]
+    return [*lines, *(f"  - {name}: {purpose}" for name, purpose in table_purposes.items())]
+
+
+def _metric_section(metrics: list[dict]) -> list[str]:
+    if not metrics:
+        return []
+
+    lines = ["METRIC DEFINITIONS (from meta_metric_definition):"]
+    for metric in metrics:
+        tail_bits = [
+            f"{label}={value}"
+            for label, value in (
+                ("expr", metric.get("expression") or ""),
+                ("src", metric.get("source_priority") or ""),
+                ("notes", metric.get("notes") or ""),
+            )
+            if value
+        ]
+        metric_key = metric.get("metric_key", "?")
+        grain = metric.get("grain") or "?"
+        tail = f" — {'; '.join(tail_bits)}" if tail_bits else ""
+        lines.append(f"  - {metric_key} [grain={grain}]{tail}")
+    return lines
+
+
+def _known_gap_section(gaps: list[dict]) -> list[str]:
+    if not gaps:
+        return []
+
+    lines = ["KNOWN GAPS (caveats to surface in answers when relevant):"]
+    for gap in gaps:
+        gap_key = gap.get("gap_key", "?")
+        severity = gap.get("severity") or "info"
+        area = gap.get("affected_area") or ""
+        status = gap.get("status") or ""
+        details = gap.get("details") or ""
+        line = f"  - {gap_key} [{severity}, {status}, area={area}]"
+        lines.append(f"{line} — {details}" if details else line)
+    return lines
+
+
+def _excluded_table_section(table_names: set[str]) -> list[str]:
+    if not table_names:
+        return []
+    return [
+        "EXCLUDED TABLES (MUST NOT be queried — legacy/empty/duplicate; "
+        "only mentioned when explaining warehouse state):",
+        *(f"  - {name}" for name in sorted(table_names)),
+    ]
+
+
 @dataclass
 class SchemaContext:
     """Compact trusted schema map fed to the agent as system-prompt context.
@@ -171,53 +226,13 @@ class SchemaContext:
           3. Known gaps (caveats).
           4. Excluded tables (must-not-query).
         """
-        lines: list[str] = []
-        lines.append("ALLOWED WAREHOUSE TABLES (only these tables may be queried):")
-        if not self.table_purposes:
-            lines.append("  (none discovered)")
-        else:
-            for name, purpose in self.table_purposes.items():
-                lines.append(f"  - {name}: {purpose}")
-        if self.metric_definitions:
-            lines.append("")
-            lines.append("METRIC DEFINITIONS (from meta_metric_definition):")
-            for m in self.metric_definitions:
-                metric_key = m.get("metric_key", "?")
-                grain = m.get("grain") or "?"
-                expr = m.get("expression") or ""
-                notes = m.get("notes") or ""
-                src = m.get("source_priority") or ""
-                tail_bits: list[str] = []
-                if expr:
-                    tail_bits.append(f"expr={expr}")
-                if src:
-                    tail_bits.append(f"src={src}")
-                if notes:
-                    tail_bits.append(f"notes={notes}")
-                tail = "; ".join(tail_bits)
-                lines.append(f"  - {metric_key} [grain={grain}]{(' — ' + tail) if tail else ''}")
-        if self.known_gaps:
-            lines.append("")
-            lines.append("KNOWN GAPS (caveats to surface in answers when relevant):")
-            for g in self.known_gaps:
-                gap_key = g.get("gap_key", "?")
-                sev = g.get("severity") or "info"
-                area = g.get("affected_area") or ""
-                status = g.get("status") or ""
-                details = g.get("details") or ""
-                head = f"  - {gap_key} [{sev}, {status}, area={area}]"
-                if details:
-                    head += f" — {details}"
-                lines.append(head)
-        if self.table_fate_excluded:
-            lines.append("")
-            lines.append(
-                "EXCLUDED TABLES (MUST NOT be queried — "
-                "legacy/empty/duplicate; only mentioned when explaining warehouse state):"
-            )
-            for name in sorted(self.table_fate_excluded):
-                lines.append(f"  - {name}")
-        return "\n".join(lines)
+        sections = (
+            _allowed_table_section(self.table_purposes),
+            _metric_section(self.metric_definitions),
+            _known_gap_section(self.known_gaps),
+            _excluded_table_section(self.table_fate_excluded),
+        )
+        return "\n\n".join("\n".join(section) for section in sections if section)
 
 
 async def _describe_tables(db: DuckDBSingleton) -> dict[str, str]:

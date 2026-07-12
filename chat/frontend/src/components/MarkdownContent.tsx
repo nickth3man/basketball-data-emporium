@@ -49,15 +49,8 @@ function MarkdownContentImpl({ content, className }: MarkdownContentProps) {
         // `prose-chat` (defined in globals.css) wires the prose tokens to
         // our design-system CSS vars so headings, links, code, and tables
         // read in both themes.
-        `
-          prose-chat prose prose-sm max-w-none
-          dark:prose-invert
-        `,
-        `
-          prose-headings:mt-3 prose-headings:mb-1
-          prose-p:leading-relaxed
-          prose-li:my-0.5
-        `,
+        `prose-chat prose prose-sm max-w-none dark:prose-invert`,
+        `prose-headings:mt-3 prose-headings:mb-1 prose-p:leading-relaxed prose-li:my-0.5`,
         `prose-pre:my-2 prose-pre:bg-muted prose-pre:px-3 prose-pre:py-2.5`,
         "prose-table:text-xs",
         className,
@@ -86,9 +79,7 @@ function MarkdownContentImpl({ content, className }: MarkdownContentProps) {
           // tables don't blow out the bubble width.
           table(props) {
             return (
-              <div className="
-                my-2 overflow-x-auto rounded-md border border-border
-              ">
+              <div className="my-2 overflow-x-auto rounded-md border border-border">
                 <table {...props} />
               </div>
             );

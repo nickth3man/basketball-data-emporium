@@ -31,7 +31,9 @@ from pathlib import Path
 from chat_server.events import (
     ChatEvent,
     ClarificationNeeded,
+    QueryFinished,
     QueryStarted,
+    TableReady,
 )
 from chat_server.pipeline import run_turn
 from chat_server.sessions import SessionStore
@@ -156,6 +158,30 @@ async def _gate_sql(sql: str) -> tuple[bool, set[str]]:
     return bool(report.valid), set(report.tables_referenced)
 
 
+async def _apply_gate_result(trace: TurnTrace) -> None:
+    if trace.mode != "execute_sql" or not trace.sql:
+        return
+    trace.gate_pass, trace.tables_referenced = await _gate_sql(trace.sql)
+
+
+def _capture_final_result(
+    result: ReplayResult,
+    trace: TurnTrace,
+    events: list[ChatEvent],
+) -> None:
+    """Copy the last governed query's SQL and preview rows into ``result``."""
+    if trace.mode != "execute_sql" or not trace.sql:
+        return
+
+    result.final_sql = trace.sql
+    query_finished = next((event for event in events if isinstance(event, QueryFinished)), None)
+    table_ready = next((event for event in events if isinstance(event, TableReady)), None)
+    if query_finished is not None:
+        result.final_columns = list(query_finished.columns)
+    if table_ready is not None:
+        result.final_rows = list(table_ready.rows)
+
+
 async def replay_row(row: EvalRow, sessions_root: Path) -> ReplayResult:
     """Replay one eval row end-to-end through the real pipeline.
 
@@ -178,40 +204,12 @@ async def replay_row(row: EvalRow, sessions_root: Path) -> ReplayResult:
 
     result = ReplayResult(session_id=session_id)
 
-    for _turn_index, message in enumerate(row.scripted_turns):
+    for message in row.scripted_turns:
         events = await _drain(session_id, message, store)
         trace = _derive_plan(events)
-        if trace.mode == "execute_sql" and trace.sql:
-            gate_pass, tables = await _gate_sql(trace.sql)
-            trace.gate_pass = gate_pass
-            trace.tables_referenced = tables
+        await _apply_gate_result(trace)
         result.turns.append(trace)
-
-        # Capture the final execute_sql result for Layer-2. If the last
-        # turn was clarify / not_answerable / template we leave the
-        # final_columns/final_rows empty -- Layer-2 will skip.
-        if trace.mode == "execute_sql" and trace.sql:
-            qs = next(
-                (ev for ev in events if isinstance(ev, QueryStarted)),
-                None,
-            )
-            if qs is not None and qs.sql:
-                result.final_sql = qs.sql
-            # QueryFinished carries the columns + row_count; rows are
-            # not surfaced in events today (the pipeline streams a
-            # preview-capped TableReady but the full result lives on
-            # disk). We populate final_rows from TableReady if present
-            # (good enough for Layer-2's name/number matching; a
-            # tighter match would require an extra execute call, which
-            # the Layer-2 helper ``execute_plan_sql`` provides).
-            from chat_server.events import QueryFinished, TableReady
-
-            qf = next((ev for ev in events if isinstance(ev, QueryFinished)), None)
-            tr = next((ev for ev in events if isinstance(ev, TableReady)), None)
-            if qf is not None:
-                result.final_columns = list(qf.columns)
-            if tr is not None:
-                result.final_rows = list(tr.rows)
+        _capture_final_result(result, trace, events)
 
     return result
 

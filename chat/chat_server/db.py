@@ -165,6 +165,63 @@ def _has_existing_limit(sql: str) -> bool:
     return "limit" in text.split()
 
 
+def _apply_row_limit(sql: str, limit: int | None) -> tuple[str, bool]:
+    """Return SQL with the configured cap appended when it has no LIMIT."""
+    if limit is None or _has_existing_limit(sql):
+        return sql, False
+    rendered = f"{sql.rstrip().rstrip(';').rstrip()} LIMIT {int(limit)}"
+    return rendered, True
+
+
+def _start_watchdog(
+    cursor: duckdb.DuckDBPyConnection,
+    timeout_seconds: float | None,
+) -> tuple[threading.Event, threading.Timer | None]:
+    fired = threading.Event()
+    if timeout_seconds is None:
+        return fired, None
+
+    def interrupt() -> None:
+        fired.set()
+        with contextlib.suppress(Exception):
+            cursor.interrupt()
+
+    timer = threading.Timer(timeout_seconds, interrupt)
+    timer.daemon = True
+    timer.start()
+    return fired, timer
+
+
+def _execute_cursor(
+    cursor: duckdb.DuckDBPyConnection,
+    rendered_sql: str,
+    params: dict[str, Any] | None,
+    *,
+    original_sql: str,
+    timeout_seconds: float | None,
+) -> tuple[list[tuple], float]:
+    """Execute one query and translate watchdog interrupts into a timeout."""
+    fired, timer = _start_watchdog(cursor, timeout_seconds)
+    started_at = time.perf_counter()
+    try:
+        if params:
+            cursor.execute(rendered_sql, params)
+        else:
+            cursor.execute(rendered_sql)
+        rows = cursor.fetchall()
+    except duckdb.Error as exc:
+        if fired.is_set() or isinstance(exc, duckdb.InterruptException):
+            raise QueryTimeoutError(
+                sql=original_sql,
+                timeout_seconds=float(timeout_seconds or 0),
+            ) from None
+        raise
+    finally:
+        if timer is not None:
+            timer.cancel()
+    return rows, (time.perf_counter() - started_at) * 1000.0
+
+
 class DuckDBSingleton:
     """Process-wide read-only DuckDB handle.
 
@@ -329,52 +386,17 @@ class DuckDBSingleton:
     ) -> QueryResult:
         """Synchronous execution body. Always called via `asyncio.to_thread`."""
         effective_limit = limit if limit is not None else self._default_limit
-        injected_limit = False
-        rendered_sql = sql
+        rendered_sql, injected_limit = _apply_row_limit(sql, effective_limit)
 
         with self._lock:
             cur = self._acquire_cursor()
-
-            if effective_limit is not None and not _has_existing_limit(sql):
-                rendered_sql = f"{sql.rstrip().rstrip(';').rstrip()} LIMIT {int(effective_limit)}"
-                injected_limit = True
-
-            # Watchdog: `interrupt()` must target the cursor driving the
-            # query (each cursor is a sibling DuckDBPyConnection) and must be
-            # called from another thread — hence the Timer. The `fired` flag
-            # distinguishes a genuine timeout from an unrelated engine error
-            # and covers duckdb versions that surface the interrupt as a
-            # generic Error instead of InterruptException.
-            fired = threading.Event()
-            timer: threading.Timer | None = None
-            if timeout_seconds is not None:
-
-                def _interrupt() -> None:
-                    fired.set()
-                    with contextlib.suppress(Exception):
-                        cur.interrupt()
-
-                timer = threading.Timer(timeout_seconds, _interrupt)
-                timer.daemon = True
-                timer.start()
-
-            t0 = time.perf_counter()
-            try:
-                if params:
-                    cur.execute(rendered_sql, params)
-                else:
-                    cur.execute(rendered_sql)
-                raw_rows = cur.fetchall()
-            except duckdb.Error as exc:
-                if fired.is_set() or isinstance(exc, duckdb.InterruptException):
-                    raise QueryTimeoutError(
-                        sql=sql, timeout_seconds=float(timeout_seconds or 0)
-                    ) from None
-                raise
-            finally:
-                if timer is not None:
-                    timer.cancel()
-            duration_ms = (time.perf_counter() - t0) * 1000.0
+            raw_rows, duration_ms = _execute_cursor(
+                cur,
+                rendered_sql,
+                params,
+                original_sql=sql,
+                timeout_seconds=timeout_seconds,
+            )
 
         columns: list[str] = [str(col[0]) for col in (cur.description or ()) if col and col[0]]
         rows = convert_rows(columns, raw_rows)

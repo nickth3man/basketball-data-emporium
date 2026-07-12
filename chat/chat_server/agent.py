@@ -351,6 +351,28 @@ _DOCUMENTED_CATALOG_TYPE = re.compile(
     r"\b(BIGINT|HUGEINT|INTEGER|DOUBLE|VARCHAR|BOOLEAN|DATE|TIMESTAMP)\b",
     re.IGNORECASE,
 )
+_DOUBLE_MEASURE_NAMES = ("pct", "rating", "pace", "margin", "average", "distance")
+_INTEGER_FIELD_NAMES = {"conf_rank", "div_rank", "month", "week", "series_game_number"}
+
+
+def _catalog_measure_type(name: str) -> str:
+    if any(token in name for token in _DOUBLE_MEASURE_NAMES):
+        return "DOUBLE"
+    return "HUGEINT" if name.startswith("total_") else "BIGINT"
+
+
+def _catalog_dimension_type(name: str) -> str:
+    if name.endswith("_id"):
+        return "BIGINT"
+    if name in _INTEGER_FIELD_NAMES:
+        return "INTEGER"
+    if name.startswith("is_"):
+        return "BOOLEAN"
+    if name.endswith("_date"):
+        return "DATE"
+    if "datetime" in name:
+        return "TIMESTAMP"
+    return "VARCHAR"
 
 
 def _catalog_field_type(name: str, expr: str, description: str, *, measure: bool) -> str:
@@ -364,26 +386,8 @@ def _catalog_field_type(name: str, expr: str, description: str, *, measure: bool
     if "COUNT(" in upper_expr:
         return "BIGINT"
     if measure:
-        if any(
-            token in name for token in ("pct", "rating", "pace", "margin", "average", "distance")
-        ):
-            return "DOUBLE"
-        return "HUGEINT" if name.startswith("total_") else "BIGINT"
-    if name.endswith("_id") or name in {
-        "conf_rank",
-        "div_rank",
-        "month",
-        "week",
-        "series_game_number",
-    }:
-        return "BIGINT" if name.endswith("_id") else "INTEGER"
-    if name.startswith("is_"):
-        return "BOOLEAN"
-    if name.endswith("_date"):
-        return "DATE"
-    if "datetime" in name:
-        return "TIMESTAMP"
-    return "VARCHAR"
+        return _catalog_measure_type(name)
+    return _catalog_dimension_type(name)
 
 
 def _build_model() -> OpenRouterModel:
@@ -887,6 +891,31 @@ async def make_deps() -> AgentDeps:
     )
 
 
+def _tool_call_locations(messages: list) -> dict[str, int]:
+    """Map each tool-call id to the message that introduced it."""
+    locations: dict[str, int] = {}
+    for index, message in enumerate(messages):
+        for part in getattr(message, "parts", ()) or ():
+            if not isinstance(part, ToolCallPart):
+                continue
+            tool_call_id = getattr(part, "tool_call_id", None)
+            if tool_call_id is not None:
+                locations[tool_call_id] = index
+    return locations
+
+
+def _has_orphaned_tool_return(message, call_locations: dict[str, int], cut: int) -> bool:
+    """Whether ``message`` returns a tool call that falls before ``cut``."""
+    for part in getattr(message, "parts", ()) or ():
+        if not isinstance(part, ToolReturnPart):
+            continue
+        tool_call_id = getattr(part, "tool_call_id", None)
+        call_index = call_locations.get(tool_call_id) if tool_call_id else None
+        if call_index is not None and call_index < cut:
+            return True
+    return False
+
+
 def keep_last_messages_with_tools(
     messages: list,
     n: int = 20,
@@ -945,28 +974,9 @@ def keep_last_messages_with_tools(
 
     cut = len(messages) - n
 
-    call_locations: dict[str, int] = {}
-    for i, msg in enumerate(messages):
-        parts = getattr(msg, "parts", ()) or ()
-        for part in parts:
-            if isinstance(part, ToolCallPart):
-                tool_call_id = getattr(part, "tool_call_id", None)
-                if tool_call_id is not None:
-                    call_locations[tool_call_id] = i
+    call_locations = _tool_call_locations(messages)
 
-    while cut > 0:
-        boundary = messages[cut]
-        parts = getattr(boundary, "parts", ()) or ()
-        has_orphan = False
-        for part in parts:
-            if isinstance(part, ToolReturnPart):
-                tool_call_id = getattr(part, "tool_call_id", None)
-                call_idx = call_locations.get(tool_call_id) if tool_call_id else None
-                if call_idx is not None and call_idx < cut:
-                    has_orphan = True
-                    break
-        if not has_orphan:
-            break
+    while cut > 0 and _has_orphaned_tool_return(messages[cut], call_locations, cut):
         cut -= 1
 
     return list(messages[cut:])

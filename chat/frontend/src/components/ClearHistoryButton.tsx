@@ -58,9 +58,9 @@ export function ClearHistoryButton({
       onClick={() => void handleClick()}
     >
       {busy ? (
-        <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+        <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
       ) : (
-        <Eraser className="h-3.5 w-3.5" aria-hidden="true" />
+        <Eraser className="size-3.5" aria-hidden="true" />
       )}
       {busy ? "Clearing…" : label}
     </Button>

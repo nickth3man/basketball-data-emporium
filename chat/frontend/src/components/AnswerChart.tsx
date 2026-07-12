@@ -41,6 +41,12 @@ interface ChartSpec {
   layout: "horizontal" | "vertical";
 }
 
+interface ColumnClassification {
+  name: string;
+  numeric: boolean;
+  string: boolean;
+}
+
 const CHART_TOKENS = [
   "--color-chart-1",
   "--color-chart-2",
@@ -58,8 +64,79 @@ function readChartPalette(): string[] {
 const LABEL_HINTS =
   /^(name|player|team|season|year|pos|position|rank|label|month|date|opp|opponent|conference|division)$/i;
 
-function isNumeric(value: unknown): boolean {
+function isNumeric(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
+}
+
+function classifyColumn(name: string, rows: Record<string, unknown>[]): ColumnClassification {
+  let numericValues = 0;
+  let stringValues = 0;
+  let nonNullValues = 0;
+
+  for (const row of rows) {
+    const value = row[name];
+    if (value === null || value === undefined) continue;
+    nonNullValues++;
+    if (isNumeric(value)) numericValues++;
+    else if (typeof value === "string" && value.trim().length > 0) stringValues++;
+  }
+
+  return {
+    name,
+    numeric: nonNullValues > 0 && numericValues / nonNullValues >= 0.9,
+    string: nonNullValues > 0 && stringValues / nonNullValues >= 0.7,
+  };
+}
+
+function findLabelColumn(columns: ColumnClassification[]): ColumnClassification | undefined {
+  return (
+    columns.find((column) => LABEL_HINTS.test(column.name) && column.string) ??
+    columns.find((column) => column.string) ??
+    columns.find((column) => !column.numeric)
+  );
+}
+
+function hasUsefulRange(column: string, rows: Record<string, unknown>[]): boolean {
+  const values = rows.map((row) => row[column]).filter(isNumeric);
+  if (values.length === 0) return false;
+  return Math.max(...values) - Math.min(...values) > 1e-9;
+}
+
+function buildChartData(
+  rows: Record<string, unknown>[],
+  labelColumn: string,
+  series: ChartSpec["series"],
+): Record<string, unknown>[] {
+  return rows.map((row) => {
+    const chartRow: Record<string, unknown> = {
+      __label: truncate(String(row[labelColumn] ?? ""), 22),
+    };
+    for (const { key } of series) chartRow[key] = row[key];
+    return chartRow;
+  });
+}
+
+function hasChartableShape(table: ChatTurnTable): boolean {
+  return table.rows.length >= 2 && table.rows.length <= 16 && table.columns.length >= 2;
+}
+
+function findSeries(
+  columns: ColumnClassification[],
+  labelColumn: string,
+  rows: Record<string, unknown>[],
+): ChartSpec["series"] | null {
+  const numericColumns = columns.filter((column) => column.numeric && column.name !== labelColumn);
+  if (numericColumns.length === 0 || numericColumns.length > 3) return null;
+
+  const series = numericColumns
+    .filter((column) => hasUsefulRange(column.name, rows))
+    .map((column) => ({ key: column.name, label: column.name }));
+  return series.length > 0 ? series : null;
+}
+
+function chartLayout(rows: Record<string, unknown>[], labelColumn: string): ChartSpec["layout"] {
+  const sampleLabel = String(rows[0]?.[labelColumn] ?? "");
+  return rows.length > 8 || sampleLabel.length > 8 ? "horizontal" : "vertical";
 }
 
 /**
@@ -74,64 +151,20 @@ function isNumeric(value: unknown): boolean {
  */
 function pickChartSpec(table: ChatTurnTable): ChartSpec | null {
   const { columns, rows } = table;
-  if (rows.length < 2 || rows.length > 16) return null;
-  if (columns.length < 2) return null;
+  if (!hasChartableShape(table)) return null;
 
-  // Classify each column by scanning the rendered rows.
-  const classification = columns.map((col) => {
-    let nums = 0;
-    let strs = 0;
-    let nonNull = 0;
-    for (const row of rows) {
-      const v = row[col.name];
-      if (v === null || v === undefined) continue;
-      nonNull++;
-      if (typeof v === "number" && Number.isFinite(v)) nums++;
-      else if (typeof v === "string" && v.trim().length > 0) strs++;
-    }
-    return {
-      name: col.name,
-      numeric: nonNull > 0 && nums / nonNull >= 0.9,
-      string: nonNull > 0 && strs / nonNull >= 0.7,
-    };
-  });
+  const classification = columns.map((column) => classifyColumn(column.name, rows));
 
   // Pick the label column: prefer an explicit hint, else the first string
   // column, else the first non-numeric column.
-  let labelCol = classification.find((c) => LABEL_HINTS.test(c.name) && c.string);
-  if (!labelCol) labelCol = classification.find((c) => c.string);
-  if (!labelCol) labelCol = classification.find((c) => !c.numeric);
+  const labelCol = findLabelColumn(classification);
   if (!labelCol) return null;
 
-  const numericCols = classification.filter((c) => c.numeric && c.name !== labelCol.name);
-  if (numericCols.length === 0 || numericCols.length > 3) return null;
+  const series = findSeries(classification, labelCol.name, rows);
+  if (!series) return null;
 
-  // Reject degenerate numeric columns (all the same value).
-  const series = numericCols
-    .filter((col) => {
-      const vals = rows.map((r) => r[col.name]).filter(isNumeric) as number[];
-      if (vals.length === 0) return false;
-      const min = Math.min(...vals);
-      const max = Math.max(...vals);
-      return max - min > 1e-9;
-    })
-    .map((c) => ({ key: c.name, label: c.name }))
-    .slice(0, 3);
-  if (series.length === 0) return null;
-
-  // Horizontal layout when there are many rows or the labels look long;
-  // labels read better on the y-axis with horizontal bars.
-  const sampleLabel = String(rows[0]?.[labelCol.name] ?? "");
-  const layout: ChartSpec["layout"] =
-    rows.length > 8 || sampleLabel.length > 8 ? "horizontal" : "vertical";
-
-  const data = rows.map((r) => {
-    const out: Record<string, unknown> = { __label: truncate(String(r[labelCol.name] ?? ""), 22) };
-    for (const s of series) out[s.key] = r[s.key];
-    return out;
-  });
-
-  return { labelKey: "__label", series, data, layout };
+  const data = buildChartData(rows, labelCol.name, series);
+  return { labelKey: "__label", series, data, layout: chartLayout(rows, labelCol.name) };
 }
 
 function truncate(s: string, n: number): string {
@@ -171,10 +204,7 @@ export function AnswerChart({ table }: AnswerChartProps) {
   };
 
   return (
-    <div
-      className="mt-1 rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-muted)]/40 p-2"
-      aria-hidden="true"
-    >
+    <div className="mt-1 rounded-lg border border-border bg-muted/40 p-2" aria-hidden="true">
       <ResponsiveContainer width="100%" height={isHorizontal ? spec.data.length * 34 + 16 : 200}>
         <BarChart
           data={spec.data}

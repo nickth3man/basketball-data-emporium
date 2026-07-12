@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import sys
 from collections.abc import Iterable
+from dataclasses import dataclass
 
 from .layer1 import Layer1Result
 from .layer2 import Layer2Result
@@ -28,6 +29,40 @@ def _pct(num: int, denom: int) -> str:
     if denom == 0:
         return "--"
     return f"{(100.0 * num / denom):.1f}%"
+
+
+@dataclass(frozen=True)
+class _ReportCounts:
+    total: int
+    mode_accurate: int
+    warns: int
+    over_clarify: int
+    tables_checked: int
+    tables_passed: int
+    gold_total: int
+    gold_passed: int
+
+
+def _count_results(
+    layer1: list[Layer1Result],
+    layer2: list[Layer2Result],
+) -> _ReportCounts:
+    hard_fails = sum(result.hard_fail for result in layer1)
+    warns = sum(result.warn for result in layer1)
+    table_results = [
+        result.tables_check for result in layer1 if result.tables_check in {"pass", "fail"}
+    ]
+    graded_gold = [result for result in layer2 if not result.skipped]
+    return _ReportCounts(
+        total=len(layer1),
+        mode_accurate=len(layer1) - hard_fails - warns,
+        warns=warns,
+        over_clarify=sum(result.over_clarify_fail for result in layer1),
+        tables_checked=len(table_results),
+        tables_passed=table_results.count("pass"),
+        gold_total=len(graded_gold),
+        gold_passed=sum(result.passed for result in graded_gold),
+    )
 
 
 def build_report(
@@ -53,24 +88,7 @@ def build_report(
     """
     l1 = list(layer1_results)
     l2 = list(layer2_results)
-
-    total = len(l1)
-    hard_fails = sum(1 for r in l1 if r.hard_fail)
-    warns = sum(1 for r in l1 if r.warn)
-    over_clarify = sum(1 for r in l1 if r.over_clarify_fail)
-
-    # Mode accuracy = fraction of rows where the mode matched the
-    # preferred one (i.e. NOT a hard-fail and NOT a warn). Matches the
-    # spec's "mode accuracy = fraction where mode==expected (ignoring
-    # warn-only)" -- a row in ``warn`` is a drift signal even though
-    # it's still in the acceptable set.
-    mode_accurate = total - hard_fails - warns
-
-    tables_checked = [r for r in l1 if r.tables_check in {"pass", "fail"}]
-    tables_passed = sum(1 for r in tables_checked if r.tables_check == "pass")
-
-    gold_total = sum(1 for r in l2 if not r.skipped)
-    gold_passed = sum(1 for r in l2 if (not r.skipped) and r.passed)
+    counts = _count_results(l1, l2)
 
     # Step 1 placeholders. The schema is fixed so step 5 / step 6 just
     # fill these in -- no downstream parser changes needed.
@@ -78,11 +96,11 @@ def build_report(
     query_ref_source_split = "n/a — lands step 6"
 
     fields = [
-        f"mode_accuracy={_pct(mode_accurate, total)}",
-        f"warn_rate={_pct(warns, total)}",
-        f"over_clarify_count={over_clarify}",
-        f"table_accuracy={_pct(tables_passed, len(tables_checked))}",
-        f"gold_pass_rate={_pct(gold_passed, gold_total)}",
+        f"mode_accuracy={_pct(counts.mode_accurate, counts.total)}",
+        f"warn_rate={_pct(counts.warns, counts.total)}",
+        f"over_clarify_count={counts.over_clarify}",
+        f"table_accuracy={_pct(counts.tables_passed, counts.tables_checked)}",
+        f"gold_pass_rate={_pct(counts.gold_passed, counts.gold_total)}",
         f"repair_invocation_rate={repair_invocation_rate}",
         f"query_ref_source_split={query_ref_source_split}",
     ]

@@ -51,11 +51,11 @@ export function ClarifyPrompt({
   return (
     <fieldset
       aria-label="Clarification needed"
-      className="flex flex-col gap-3 rounded-xl border border-[color:var(--color-warn-border)] bg-[color:var(--color-warn-bg)] p-3 text-sm"
+      className="flex flex-col gap-3 rounded-xl border border-warn-border bg-warn-bg p-3 text-sm"
     >
       <legend className="sr-only">Clarification needed</legend>
-      <p className="flex items-start gap-2 font-medium text-[color:var(--color-warn-fg)]">
-        <HelpCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+      <p className="flex items-start gap-2 font-medium text-warn-fg">
+        <HelpCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
         <span id="clarify-question">{question}</span>
       </p>
       {options !== null && options.length > 0 && (
@@ -90,10 +90,10 @@ export function ClarifyPrompt({
           onChange={(e) => setFreeText(e.target.value)}
           placeholder="Or type your own answer…"
           disabled={disabled}
-          className="min-w-0 flex-1 rounded-lg border border-[color:var(--color-warn-border)] bg-[color:var(--color-card)] px-3 py-1.5 text-sm text-[color:var(--color-foreground)] placeholder:text-[color:var(--color-muted-foreground)] focus-visible:ring-2 focus-visible:ring-[color:var(--color-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-warn-bg)] focus-visible:outline-none disabled:opacity-50"
+          className="min-w-0 flex-1 rounded-lg border border-warn-border bg-card px-3 py-1.5 text-sm text-(--color-foreground) placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-(--color-ring) focus-visible:ring-offset-2 focus-visible:ring-offset-warn-bg focus-visible:outline-none disabled:opacity-50"
         />
         <Button type="submit" size="sm" disabled={disabled || freeText.trim().length === 0}>
-          <Send className="h-3.5 w-3.5" aria-hidden="true" />
+          <Send className="size-3.5" aria-hidden="true" />
           Send
         </Button>
       </form>

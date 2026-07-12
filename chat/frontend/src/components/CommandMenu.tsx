@@ -104,10 +104,7 @@ export function CommandMenu({
         placeholder="Type a command or search questions…"
         className={cn(
           "border-b border-border bg-transparent px-4 py-3",
-          `
-            font-sans text-sm text-(--color-foreground)
-            placeholder:text-muted-foreground
-          `,
+          `font-sans text-sm text-(--color-foreground) placeholder:text-muted-foreground`,
           "focus-visible:outline-none",
         )}
       />
@@ -124,9 +121,7 @@ export function CommandMenu({
               onSelect={run(() => onPickQuestion(q))}
               className={cmdkItemClass}
             >
-              <TrendingUp className="
-                mr-2 size-4 shrink-0 text-(--color-primary)
-              " />
+              <TrendingUp className="mr-2 size-4 shrink-0 text-(--color-primary)" />
               <span className="truncate">{q}</span>
             </CommandItem>
           ))}
@@ -155,10 +150,7 @@ export function CommandMenu({
           </CommandItem>
         </CommandGroup>
 
-        <div className="
-          flex items-center justify-between gap-2 px-3 py-2 text-[0.7rem]
-          text-muted-foreground
-        ">
+        <div className="flex items-center justify-between gap-2 px-3 py-2 text-[0.7rem] text-muted-foreground">
           <span className="inline-flex items-center gap-1">
             <Command className="size-3" aria-hidden="true" /> K to toggle
           </span>

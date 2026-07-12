@@ -93,6 +93,27 @@ def _normalise_mode(mode: str) -> str:
     return (mode or "").strip().lower()
 
 
+def _grade_tables(
+    mode: str,
+    gate_pass: bool | None,
+    tables_referenced: set[str] | None,
+    row: EvalRow,
+) -> str:
+    """Grade the governed gate and expected-table intersection."""
+    if mode != _MODE_EXECUTE_SQL:
+        return "skipped"
+    if gate_pass is False:
+        return "fail"
+
+    expected_tables_raw = (row.expected_tables or "").strip()
+    if not expected_tables_raw or expected_tables_raw.upper().startswith("TODO_VERIFY"):
+        return "skipped"
+
+    expected_tables = {table.strip() for table in expected_tables_raw.split("|") if table.strip()}
+    referenced_tables = tables_referenced or set()
+    return "pass" if expected_tables & referenced_tables else "fail"
+
+
 def grade_plan(plan: dict, row: EvalRow) -> Layer1Result:
     """Grade the plan object extracted from the pipeline's event stream.
 
@@ -146,23 +167,9 @@ def grade_plan(plan: dict, row: EvalRow) -> Layer1Result:
     mode_matches_expected = bool(expected) and raw_mode == expected
     warn = bool(in_acceptable and expected and not mode_matches_expected)
 
-    # Assertion 3 (execute_sql only): gate passes AND
-    # tables_referenced intersects expected_tables (if pinned). The
-    # ``TODO_VERIFY`` placeholder is the orchestrator's signal that the
-    # expected-tables list is not pinned yet; we SKIP rather than fail
-    # so the suite stays green while the data is being curated.
-    tables_check = "skipped"
-    if raw_mode == _MODE_EXECUTE_SQL:
-        if gate_pass is False:
-            tables_check = "fail"
-        else:
-            expected_tables_raw = (row.expected_tables or "").strip()
-            if not expected_tables_raw or expected_tables_raw.upper().startswith("TODO_VERIFY"):
-                tables_check = "skipped"
-            else:
-                expected_tables = {t.strip() for t in expected_tables_raw.split("|") if t.strip()}
-                ref = tables_referenced or set()
-                tables_check = "pass" if expected_tables & ref else "fail"
+    # Assertion 3 (execute_sql only): gate passes and the referenced tables
+    # intersect the pinned expected set. Unpinned TODO rows are skipped.
+    tables_check = _grade_tables(raw_mode, gate_pass, tables_referenced, row)
 
     # A gate failure on an execute_sql plan means the model tried to write
     # SQL but it didn't pass validation. When ``not_answerable`` is in the

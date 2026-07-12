@@ -8,7 +8,7 @@ import betterTailwindcss from "eslint-plugin-better-tailwindcss";
 
 export default tseslint.config(
   {
-    ignores: ["dist", "node_modules", "src/generated"],
+    ignores: ["dist", "node_modules", "public/mockServiceWorker.js", "src/generated"],
   },
   {
     files: ["**/*.{ts,tsx}"],
@@ -46,6 +46,9 @@ export default tseslint.config(
     },
     rules: {
       ...betterTailwindcss.configs.recommended.rules,
+      // Prettier owns line wrapping. Enabling both formatters makes each
+      // one's auto-fix invalidate the other one's output.
+      "better-tailwindcss/enforce-consistent-line-wrapping": "off",
       "better-tailwindcss/no-unknown-classes": [
         "error",
         { ignore: ["^(?:prose-chat|typing-dot|hljs|language-sql)$"] },

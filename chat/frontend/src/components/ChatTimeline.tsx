@@ -156,20 +156,20 @@ function EmptyState({ examples, onPickExample }: EmptyStateProps) {
       variants={container}
       initial="hidden"
       animate="show"
-      className="m-auto flex w-full max-w-xl flex-col items-center gap-5 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-card)]/70 px-6 py-10 text-center shadow-sm backdrop-blur-sm"
+      className="m-auto flex w-full max-w-xl flex-col items-center gap-5 rounded-2xl border border-border bg-card/70 px-6 py-10 text-center shadow-sm backdrop-blur-sm"
     >
       {/* Brand mark. */}
       <motion.div variants={item} className="flex flex-col items-center gap-3">
         <div
           aria-hidden="true"
-          className="flex h-12 w-12 items-center justify-center rounded-xl bg-[color:var(--color-primary)]/12 text-[color:var(--color-primary)] ring-1 ring-[color:var(--color-primary)]/25 ring-inset"
+          className="flex size-12 items-center justify-center rounded-xl bg-(--color-primary)/12 text-(--color-primary) ring-1 ring-(--color-primary)/25 ring-inset"
         >
-          <Database className="h-6 w-6" />
+          <Database className="size-6" />
         </div>
         <h2 className="font-display text-xl font-semibold tracking-tight">
           Ask anything about NBA stats
         </h2>
-        <p className="max-w-sm text-sm leading-relaxed text-[color:var(--color-muted-foreground)]">
+        <p className="max-w-sm text-sm/relaxed text-muted-foreground">
           Every answer is grounded in the warehouse — no model memory. Try one of these to start.
         </p>
       </motion.div>
@@ -185,9 +185,9 @@ function EmptyState({ examples, onPickExample }: EmptyStateProps) {
               className={cxButton()}
               aria-label={`Ask: ${q}`}
             >
-              <span className="text-left text-sm text-[color:var(--color-foreground)]">{q}</span>
+              <span className="text-left text-sm text-(--color-foreground)">{q}</span>
               <ArrowRight
-                className="ml-auto h-3.5 w-3.5 shrink-0 text-[color:var(--color-primary)] transition-transform group-hover:translate-x-0.5"
+                className="ml-auto size-3.5 shrink-0 text-(--color-primary) transition-transform group-hover:translate-x-0.5"
                 aria-hidden="true"
               />
             </button>
@@ -197,9 +197,9 @@ function EmptyState({ examples, onPickExample }: EmptyStateProps) {
 
       <motion.div
         variants={item}
-        className="inline-flex items-center gap-1.5 text-[0.7rem] text-[color:var(--color-muted-foreground)]"
+        className="inline-flex items-center gap-1.5 text-[0.7rem] text-muted-foreground"
       >
-        <ShieldCheck className="h-3.5 w-3.5 text-[color:var(--color-primary)]" aria-hidden="true" />
+        <ShieldCheck className="size-3.5 text-(--color-primary)" aria-hidden="true" />
         Grounded · cited · auditable
       </motion.div>
     </motion.div>

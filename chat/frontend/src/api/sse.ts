@@ -26,6 +26,44 @@ export interface StreamChatOptions {
   signal?: AbortSignal;
 }
 
+interface ParsedFrame {
+  eventName: string;
+  event: ChatEvent | null;
+}
+
+function splitCompleteFrames(buffer: string): [frames: string[], remainder: string] {
+  const parts = buffer.split("\n\n");
+  return [parts.slice(0, -1), parts.at(-1) ?? ""];
+}
+
+function parseFrame(frame: string, previousEventName: string): ParsedFrame {
+  let eventName = previousEventName;
+  const dataLines: string[] = [];
+
+  for (const line of frame.split("\n")) {
+    if (line.startsWith("event:")) {
+      eventName = line.slice(6).trim();
+    } else if (line.startsWith("data:")) {
+      // SSE strips one optional leading space after the colon. `.trim()`
+      // is broader but harmless for the JSON payloads used here.
+      dataLines.push(line.slice(5).trim());
+    }
+    // Comments, blank lines, ids, and other SSE fields are ignored.
+  }
+
+  if (dataLines.length === 0) return { eventName, event: null };
+
+  try {
+    return {
+      eventName,
+      event: parseChatEvent(eventName, dataLines.join("\n")),
+    };
+  } catch {
+    // A malformed frame must not prevent later events from reaching the UI.
+    return { eventName, event: null };
+  }
+}
+
 export async function* streamChat(
   opts: StreamChatOptions,
 ): AsyncGenerator<ChatEvent, void, unknown> {
@@ -45,41 +83,18 @@ export async function* streamChat(
   const decoder = new TextDecoder();
   let buffer = "";
   let currentEvent = "message";
-  let dataLines: string[] = [];
   try {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
-      // Drain all complete frames from the buffer. The `\n\n` separator
-      // may straddle chunk boundaries, so we keep looping until no more
-      // frames are available — `no-cond-assign` forces us to avoid the
-      // `while ((idx = …) >= 0)` idiom.
-      let idx = buffer.indexOf("\n\n");
-      while (idx >= 0) {
-        const frame = buffer.slice(0, idx);
-        buffer = buffer.slice(idx + 2);
-        idx = buffer.indexOf("\n\n");
-        for (const line of frame.split("\n")) {
-          if (line.startsWith("event:")) {
-            currentEvent = line.slice(6).trim();
-          } else if (line.startsWith("data:")) {
-            // SSE spec strips one optional leading space after the
-            // colon; `.trim()` is broader but harmless for JSON payloads.
-            dataLines.push(line.slice(5).trim());
-          }
-          // Other lines (comments starting with `:`, blanks, ids) are ignored.
-        }
-        if (dataLines.length > 0) {
-          const data = dataLines.join("\n");
-          dataLines = [];
-          try {
-            yield parseChatEvent(currentEvent, data);
-          } catch {
-            // Malformed frame — skip but keep the stream alive so the
-            // remaining events still reach the UI.
-          }
-        }
+
+      const [frames, remainder] = splitCompleteFrames(buffer);
+      buffer = remainder;
+      for (const frame of frames) {
+        const parsed = parseFrame(frame, currentEvent);
+        currentEvent = parsed.eventName;
+        if (parsed.event) yield parsed.event;
       }
     }
   } finally {

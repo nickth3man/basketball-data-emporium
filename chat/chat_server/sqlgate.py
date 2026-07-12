@@ -99,46 +99,72 @@ class ValidationReport:
     tables_referenced: set[str] = field(default_factory=set)
 
 
-def validate_select_sql(sql: str, allowed_tables: set[str]) -> ValidationReport:
-    """Layer 1: accept one read-only SELECT over approved live tables only."""
+def _parse_single_select(sql: str) -> tuple[exp.Select | None, list[str]]:
     try:
         statements = sqlglot.parse(sql, read="duckdb")
-        if len(statements) != 1:
-            return ValidationReport(
-                False, [f"expected exactly 1 SQL statement, got {len(statements)}"]
-            )
-        ast = statements[0]
     except SqlglotError as exc:
-        return ValidationReport(False, [f"SQL parse error: {exc}"])
-    if not isinstance(ast, exp.Select):
-        return ValidationReport(False, [f"only SELECT is allowed; got {type(ast).__name__}"])
-    errors: list[str] = []
-    forbidden = sorted({type(node).__name__ for node in ast.find_all(*_FORBIDDEN)})
-    if forbidden:
-        errors.append(f"forbidden statements/operations present: {', '.join(forbidden)}")
+        return None, [f"SQL parse error: {exc}"]
+
+    if len(statements) != 1:
+        return None, [f"expected exactly 1 SQL statement, got {len(statements)}"]
+
+    statement = statements[0]
+    if not isinstance(statement, exp.Select):
+        return None, [f"only SELECT is allowed; got {type(statement).__name__}"]
+    return statement, []
+
+
+def _validate_table_references(
+    ast: exp.Select,
+    allowed_tables: set[str],
+) -> tuple[set[str], list[str]]:
     ctes = {cte.alias for cte in ast.find_all(exp.CTE) if cte.alias}
     tables: set[str] = set()
+    errors: list[str] = []
+
     for table in ast.find_all(exp.Table):
         if table.db or table.catalog:
             reference = table.sql(dialect="duckdb")
             errors.append(f"catalog/schema-qualified table reference not allowed: {reference}")
-        if table.name not in ctes:
-            tables.add(table.name)
-            if table.name not in allowed_tables:
-                errors.append(f"table '{table.name}' is not allowed by the approved warehouse set")
+        if table.name in ctes:
+            continue
+        tables.add(table.name)
+        if table.name not in allowed_tables:
+            errors.append(f"table '{table.name}' is not allowed by the approved warehouse set")
+    return tables, errors
+
+
+def _dangerous_function_errors(ast: exp.Select) -> list[str]:
+    errors: list[str] = []
+    for function in ast.find_all(exp.Func):
+        try:
+            name = function.sql_name().lower()
+        except (AttributeError, ValueError):
+            name = ""
+        if name in _DANGEROUS_TVFS:
+            errors.append(f"table-valued function not allowed: {name}(...)")
+    return errors
+
+
+def validate_select_sql(sql: str, allowed_tables: set[str]) -> ValidationReport:
+    """Layer 1: accept one read-only SELECT over approved live tables only."""
+    ast, errors = _parse_single_select(sql)
+    if ast is None:
+        return ValidationReport(False, errors)
+
+    forbidden = sorted({type(node).__name__ for node in ast.find_all(*_FORBIDDEN)})
+    if forbidden:
+        errors.append(f"forbidden statements/operations present: {', '.join(forbidden)}")
+
+    tables, table_errors = _validate_table_references(ast, allowed_tables)
+    errors.extend(table_errors)
     if not errors and not tables:
         errors.append(
             "governed SQL must reference at least one warehouse table "
             "(no FROM or FROM-less SELECT); inline -- comments may "
             "truncate the query and lose table references"
         )
-    for func in ast.find_all(exp.Func):
-        try:
-            name = func.sql_name().lower()
-        except (AttributeError, ValueError):
-            name = ""
-        if name in _DANGEROUS_TVFS:
-            errors.append(f"table-valued function not allowed: {name}(...)")
+    errors.extend(_dangerous_function_errors(ast))
     return ValidationReport(not errors, errors, tables)
 
 
@@ -312,6 +338,70 @@ async def validate_governed_sql(
     )
 
 
+def _fan_join_indexes(
+    catalog: SemanticCatalog,
+) -> tuple[dict[str, tuple[str, CatalogJoin]], dict[str, str]]:
+    one_to_many_by_target: dict[str, tuple[str, CatalogJoin]] = {}
+    model_to_base_table: dict[str, str] = {}
+
+    for source_model in catalog.models.values():
+        model_to_base_table[source_model.model] = source_model.base_table.name
+        for join in source_model.joins:
+            if join.type == "one_to_many" and join.model not in one_to_many_by_target:
+                one_to_many_by_target[join.model] = (source_model.model, join)
+
+    base_table_to_model = {table: model for model, table in model_to_base_table.items()}
+    return one_to_many_by_target, base_table_to_model
+
+
+def _joined_aliases(joined: exp.Table, catalog: SemanticCatalog) -> set[str]:
+    aliases: set[str] = set()
+    if joined.alias:
+        aliases.add(str(joined.alias))
+
+    target_model = catalog.models.get(joined.name)
+    if target_model is not None:
+        aliases.add(target_model.base_table.alias)
+    return aliases
+
+
+def _has_additive_sum(ast: exp.Expression, joined_aliases: set[str]) -> bool:
+    return any(
+        isinstance(aggregate.this, exp.Column)
+        and bool(aggregate.this.table)
+        and aggregate.this.table in joined_aliases
+        for aggregate in ast.find_all(exp.Sum)
+    )
+
+
+def _group_collapses_fan(group: exp.Group, alias: str, column: str) -> bool:
+    return any(
+        isinstance(expression, exp.Column)
+        and (not alias or expression.table == alias)
+        and expression.name == column
+        for expression in group.expressions
+    )
+
+
+def _fan_trap_error(
+    join: CatalogJoin,
+    source_model: str,
+    joined_table: str,
+    *,
+    no_group: bool,
+) -> str:
+    prefix = (
+        f"fan trap: one_to_many join '{join.name}' "
+        f"({source_model} -> {joined_table}) with additive SUM measure"
+    )
+    if no_group:
+        return (
+            f"{prefix} and no GROUP BY collapsing the fan -- "
+            "re-aggregate in a subquery or use a non-additive path"
+        )
+    return f"{prefix} -- GROUP BY must include {join.right_on!r} to collapse the fan"
+
+
 def _detect_fan_chasm(ast: exp.Expression, catalog: SemanticCatalog) -> list[str]:
     """Append-only detector for one_to_many joins with additive SUM measures.
 
@@ -351,33 +441,14 @@ def _detect_fan_chasm(ast: exp.Expression, catalog: SemanticCatalog) -> list[str
     The detector returns a list of error strings (empty when no traps
     found). It does NOT mutate the AST or the catalog.
     """
+    one_to_many_by_target_model, base_table_to_model = _fan_join_indexes(catalog)
     errors: list[str] = []
-
-    one_to_many_by_target_model: dict[str, tuple[str, CatalogJoin]] = {}
-    model_to_base_table: dict[str, str] = {}
-    for src_model in catalog.models.values():
-        model_to_base_table[src_model.model] = src_model.base_table.name
-        for join_decl in src_model.joins:
-            if (
-                join_decl.type == "one_to_many"
-                and join_decl.model not in one_to_many_by_target_model
-            ):
-                one_to_many_by_target_model[join_decl.model] = (
-                    src_model.model,
-                    join_decl,
-                )
-
-    base_table_to_model: dict[str, str] = {v: k for k, v in model_to_base_table.items()}
-
-    base_table_names: set[str] = set(model_to_base_table.values())
 
     for join in ast.find_all(exp.Join):
         joined = join.this
         if not isinstance(joined, exp.Table):
             continue
         joined_table_name = joined.name
-        if joined_table_name not in base_table_names:
-            continue
         target_model_name = base_table_to_model.get(joined_table_name)
         if target_model_name is None:
             continue
@@ -386,25 +457,7 @@ def _detect_fan_chasm(ast: exp.Expression, catalog: SemanticCatalog) -> list[str
             continue
         src_model_name, join_decl = decl
 
-        joined_aliases: set[str] = set()
-        alias_node = joined.alias
-        if alias_node:
-            alias_str = alias_node.name if hasattr(alias_node, "name") else str(alias_node)
-            if alias_str:
-                joined_aliases.add(alias_str)
-        target_model = catalog.models.get(joined_table_name)
-        if target_model is not None:
-            joined_aliases.add(target_model.base_table.alias)
-
-        additive_found = False
-        for agg in ast.find_all(exp.Sum):
-            inner = agg.this
-            if not isinstance(inner, exp.Column):
-                continue
-            if inner.table and inner.table in joined_aliases:
-                additive_found = True
-                break
-        if not additive_found:
+        if not _has_additive_sum(ast, _joined_aliases(joined, catalog)):
             continue
 
         right_col = _parse_dotted_ref(join_decl.right_on)
@@ -413,32 +466,15 @@ def _detect_fan_chasm(ast: exp.Expression, catalog: SemanticCatalog) -> list[str
         rt_alias, rt_col = right_col
 
         group = ast.args.get("group")
-        if group is None:
+        if not isinstance(group, exp.Group):
             errors.append(
-                f"fan trap: one_to_many join '{join_decl.name}' "
-                f"({src_model_name} -> {joined_table_name}) with additive "
-                f"SUM measure and no GROUP BY collapsing the fan -- "
-                f"re-aggregate in a subquery or use a non-additive path"
+                _fan_trap_error(join_decl, src_model_name, joined_table_name, no_group=True)
             )
             continue
 
-        collapse_found = False
-        for g_expr in group.expressions:
-            if not isinstance(g_expr, exp.Column):
-                continue
-            if rt_alias and g_expr.table != rt_alias:
-                continue
-            if g_expr.name != rt_col:
-                continue
-            collapse_found = True
-            break
-
-        if not collapse_found:
+        if not _group_collapses_fan(group, rt_alias, rt_col):
             errors.append(
-                f"fan trap: one_to_many join '{join_decl.name}' "
-                f"({src_model_name} -> {joined_table_name}) with additive "
-                f"SUM measure -- GROUP BY must include {join_decl.right_on!r} "
-                f"to collapse the fan"
+                _fan_trap_error(join_decl, src_model_name, joined_table_name, no_group=False)
             )
 
     return errors

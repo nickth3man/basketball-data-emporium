@@ -37,12 +37,18 @@ import csv
 import sys
 from collections.abc import Iterable, Mapping
 from pathlib import Path
+from typing import Protocol, cast
 
 # Repo root = parent of ``scripts/``. The CSV lives at
 # ``<repo>/chat/plans/arch-overhaul/nba_chatbot_evals_v2.csv``.
 _CSV_PATH = (
     Path(__file__).resolve().parent.parent / "plans" / "arch-overhaul" / "nba_chatbot_evals_v2.csv"
 )
+
+
+class _QueryResultLike(Protocol):
+    columns: list[str]
+    rows: list[dict]
 
 
 def _stringify(value: object) -> str:
@@ -114,11 +120,36 @@ def _execute_gold(db, sql: str) -> tuple[list[str], list[dict]] | None:
     """
     try:
         coro = db.execute(sql)
-        result = asyncio.run(coro) if asyncio.iscoroutine(coro) else coro
+        result = cast(
+            _QueryResultLike,
+            asyncio.run(coro) if asyncio.iscoroutine(coro) else coro,
+        )
     except Exception as exc:  # noqa: BLE001 - surface to the orchestrator
         print(f"  ! execute failed: {type(exc).__name__}: {exc}", file=sys.stderr)
         return None
     return list(result.columns), list(result.rows)
+
+
+def _update_gold_row(row: dict[str, str], db, gold_sql: str) -> tuple[bool, bool]:
+    """Update one CSV row and return ``(changed, snapshot_completed)``."""
+    conversation_id = row.get("conversation_id", "")
+    before = row.get("gold_key_values", "")
+    result = _execute_gold(db, gold_sql)
+    if result is None:
+        row["gold_key_values"] = ""
+        print(f"{conversation_id}: ERROR — gold_sql failed; gold_key_values left empty")
+        return before != "", False
+
+    columns, data_rows = result
+    snapshot = _flatten_snapshot(columns, data_rows)
+    row["gold_key_values"] = snapshot
+    if before == snapshot:
+        print(f"{conversation_id}: unchanged")
+    elif before:
+        print(f"{conversation_id}: before={before[:60]}... after={snapshot[:60]}...")
+    else:
+        print(f"{conversation_id}: NEW — {snapshot[:80]}...")
+    return before != snapshot, True
 
 
 def main(csv_path: Path | None = None) -> int:
@@ -147,29 +178,10 @@ def main(csv_path: Path | None = None) -> int:
             from chat_server.db import get_db
 
             db = get_db()
-        cid = row.get("conversation_id", "")
-        before = row.get("gold_key_values", "")
-        cols_rows = _execute_gold(db, gold_sql)
-        if cols_rows is None:
-            # Leave gold_key_values empty on failure; the orchestrator
-            # sees the !-prefixed line in the diff.
-            if before != "":
-                changed = True
-            row["gold_key_values"] = ""
-            print(f"{cid}: ERROR — gold_sql failed; gold_key_values left empty")
-            continue
-        columns, data_rows = cols_rows
-        snapshot = _flatten_snapshot(columns, data_rows)
-        row["gold_key_values"] = snapshot
-        if before == snapshot:
-            print(f"{cid}: unchanged")
-        else:
-            changed = True
-            if before:
-                print(f"{cid}: before={before[:60]}... after={snapshot[:60]}...")
-            else:
-                print(f"{cid}: NEW — {snapshot[:80]}...")
-        snapshots += 1
+        row_changed, completed = _update_gold_row(row, db, gold_sql)
+        changed = changed or row_changed
+        if completed:
+            snapshots += 1
 
     # Only rewrite the CSV when something actually changed; otherwise
     # the rewrite would shuffle line endings on Windows and the diff

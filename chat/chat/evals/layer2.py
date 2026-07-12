@@ -24,8 +24,14 @@ from __future__ import annotations
 import asyncio
 import re
 from dataclasses import dataclass, field
+from typing import Protocol, cast
 
 from .loader import EvalRow
+
+
+class _QueryResultLike(Protocol):
+    columns: list[str]
+    rows: list[dict]
 
 
 @dataclass(frozen=True)
@@ -220,6 +226,30 @@ def _flatten_string_cells(columns: list[str], rows: list[dict]) -> list[str]:
 # -- grader ---------------------------------------------------------------
 
 
+def _partition_golds(
+    golds: list[str],
+    name_index: list[str],
+    number_cells: list[object],
+    rows: list[dict],
+    columns: list[str],
+) -> tuple[list[str], list[str]]:
+    matched: list[str] = []
+    missing: list[str] = []
+    for gold in golds:
+        target = matched if _gold_in_set(gold, name_index, number_cells, rows, columns) else missing
+        target.append(gold)
+    return matched, missing
+
+
+def _result_reason(golds: list[str], missing: list[str], passed_order: bool, ordered: bool) -> str:
+    if missing:
+        return f"missing {len(missing)} of {len(golds)} gold values: {missing[:3]}"
+    if not passed_order:
+        return "all gold values present but order not preserved"
+    suffix = " (order preserved)" if ordered else ""
+    return f"all {len(golds)} gold values matched{suffix}"
+
+
 def grade_result(
     rows: list[dict],
     columns: list[str],
@@ -265,13 +295,7 @@ def grade_result(
     num_cells = _flatten_number_cells(columns, rows)
     string_cells = _flatten_string_cells(columns, rows)
 
-    matched: list[str] = []
-    missing: list[str] = []
-    for gold in golds:
-        if _gold_in_set(gold, name_index, num_cells, rows, columns):
-            matched.append(gold)
-        else:
-            missing.append(gold)
+    matched, missing = _partition_golds(golds, name_index, num_cells, rows, columns)
 
     passed_membership = not missing
     passed_order = True
@@ -280,20 +304,12 @@ def grade_result(
             matched, string_cells, name_index, num_cells, rows, columns
         )
 
-    ok = passed_membership and passed_order
-    if not passed_membership:
-        reason = f"missing {len(missing)} of {len(golds)} gold values: {missing[:3]}"
-    elif not passed_order:
-        reason = "all gold values present but order not preserved"
-    else:
-        reason = f"all {len(golds)} gold values matched" + (" (order preserved)" if ordered else "")
-
     return Layer2Result(
         matched=matched,
         missing=missing,
         skipped=False,
-        reason=reason,
-        _pass=ok,
+        reason=_result_reason(golds, missing, passed_order, ordered),
+        _pass=passed_membership and passed_order,
     )
 
 
@@ -392,7 +408,10 @@ def execute_plan_sql(sql: str, db) -> tuple[list[str], list[dict]]:
     to the grader.
     """
     coro = db.execute(sql)
-    result = asyncio.run(coro) if asyncio.iscoroutine(coro) else coro
+    result = cast(
+        _QueryResultLike,
+        asyncio.run(coro) if asyncio.iscoroutine(coro) else coro,
+    )
     columns, rows = list(result.columns), list(result.rows)
     return columns, rows
 

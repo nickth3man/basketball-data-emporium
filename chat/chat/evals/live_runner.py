@@ -14,6 +14,7 @@ import re
 import sys
 import time
 from collections.abc import Awaitable, Callable, Sequence
+from dataclasses import dataclass
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import Any
@@ -35,6 +36,21 @@ _BACKOFF_CAP_SECONDS = 20.0
 
 type Replay = Callable[[EvalRow, Path], Awaitable[ReplayResult]]
 type Reporter = Callable[[str], None]
+
+
+@dataclass
+class _Progress:
+    reporter: Reporter | None
+    total: int
+    completed: int = 0
+
+    def report(self, message: str) -> None:
+        if self.reporter is not None:
+            self.reporter(f"[live-eval] {message}")
+
+    def report_completion(self, conversation_id: str) -> None:
+        self.completed += 1
+        self.report(f"{self.completed}/{self.total} complete ({conversation_id})")
 
 
 class ReplayFailureError(RuntimeError):
@@ -119,6 +135,50 @@ def _get_reporter(reporter: Reporter | None) -> Reporter | None:
     return _stderr_reporter
 
 
+async def _replay_with_retries(
+    row: EvalRow,
+    sessions_root: Path,
+    replay: Replay,
+    replay_cache: dict[str, ReplayResult],
+    semaphore: asyncio.Semaphore,
+    progress: _Progress,
+) -> ReplayResult:
+    conversation_id = row.conversation_id
+    if conversation_id in replay_cache:
+        return replay_cache[conversation_id]
+
+    result: ReplayResult | None = None
+    for attempt in range(_MAX_ATTEMPTS):
+        try:
+            async with semaphore:
+                result = await replay(row, sessions_root)
+        except Exception as exc:
+            if not _is_retryable(exc):
+                progress.report(f"failed ({conversation_id})")
+                progress.report_completion(conversation_id)
+                raise ReplayFailureError(conversation_id) from exc
+            if attempt == _MAX_ATTEMPTS - 1:
+                result = ReplayResult(
+                    session_id="",
+                    infrastructure_error=(
+                        f"{type(exc).__name__} after {_MAX_ATTEMPTS} attempts: {exc}"
+                    ),
+                )
+                progress.report(f"failed ({conversation_id})")
+                break
+            delay = _backoff_seconds(attempt, exc)
+            progress.report(f"retry ({conversation_id}) attempt {attempt + 1} delay {delay:.2f}s")
+            await asyncio.sleep(delay)
+        else:
+            break
+
+    if result is None:
+        raise AssertionError("replay retry loop completed without a result")
+    replay_cache[conversation_id] = result
+    progress.report_completion(conversation_id)
+    return result
+
+
 async def replay_rows_ordered(
     rows: Sequence[EvalRow],
     sessions_root: Path,
@@ -144,55 +204,24 @@ async def replay_rows_ordered(
 
     replay_cache = cache if cache is not None else {}
     semaphore = asyncio.Semaphore(limit)
-    progress_reporter = _get_reporter(reporter)
     total = len({row.conversation_id for row in rows if row.conversation_id not in replay_cache})
-    completed_count = 0
-
-    def report(message: str) -> None:
-        if progress_reporter is not None:
-            progress_reporter(f"[live-eval] {message}")
-
-    def report_completion(conversation_id: str) -> None:
-        nonlocal completed_count
-        completed_count += 1
-        report(f"{completed_count}/{total} complete ({conversation_id})")
-
-    async def replay_one(row: EvalRow) -> ReplayResult:
-        if row.conversation_id in replay_cache:
-            return replay_cache[row.conversation_id]
-        for attempt in range(_MAX_ATTEMPTS):
-            try:
-                async with semaphore:
-                    result = await replay(row, sessions_root)
-            except Exception as exc:
-                if not _is_retryable(exc):
-                    report(f"failed ({row.conversation_id})")
-                    report_completion(row.conversation_id)
-                    raise ReplayFailureError(row.conversation_id) from exc
-                if attempt == _MAX_ATTEMPTS - 1:
-                    result = ReplayResult(
-                        session_id="",
-                        infrastructure_error=(
-                            f"{type(exc).__name__} after {_MAX_ATTEMPTS} attempts: {exc}"
-                        ),
-                    )
-                    report(f"failed ({row.conversation_id})")
-                    break
-                delay = _backoff_seconds(attempt, exc)
-                report(f"retry ({row.conversation_id}) attempt {attempt + 1} delay {delay:.2f}s")
-                await asyncio.sleep(delay)
-            else:
-                break
-        replay_cache[row.conversation_id] = result
-        report_completion(row.conversation_id)
-        return result
+    progress = _Progress(_get_reporter(reporter), total)
 
     # One task per id prevents duplicate CSV rows from bypassing the cache
     # while their first replay is still in flight.
     tasks_by_id: dict[str, asyncio.Task[ReplayResult]] = {}
     for row in rows:
         if row.conversation_id not in replay_cache and row.conversation_id not in tasks_by_id:
-            tasks_by_id[row.conversation_id] = asyncio.create_task(replay_one(row))
+            tasks_by_id[row.conversation_id] = asyncio.create_task(
+                _replay_with_retries(
+                    row,
+                    sessions_root,
+                    replay,
+                    replay_cache,
+                    semaphore,
+                    progress,
+                )
+            )
     completed = await asyncio.gather(*tasks_by_id.values(), return_exceptions=True)
     failures = [result for result in completed if isinstance(result, Exception)]
     if failures:

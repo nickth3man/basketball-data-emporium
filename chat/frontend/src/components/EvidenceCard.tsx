@@ -66,15 +66,9 @@ export function EvidenceCard({ citations }: EvidenceCardProps) {
   return (
     <section
       aria-label="Evidence citations"
-      className="
-        flex flex-col gap-2 rounded-lg border border-border bg-muted/50 px-3
-        py-2.5
-      "
+      className="flex flex-col gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2.5"
     >
-      <header className="
-        flex items-center gap-1.5 text-[0.65rem] font-semibold tracking-[0.12em]
-        text-muted-foreground uppercase
-      ">
+      <header className="flex items-center gap-1.5 text-[0.65rem] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
         <Database className="size-3" aria-hidden="true" />
         Evidence
         <span aria-hidden="true" className="opacity-40">
@@ -95,18 +89,13 @@ export function EvidenceCard({ citations }: EvidenceCardProps) {
                 <span
                   title={chip.detail ?? chip.label}
                   className={cn(
-                    `
-                      inline-flex items-center gap-1.5 rounded-md border px-2
-                      py-1
-                    `,
+                    `inline-flex items-center gap-1.5 rounded-md border px-2 py-1`,
                     "font-mono text-[0.7rem] leading-none",
                     KIND_PILL[chip.kind],
                   )}
                 >
                   <Icon className="size-3 shrink-0 opacity-80" aria-hidden="true" />
-                  <span className="
-                    text-[0.6rem] tracking-wide uppercase opacity-60
-                  ">
+                  <span className="text-[0.6rem] tracking-wide uppercase opacity-60">
                     {KIND_TAG[chip.kind]}
                   </span>
                   <span className="font-medium">{chip.label}</span>

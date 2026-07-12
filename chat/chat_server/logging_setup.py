@@ -50,6 +50,17 @@ def _redact_string(value: str) -> str:
     return _OPENROUTER_KEY_RE.sub(_REDACTED_KEY, value)
 
 
+def _redact_args(args: Any) -> Any:
+    if isinstance(args, tuple):
+        return tuple(_redact_string(arg) if isinstance(arg, str) else arg for arg in args)
+    if isinstance(args, dict):
+        return {
+            key: _redact_string(value) if isinstance(value, str) else value
+            for key, value in args.items()
+        }
+    return args
+
+
 class RedactingFilter(logging.Filter):
     """Composable filter: OpenRouter keys + (optional) generic PII.
 
@@ -71,14 +82,7 @@ class RedactingFilter(logging.Filter):
         try:
             if isinstance(record.msg, str):
                 record.msg = _redact_string(record.msg)
-
-            args = record.args
-            if isinstance(args, tuple):
-                record.args = tuple(_redact_string(a) if isinstance(a, str) else a for a in args)
-            elif isinstance(args, dict):
-                record.args = {
-                    k: _redact_string(v) if isinstance(v, str) else v for k, v in args.items()
-                }
+            record.args = _redact_args(record.args)
         except Exception:  # noqa: BLE001
             pass
 

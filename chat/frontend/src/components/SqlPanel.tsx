@@ -84,45 +84,26 @@ export function SqlPanel({ sql }: SqlPanelProps) {
   );
 
   return (
-    <section className="
-      overflow-hidden rounded-lg border border-border bg-muted/40
-    ">
-      <header className="
-        flex items-center justify-between gap-2 border-b border-border
-        bg-card/60 px-2 py-1.5
-      ">
+    <section className="overflow-hidden rounded-lg border border-border bg-muted/40">
+      <header className="flex items-center justify-between gap-2 border-b border-border bg-card/60 px-2 py-1.5">
         <button
           type="button"
           aria-expanded={expanded}
           aria-controls={codeId}
           onClick={() => setExpanded((v) => !v)}
           className={cn(
-            `
-              flex cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-1
-              text-sm font-medium select-none
-            `,
-            `
-              transition-colors
-              hover:bg-muted
-            `,
-            `
-              focus-visible:ring-2 focus-visible:ring-(--color-ring)
-              focus-visible:ring-offset-2 focus-visible:ring-offset-card
-              focus-visible:outline-none
-            `,
+            `flex cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-1 text-sm font-medium select-none`,
+            `transition-colors hover:bg-muted`,
+            `focus-visible:ring-2 focus-visible:ring-(--color-ring) focus-visible:ring-offset-2 focus-visible:ring-offset-card focus-visible:outline-none`,
           )}
         >
           <ChevronRight
-            className="
-              size-3.5 text-muted-foreground transition-transform duration-200
-            "
+            className="size-3.5 text-muted-foreground transition-transform duration-200"
             style={{ transform: expanded ? "rotate(90deg)" : undefined }}
             aria-hidden="true"
           />
           <Database className="size-3.5 text-(--color-primary)" aria-hidden="true" />
-          <span className="
-            font-display text-xs font-semibold tracking-widest uppercase
-          ">SQL</span>
+          <span className="font-display text-xs font-semibold tracking-widest uppercase">SQL</span>
         </button>
         <button
           type="button"
@@ -132,15 +113,8 @@ export function SqlPanel({ sql }: SqlPanelProps) {
           className={cn(
             `inline-flex items-center gap-1 rounded-md border border-border`,
             "bg-card px-2 py-1 text-xs font-medium",
-            `
-              transition-colors
-              hover:bg-muted
-            `,
-            `
-              focus-visible:ring-2 focus-visible:ring-(--color-ring)
-              focus-visible:ring-offset-2 focus-visible:ring-offset-card
-              focus-visible:outline-none
-            `,
+            `transition-colors hover:bg-muted`,
+            `focus-visible:ring-2 focus-visible:ring-(--color-ring) focus-visible:ring-offset-2 focus-visible:ring-offset-card focus-visible:outline-none`,
           )}
           aria-label={copied ? "SQL copied to clipboard" : "Copy SQL to clipboard"}
         >
@@ -160,10 +134,7 @@ export function SqlPanel({ sql }: SqlPanelProps) {
         </pre>
       )}
       {!expanded && (
-        <div className="
-          flex items-center gap-1.5 px-3 py-1.5 text-[0.7rem]
-          text-muted-foreground
-        ">
+        <div className="flex items-center gap-1.5 px-3 py-1.5 text-[0.7rem] text-muted-foreground">
           <Terminal className="size-3" aria-hidden="true" />
           <span className="truncate font-mono">
             {sql.replace(/\s+/g, " ").trim().slice(0, 80)}

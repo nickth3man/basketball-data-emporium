@@ -21,7 +21,7 @@
  * SSE transport or the hook contracts.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ChangeEvent, FormEvent, KeyboardEvent } from "react";
+import type { ChangeEvent, Dispatch, FormEvent, KeyboardEvent, SetStateAction } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import {
   AlertTriangle,
@@ -35,7 +35,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { ChatTimeline, type TimelineMessage } from "@/components/ChatTimeline";
+import { ChatTimeline, type TimelineMessage, type TimelineStatus } from "@/components/ChatTimeline";
 import { ClarifyPrompt } from "@/components/ClarifyPrompt";
 import { ClearHistoryButton } from "@/components/ClearHistoryButton";
 import { CommandMenu } from "@/components/CommandMenu";
@@ -91,18 +91,137 @@ function errorBannerText(err: ChatTurnError): { title: string; detail: string } 
   }
 }
 
+function settledAnswer(state: ChatTurnState): string {
+  if (state.answer.length > 0) return state.answer;
+  return state.status === "error" ? "(error: no answer)" : "(no answer)";
+}
+
+function timelineStatus(
+  isRunning: boolean,
+  showError: boolean,
+  showCancelled: boolean,
+  turnStatus: ChatTurnState["status"],
+): TimelineStatus {
+  if (isRunning) return "running";
+  if (showError) return "error";
+  if (showCancelled) return "cancelled";
+  return turnStatus === "done" ? "done" : "idle";
+}
+
+function findLastMessage(
+  messages: TimelineMessage[],
+  role: TimelineMessage["role"],
+): TimelineMessage | undefined {
+  for (let index = messages.length - 1; index >= 0; index--) {
+    const message = messages[index];
+    if (message?.role === role) return message;
+  }
+  return undefined;
+}
+
+function useSessionHistory(sessionId: string | null) {
+  const [messages, setMessages] = useState<TimelineMessage[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (sessionId === null) {
+      setMessages([]);
+      return;
+    }
+
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    getSessionHistory(sessionId)
+      .then((page) => {
+        if (!cancelled) setMessages(historyToTimeline(page.messages));
+      })
+      .catch((historyError: unknown) => {
+        if (!cancelled) {
+          setError(historyError instanceof Error ? historyError.message : String(historyError));
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId]);
+
+  return { messages, setMessages, historyError: error, historyLoading: loading };
+}
+
+function useTurnElapsed(isRunning: boolean): number {
+  const [now, setNow] = useState(() => Date.now());
+  const startedAtRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!isRunning) return;
+    const interval = window.setInterval(() => setNow(Date.now()), 250);
+    return () => window.clearInterval(interval);
+  }, [isRunning]);
+
+  useEffect(() => {
+    startedAtRef.current = isRunning ? (startedAtRef.current ?? Date.now()) : null;
+  }, [isRunning]);
+
+  return isRunning && startedAtRef.current !== null ? now - startedAtRef.current : 0;
+}
+
+function useTurnSettlement(
+  state: ChatTurnState,
+  reset: () => void,
+  setMessages: Dispatch<SetStateAction<TimelineMessage[]>>,
+) {
+  const [lastError, setLastError] = useState<ChatTurnError | null>(null);
+  const [lastCancelled, setLastCancelled] = useState(false);
+
+  const clearNotice = useCallback(() => {
+    setLastError(null);
+    setLastCancelled(false);
+  }, []);
+
+  useEffect(() => {
+    if (state.status !== "done" && state.status !== "error" && state.status !== "cancelled") {
+      return;
+    }
+
+    if (state.status === "error" && state.error !== null) {
+      setLastError(state.error);
+      setLastCancelled(false);
+    } else if (state.status === "cancelled") {
+      setLastCancelled(true);
+      setLastError(null);
+    } else {
+      clearNotice();
+    }
+
+    if (state.status === "cancelled") {
+      reset();
+      return;
+    }
+
+    const answer = settledAnswer(state);
+    setMessages((previousMessages) => {
+      const previous = previousMessages.at(-1);
+      if (previous?.role === "assistant" && previous.content === answer) return previousMessages;
+      return [...previousMessages, { role: "assistant", content: answer, turn: state }];
+    });
+    reset();
+  }, [clearNotice, reset, setMessages, state]);
+
+  return { lastError, lastCancelled, clearNotice };
+}
+
 export function ChatView() {
   const { sessions, create, health } = useSessions();
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<TimelineMessage[]>([]);
+  const { messages, setMessages, historyError, historyLoading } = useSessionHistory(sessionId);
   const [composer, setComposer] = useState<string>("");
-  const [historyError, setHistoryError] = useState<string | null>(null);
-  const [historyLoading, setHistoryLoading] = useState<boolean>(false);
-  const [now, setNow] = useState<number>(() => Date.now());
-  const [lastError, setLastError] = useState<ChatTurnError | null>(null);
-  const [lastCancelled, setLastCancelled] = useState<boolean>(false);
   const [paletteOpen, setPaletteOpen] = useState<boolean>(false);
-  const turnStartedAtRef = useRef<number | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
@@ -112,77 +231,8 @@ export function ChatView() {
     }
   }, [sessions, sessionId]);
 
-  useEffect(() => {
-    if (sessionId === null) {
-      setMessages([]);
-      return;
-    }
-    let cancelled = false;
-    setHistoryLoading(true);
-    setHistoryError(null);
-    getSessionHistory(sessionId)
-      .then((page) => {
-        if (cancelled) return;
-        setMessages(historyToTimeline(page.messages));
-      })
-      .catch((err: unknown) => {
-        if (cancelled) return;
-        setHistoryError(err instanceof Error ? err.message : String(err));
-      })
-      .finally(() => {
-        if (!cancelled) setHistoryLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [sessionId]);
-
   const { state, send, cancel, reset } = useChatTurn(sessionId);
-
-  useEffect(() => {
-    if (state.status !== "running") return;
-    const interval = window.setInterval(() => setNow(Date.now()), 250);
-    return () => window.clearInterval(interval);
-  }, [state.status]);
-
-  const settleAnswer = useCallback(
-    (s: ChatTurnState) => {
-      if (s.status === "cancelled") {
-        reset();
-        return;
-      }
-      const answer =
-        s.answer.length > 0
-          ? s.answer
-          : s.status === "error"
-            ? "(error: no answer)"
-            : "(no answer)";
-      setMessages((prev) => {
-        const last = prev[prev.length - 1];
-        if (last && last.role === "assistant" && last.content === answer) return prev;
-        return [...prev, { role: "assistant", content: answer, turn: s }];
-      });
-      reset();
-    },
-    [reset],
-  );
-
-  useEffect(() => {
-    if (state.status !== "done" && state.status !== "error" && state.status !== "cancelled") {
-      return;
-    }
-    if (state.status === "error" && state.error !== null) {
-      setLastError(state.error);
-      setLastCancelled(false);
-    } else if (state.status === "cancelled") {
-      setLastCancelled(true);
-      setLastError(null);
-    } else {
-      setLastError(null);
-      setLastCancelled(false);
-    }
-    settleAnswer(state);
-  }, [state, settleAnswer]);
+  const { lastError, lastCancelled, clearNotice } = useTurnSettlement(state, reset, setMessages);
 
   const handleSubmit = useCallback(
     async (text: string): Promise<void> => {
@@ -196,14 +246,13 @@ export function ChatView() {
         setSessionId(sid);
       }
 
-      setLastError(null);
-      setLastCancelled(false);
+      clearNotice();
 
       setMessages((prev) => [...prev, { role: "user", content: trimmed }]);
       setComposer("");
       await send(trimmed, sid);
     },
-    [sessionId, create, send],
+    [sessionId, create, send, clearNotice, setMessages],
   );
 
   const handleFormSubmit = useCallback(
@@ -230,34 +279,18 @@ export function ChatView() {
     setComposer(e.target.value);
   }, []);
 
-  const handleCancel = useCallback(() => {
-    cancel();
-  }, [cancel]);
-
   const handleCleared = useCallback(() => {
     setMessages([]);
-    setLastError(null);
-    setLastCancelled(false);
-  }, []);
+    clearNotice();
+  }, [clearNotice, setMessages]);
 
   const isRunning = state.status === "running";
-
-  useEffect(() => {
-    if (state.status === "running") {
-      if (turnStartedAtRef.current === null) {
-        turnStartedAtRef.current = Date.now();
-      }
-    } else {
-      turnStartedAtRef.current = null;
-    }
-  }, [state.status]);
-  const turnElapsed =
-    isRunning && turnStartedAtRef.current !== null ? now - turnStartedAtRef.current : 0;
+  const turnElapsed = useTurnElapsed(isRunning);
   const showTimer = isRunning && turnElapsed >= TIMER_AFTER_MS;
   const showCancel = isRunning && turnElapsed >= CANCEL_AFTER_MS;
 
   const retryText = useMemo(() => {
-    const lastUser = [...messages].reverse().find((m) => m.role === "user");
+    const lastUser = findLastMessage(messages, "user");
     return lastUser?.content ?? "";
   }, [messages]);
 
@@ -271,14 +304,19 @@ export function ChatView() {
     return snippet.length > 0 ? `Retry: ${snippet}` : "Retry";
   }, [retryText]);
 
-  const showClarify = state.status === "awaiting_clarification" && state.clarification !== null;
+  const clarification = state.status === "awaiting_clarification" ? state.clarification : null;
   const showErrorBanner = lastError !== null && !isRunning;
   const showCancelledNote = lastCancelled && lastError === null && !isRunning;
-  const bannerText = lastError ? errorBannerText(lastError) : null;
+  const currentTimelineStatus = timelineStatus(
+    isRunning,
+    showErrorBanner,
+    showCancelledNote,
+    state.status,
+  );
 
   // Command palette wiring.
   const handleCopyLastAnswer = useCallback((): boolean => {
-    const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
+    const lastAssistant = findLastMessage(messages, "assistant");
     if (!lastAssistant || lastAssistant.content.length === 0) {
       toast.error("No answer to copy yet");
       return false;
@@ -310,6 +348,11 @@ export function ChatView() {
     })();
   }, [sessionId, handleCleared]);
 
+  const handlePickQuestion = useCallback((question: string) => {
+    setComposer(question);
+    textareaRef.current?.focus();
+  }, []);
+
   const hasHistory = messages.length > 0;
 
   return (
@@ -325,136 +368,32 @@ export function ChatView() {
         messages={messages}
         liveTurn={isRunning ? state : null}
         examples={EXAMPLE_QUESTIONS}
-        onPickExample={(q) => {
-          setComposer(q);
-          // Focus the composer so the user can edit before sending, or
-          // hit Enter to fire immediately.
-          textareaRef.current?.focus();
-        }}
-        status={
-          isRunning
-            ? "running"
-            : showErrorBanner
-              ? "error"
-              : showCancelledNote
-                ? "cancelled"
-                : state.status === "done"
-                  ? "done"
-                  : "idle"
-        }
+        onPickExample={handlePickQuestion}
+        status={currentTimelineStatus}
       />
 
-      {showClarify && state.clarification && (
-        <div className="
-          border-t border-border bg-muted/40 px-4 py-3
-          sm:px-6
-        ">
-          { }
-          <p
-            role="status"
-            aria-live="polite"
-            className="mb-2 text-sm text-muted-foreground"
-          >
-            Your answer is needed to continue.
-          </p>
-          <ClarifyPrompt
-            question={state.clarification.question}
-            options={state.clarification.options ?? null}
-            disabled={false}
-            onAnswer={(text) => {
-              void handleSubmit(text);
-            }}
-          />
-        </div>
-      )}
-
-      <AnimateBanner show={showErrorBanner && lastError !== null && bannerText !== null}>
-        {lastError && bannerText && (
-          <div
-            role="alert"
-            aria-live="assertive"
-            className={cn(
-              `
-                flex items-center justify-between gap-3 border-t px-4 py-3
-                sm:px-6
-              `,
-              `border-danger-border bg-danger-bg`,
-            )}
-          >
-            <div className="flex items-start gap-2.5">
-              <AlertTriangle
-                className="mt-0.5 size-4 shrink-0 text-danger-fg"
-                aria-hidden="true"
-              />
-              <div className="flex flex-col gap-0.5">
-                <p className="font-medium text-danger-fg">
-                  {bannerText.title}
-                </p>
-                {bannerText.detail.length > 0 && (
-                  <p className="text-xs text-danger-fg opacity-80">
-                    {bannerText.detail}
-                  </p>
-                )}
-                <p className="text-[0.7rem] text-danger-fg opacity-60">
-                  Code: {lastError.code}
-                </p>
-              </div>
-            </div>
-            <Button
-              type="button"
-              variant="subtle"
-              size="sm"
-              disabled={retryText.length === 0}
-              onClick={handleRetry}
-              aria-label={retryAriaLabel}
-            >
-              <RotateCw className="size-3.5" aria-hidden="true" />
-              Retry
-            </Button>
-          </div>
-        )}
-      </AnimateBanner>
-
-      <AnimateBanner show={showCancelledNote}>
-        <div
-          role="status"
-          aria-live="polite"
-          className={cn(
-            `
-              flex items-center justify-between gap-3 border-t px-4 py-2.5
-              sm:px-6
-            `,
-            "border-border bg-muted",
-            "text-sm text-muted-foreground",
-          )}
-        >
-          <span className="inline-flex items-center gap-2">
-            <Ban className="size-3.5" aria-hidden="true" />
-            Cancelled.
-          </span>
-          <Button
-            type="button"
-            variant="subtle"
-            size="sm"
-            disabled={retryText.length === 0}
-            onClick={handleRetry}
-            aria-label={retryAriaLabel}
-          >
-            <RotateCw className="size-3.5" aria-hidden="true" />
-            Retry
-          </Button>
-        </div>
-      </AnimateBanner>
+      <ClarificationPanel clarification={clarification} onAnswer={handleSubmit} />
+      <TurnErrorBanner
+        error={showErrorBanner ? lastError : null}
+        retryText={retryText}
+        retryAriaLabel={retryAriaLabel}
+        onRetry={handleRetry}
+      />
+      <CancelledBanner
+        show={showCancelledNote}
+        retryText={retryText}
+        retryAriaLabel={retryAriaLabel}
+        onRetry={handleRetry}
+      />
 
       <Composer
         composer={composer}
         isRunning={isRunning}
-        disabled={isRunning}
         textareaRef={textareaRef}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
         onSubmit={handleFormSubmit}
-        onCancel={handleCancel}
+        onCancel={cancel}
         showCancel={showCancel}
         showTimer={showTimer}
         turnElapsed={turnElapsed}
@@ -464,10 +403,7 @@ export function ChatView() {
 
       <CommandMenu
         examples={EXAMPLE_QUESTIONS}
-        onPickQuestion={(q) => {
-          setComposer(q);
-          textareaRef.current?.focus();
-        }}
+        onPickQuestion={handlePickQuestion}
         onCopyLastAnswer={handleCopyLastAnswer}
         onClearHistory={handleClearFromPalette}
         hasHistory={hasHistory}
@@ -475,6 +411,112 @@ export function ChatView() {
         onOpenChange={setPaletteOpen}
       />
     </div>
+  );
+}
+
+interface ClarificationPanelProps {
+  clarification: ChatTurnState["clarification"];
+  onAnswer: (text: string) => Promise<void>;
+}
+
+function ClarificationPanel({ clarification, onAnswer }: ClarificationPanelProps) {
+  if (!clarification) return null;
+
+  return (
+    <div className="border-t border-border bg-muted/40 px-4 py-3 sm:px-6">
+      <p role="status" aria-live="polite" className="mb-2 text-sm text-muted-foreground">
+        Your answer is needed to continue.
+      </p>
+      <ClarifyPrompt
+        question={clarification.question}
+        options={clarification.options ?? null}
+        disabled={false}
+        onAnswer={(text) => void onAnswer(text)}
+      />
+    </div>
+  );
+}
+
+interface RetryBannerProps {
+  retryText: string;
+  retryAriaLabel: string;
+  onRetry: () => void;
+}
+
+interface TurnErrorBannerProps extends RetryBannerProps {
+  error: ChatTurnError | null;
+}
+
+function TurnErrorBanner({ error, retryText, retryAriaLabel, onRetry }: TurnErrorBannerProps) {
+  const text = error ? errorBannerText(error) : null;
+
+  return (
+    <AnimateBanner show={error !== null}>
+      {error && text && (
+        <div
+          role="alert"
+          aria-live="assertive"
+          className={cn(
+            `flex items-center justify-between gap-3 border-t px-4 py-3 sm:px-6`,
+            "border-danger-border bg-danger-bg",
+          )}
+        >
+          <div className="flex items-start gap-2.5">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-danger-fg" aria-hidden="true" />
+            <div className="flex flex-col gap-0.5">
+              <p className="font-medium text-danger-fg">{text.title}</p>
+              {text.detail.length > 0 && (
+                <p className="text-xs text-danger-fg opacity-80">{text.detail}</p>
+              )}
+              <p className="text-[0.7rem] text-danger-fg opacity-60">Code: {error.code}</p>
+            </div>
+          </div>
+          <RetryButton retryText={retryText} retryAriaLabel={retryAriaLabel} onRetry={onRetry} />
+        </div>
+      )}
+    </AnimateBanner>
+  );
+}
+
+interface CancelledBannerProps extends RetryBannerProps {
+  show: boolean;
+}
+
+function CancelledBanner({ show, retryText, retryAriaLabel, onRetry }: CancelledBannerProps) {
+  return (
+    <AnimateBanner show={show}>
+      <div
+        role="status"
+        aria-live="polite"
+        className={cn(
+          `flex items-center justify-between gap-3 border-t px-4 py-2.5 sm:px-6`,
+          "border-border bg-muted",
+          "text-sm text-muted-foreground",
+        )}
+      >
+        <span className="inline-flex items-center gap-2">
+          <Ban className="size-3.5" aria-hidden="true" />
+          Cancelled.
+        </span>
+        <RetryButton retryText={retryText} retryAriaLabel={retryAriaLabel} onRetry={onRetry} />
+      </div>
+    </AnimateBanner>
+  );
+}
+
+function RetryButton({ retryText, retryAriaLabel, onRetry }: RetryBannerProps) {
+  return (
+    <Button
+      type="button"
+      variant="subtle"
+      size="sm"
+      disabled={retryText.length === 0}
+      onClick={onRetry}
+      aria-label={retryAriaLabel}
+    >
+      <RotateCw className="size-3.5" aria-hidden="true" />
+      Retry
+    </Button>
   );
 }
 
@@ -491,27 +533,17 @@ interface HeaderProps {
 
 function Header({ health, sessionId, onCleared, onOpenPalette }: HeaderProps) {
   return (
-    <header className="
-      flex flex-wrap items-center justify-between gap-3 border-b border-border
-      bg-card/60 px-4 py-3 backdrop-blur-sm
-      sm:px-6
-    ">
+    <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-card/60 px-4 py-3 backdrop-blur-sm sm:px-6">
       <div className="flex items-center gap-3">
         <div
           aria-hidden="true"
-          className="
-            flex size-9 items-center justify-center rounded-xl
-            bg-(--color-primary)/12 text-(--color-primary) ring-1
-            ring-(--color-primary)/25 ring-inset
-          "
+          className="flex size-9 items-center justify-center rounded-xl bg-(--color-primary)/12 text-(--color-primary) ring-1 ring-(--color-primary)/25 ring-inset"
         >
           {/* Baller brand mark — bold Oswald "B" monogram tile. */}
           <span className="font-display text-base leading-none font-bold">B</span>
         </div>
         <div className="flex flex-col">
-          <h1 className="
-            font-display text-base/tight font-semibold tracking-tight
-          ">
+          <h1 className="font-display text-base/tight font-semibold tracking-tight">
             Basketball Data Chatbot
           </h1>
           <p className="text-xs text-muted-foreground">
@@ -529,15 +561,8 @@ function Header({ health, sessionId, onCleared, onOpenPalette }: HeaderProps) {
           className={cn(
             `inline-flex h-8 items-center gap-1 rounded-lg border border-border`,
             `bg-card px-2 text-xs text-muted-foreground`,
-            `
-              transition-colors
-              hover:bg-muted hover:text-(--color-foreground)
-            `,
-            `
-              focus-visible:ring-2 focus-visible:ring-(--color-ring)
-              focus-visible:ring-offset-2 focus-visible:ring-offset-card
-              focus-visible:outline-none
-            `,
+            `transition-colors hover:bg-muted hover:text-(--color-foreground)`,
+            `focus-visible:ring-2 focus-visible:ring-(--color-ring) focus-visible:ring-offset-2 focus-visible:ring-offset-card focus-visible:outline-none`,
           )}
         >
           <CommandIcon className="size-3.5" aria-hidden="true" />
@@ -560,20 +585,14 @@ function HealthBadge({ status }: { status: HealthStatus }) {
   return (
     <span
       className={cn(
-        `
-          inline-flex items-center gap-1.5 rounded-lg border px-2 py-1
-          text-[0.7rem] font-medium
-        `,
+        `inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[0.7rem] font-medium`,
         tone,
       )}
       title={`API status: ${label}`}
     >
       <span className="relative flex size-1.5">
         {status === "ok" && (
-          <span className="
-            absolute inline-flex size-full animate-ping rounded-full bg-current
-            opacity-60
-          " />
+          <span className="absolute inline-flex size-full animate-ping rounded-full bg-current opacity-60" />
         )}
         <span className="relative inline-flex size-1.5 rounded-full bg-current" />
       </span>
@@ -589,7 +608,6 @@ function HealthBadge({ status }: { status: HealthStatus }) {
 interface ComposerProps {
   composer: string;
   isRunning: boolean;
-  disabled: boolean;
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
   onChange: (e: ChangeEvent<HTMLTextAreaElement>) => void;
   onKeyDown: (e: KeyboardEvent<HTMLTextAreaElement>) => void;
@@ -605,7 +623,6 @@ interface ComposerProps {
 function Composer({
   composer,
   isRunning,
-  disabled,
   textareaRef,
   onChange,
   onKeyDown,
@@ -622,21 +639,14 @@ function Composer({
     <form
       onSubmit={onSubmit}
       className={cn(
-        `
-          flex flex-col gap-2 border-t border-border bg-card/60 px-4 py-3
-          backdrop-blur-sm
-          sm:px-6
-        `,
+        `flex flex-col gap-2 border-t border-border bg-card/60 px-4 py-3 backdrop-blur-sm sm:px-6`,
       )}
       aria-busy={isRunning}
     >
       <div
         className={cn(
           `flex items-end gap-2 rounded-2xl border bg-background p-1.5`,
-          `
-            transition-colors
-            focus-within:border-(--color-primary)/50
-          `,
+          `transition-colors focus-within:border-(--color-primary)/50`,
           "border-border shadow-sm",
         )}
       >
@@ -651,20 +661,11 @@ function Composer({
           onKeyDown={onKeyDown}
           placeholder="Ask a question about NBA stats…"
           rows={2}
-          disabled={disabled}
+          disabled={isRunning}
           className={cn(
-            `
-              min-h-10 flex-1 resize-y rounded-xl bg-transparent px-3 py-2
-              text-sm
-            `,
-            `
-              text-(--color-foreground)
-              placeholder:text-muted-foreground
-            `,
-            `
-              focus-visible:outline-none
-              disabled:opacity-50
-            `,
+            `min-h-10 flex-1 resize-y rounded-xl bg-transparent px-3 py-2 text-sm`,
+            `text-(--color-foreground) placeholder:text-muted-foreground`,
+            `focus-visible:outline-none disabled:opacity-50`,
           )}
         />
         <div className="flex items-center gap-1">
@@ -701,30 +702,20 @@ function Composer({
         </div>
       )}
 
-      <div className="
-        flex items-center justify-between text-xs text-muted-foreground
-      ">
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span className="inline-flex items-center gap-1.5">
-          <kbd className="
-            rounded-sm border border-border bg-muted px-1.5 py-0.5 font-sans
-            text-[0.65rem]
-          ">
+          <kbd className="rounded-sm border border-border bg-muted px-1.5 py-0.5 font-sans text-[0.65rem]">
             Enter
           </kbd>
           to send
           <span className="opacity-40">·</span>
-          <kbd className="
-            rounded-sm border border-border bg-muted px-1.5 py-0.5 font-sans
-            text-[0.65rem]
-          ">
+          <kbd className="rounded-sm border border-border bg-muted px-1.5 py-0.5 font-sans text-[0.65rem]">
             Shift+Enter
           </kbd>
           for newline
           {historyLoading ? <span className="opacity-70">· loading history…</span> : null}
           {historyError !== null ? (
-            <span className="text-danger-fg">
-              · history error: {historyError}
-            </span>
+            <span className="text-danger-fg">· history error: {historyError}</span>
           ) : null}
         </span>
         {showTimer && (
