@@ -9,11 +9,12 @@
  * Tests that the first message in a new session creates a session and
  * sends the message successfully (Bug 1 regression guard).
  */
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { streamChat } from "@/api/sse";
+import { getSessionHistory, type HistoryPage } from "@/api/client";
 import { useSessions } from "@/hooks/useSessions";
 import { ChatView } from "@/views/ChatView";
 
@@ -28,7 +29,7 @@ vi.mock("@/api/sse", () => ({ streamChat: vi.fn() }));
 // runtime.  The mock values are only used when a function is actually
 // called — types are compile-time only.
 vi.mock("@/api/client", () => ({
-  getSessionHistory: vi.fn().mockRejectedValue(new Error("not used in this test")),
+  getSessionHistory: vi.fn(),
   deleteSession: vi.fn().mockResolvedValue(undefined),
   createSession: vi.fn(),
   getHealth: vi.fn(),
@@ -46,11 +47,20 @@ async function* answerStream() {
   yield { event: "answer_finished" as const, answer: "Test answer." };
 }
 
+function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((promiseResolve) => {
+    resolve = promiseResolve;
+  });
+  return { promise, resolve };
+}
+
 // --- Tests ------------------------------------------------------------------
 
 describe("ChatView fresh session", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(getSessionHistory).mockRejectedValue(new Error("not used in this test"));
 
     // Default mock for useSessions: empty session list, a create factory.
     vi.mocked(useSessions).mockReturnValue({
@@ -104,6 +114,38 @@ describe("ChatView fresh session", () => {
     expect(streamChat).toHaveBeenCalledWith(
       expect.objectContaining({ sessionId: "test-session-id" }),
     );
+  });
+
+  it("keeps a fast local turn when delayed empty history resolves afterward", async () => {
+    const user = userEvent.setup();
+    const history = deferred<HistoryPage>();
+    vi.mocked(getSessionHistory).mockReturnValue(history.promise);
+    vi.mocked(streamChat).mockReturnValue(answerStream());
+
+    render(<ChatView />);
+
+    await user.type(screen.getByRole("textbox", { name: "Message" }), "Who is the GOAT?");
+    await user.click(screen.getByRole("button", { name: "Send message" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Who is the GOAT?")).toBeInTheDocument();
+      expect(screen.getByText("Test answer.")).toBeInTheDocument();
+      expect(getSessionHistory).toHaveBeenCalledWith("test-session-id");
+    });
+
+    await act(async () => {
+      history.resolve({
+        session_id: "test-session-id",
+        messages: [],
+        total: 0,
+        limit: 50,
+        offset: 0,
+      });
+      await history.promise;
+    });
+
+    expect(screen.getByText("Who is the GOAT?")).toBeInTheDocument();
+    expect(screen.getByText("Test answer.")).toBeInTheDocument();
   });
 
   it("does not error when sending with an existing session ID", async () => {

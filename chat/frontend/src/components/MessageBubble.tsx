@@ -269,8 +269,8 @@ function AnswerCopyButton({ content, isStreaming }: AnswerCopyButtonProps) {
         onClick={() => void handleCopy()}
         className={cn(
           `inline-flex items-center gap-1 rounded-md px-2 py-1 text-[0.7rem] font-medium`,
-          "text-muted-foreground transition-colors",
-          `hover:bg-muted hover:text-(--color-foreground)`,
+          "text-(--color-foreground) transition-colors",
+          "hover:bg-muted",
           `focus-visible:ring-2 focus-visible:ring-(--color-ring) focus-visible:ring-offset-2 focus-visible:ring-offset-card focus-visible:outline-none`,
         )}
         aria-label={copied ? "Answer copied to clipboard" : "Copy answer to clipboard"}

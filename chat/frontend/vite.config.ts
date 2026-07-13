@@ -10,6 +10,7 @@ import { visualizer } from "rollup-plugin-visualizer";
 // Resolve from this config file so the alias is path-stable regardless of
 // the cwd (Vite's `resolve.alias` requires an absolute path on Windows).
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const chatApiTarget = process.env.CHAT_API_TARGET ?? "http://localhost:8787";
 
 export default defineConfig({
   plugins: [
@@ -43,7 +44,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       "/api": {
-        target: "http://localhost:8787",
+        target: chatApiTarget,
         changeOrigin: true,
         configure: (proxy) => {
           proxy.on("proxyReq", (req) => {

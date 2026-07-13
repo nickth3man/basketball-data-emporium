@@ -3,15 +3,13 @@
  *
  * Brings up BOTH servers for an end-to-end smoke test:
  *
- *   1. FastAPI on :8787 (the chat backend, runs `uv run uvicorn
- *      chat_server.main:app --port 8787` from the `chat/` root so the
- *      `chat_server.main:app` import resolves).
- *   2. Vite dev server on :5173 (the chat frontend, runs `npm run dev`
- *      from `chat/frontend/`).
+ *   1. FastAPI on :8787 by default (the chat backend).
+ *   2. Vite dev server on :5173 by default (the chat frontend).
  *
- * `webServer` waits for both URLs to return 200 before running tests.
- * Locally (`!CI`) we `reuseExistingServer: true` so a manual dev session
- * doesn't get clobbered; in CI we always spawn fresh.
+ * `CHAT_E2E_BACKEND_PORT` / `CHAT_E2E_FRONTEND_PORT` allow disposable
+ * ports. Every run uses fresh temp session/log storage unless the matching
+ * directories are explicitly supplied. Existing servers are never reused,
+ * so a developer-owned process cannot silently change the tested build.
  *
  * Layout deviation: the plan listed `chat/tests/e2e/`, but
  * `@playwright/test` lives under `chat/frontend/node_modules/` and the
@@ -25,6 +23,7 @@
  * warehouse + `OPENROUTER_API_KEY`).
  */
 import { defineConfig, devices } from "@playwright/test";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -33,6 +32,13 @@ import { fileURLToPath } from "node:url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const CHAT_ROOT = path.resolve(__dirname, ".."); // chat/frontend/.. -> chat/
+const BACKEND_PORT = Number(process.env.CHAT_E2E_BACKEND_PORT ?? "8787");
+const FRONTEND_PORT = Number(process.env.CHAT_E2E_FRONTEND_PORT ?? "5173");
+const BACKEND_URL = `http://127.0.0.1:${BACKEND_PORT}`;
+const FRONTEND_URL = `http://127.0.0.1:${FRONTEND_PORT}`;
+const RUN_ROOT = path.join(os.tmpdir(), `basketball-chat-e2e-${process.pid}`);
+const DATA_DIR = process.env.CHAT_DATA_DIR ?? path.join(RUN_ROOT, "data");
+const LOG_DIR = process.env.CHAT_LOG_DIR ?? path.join(RUN_ROOT, "logs");
 
 export default defineConfig({
   testDir: "./e2e",
@@ -45,7 +51,7 @@ export default defineConfig({
   timeout: 60_000, // generous: live agent call (agent + SQL < 15s typical)
   expect: { timeout: 30_000 },
   use: {
-    baseURL: "http://localhost:5173",
+    baseURL: FRONTEND_URL,
     trace: "on-first-retry",
     actionTimeout: 15_000,
   },
@@ -59,26 +65,29 @@ export default defineConfig({
     // as a required field. OPENROUTER_API_KEY is forwarded from the
     // parent shell by Playwright's default `env` extension behaviour.
     {
-      command: "uv run uvicorn chat_server.main:app --port 8787 --host 127.0.0.1",
-      url: "http://127.0.0.1:8787/api/health",
-      reuseExistingServer: !process.env.CI,
+      command: `uv run uvicorn chat_server.main:app --port ${BACKEND_PORT} --host 127.0.0.1`,
+      url: `${BACKEND_URL}/api/health`,
+      reuseExistingServer: false,
       timeout: 60_000,
       cwd: CHAT_ROOT,
       env: {
         DUCKDB_PATH: path.resolve(CHAT_ROOT, "..", "data", "nba.duckdb"),
-        CHAT_LOG_DIR: path.resolve(CHAT_ROOT, "logs"),
-        CHAT_DATA_DIR: path.resolve(CHAT_ROOT, "data"),
+        CHAT_LOG_DIR: LOG_DIR,
+        CHAT_DATA_DIR: DATA_DIR,
       },
     },
     // --- 2. Chat frontend (Vite dev on :5173) --------------------------
     // Vite proxies `/api/*` to :8787 (see vite.config.ts), so the
     // browser hits 5173 only and the SSE stream is forwarded.
     {
-      command: "npm run dev:web",
-      url: "http://localhost:5173",
-      reuseExistingServer: !process.env.CI,
+      command: `npm run dev:web -- --host 127.0.0.1 --port ${FRONTEND_PORT} --strictPort`,
+      url: FRONTEND_URL,
+      reuseExistingServer: false,
       timeout: 60_000,
       cwd: __dirname,
+      env: {
+        CHAT_API_TARGET: BACKEND_URL,
+      },
     },
   ],
 });

@@ -21,7 +21,7 @@
  * SSE transport or the hook contracts.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ChangeEvent, Dispatch, FormEvent, KeyboardEvent, SetStateAction } from "react";
+import type { ChangeEvent, FormEvent, KeyboardEvent, SetStateAction } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import {
   AlertTriangle,
@@ -119,31 +119,65 @@ function findLastMessage(
   return undefined;
 }
 
+type SetSessionMessages = (sessionId: string, update: SetStateAction<TimelineMessage[]>) => void;
+
 function useSessionHistory(sessionId: string | null) {
-  const [messages, setMessages] = useState<TimelineMessage[]>([]);
+  const [messages, setMessagesState] = useState<TimelineMessage[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const messagesSessionIdRef = useRef<string | null>(null);
+  const locallyModifiedSessionIdRef = useRef<string | null>(null);
+  const requestIdRef = useRef(0);
+
+  const setMessages = useCallback<SetSessionMessages>((targetSessionId, update) => {
+    const sameSession = messagesSessionIdRef.current === targetSessionId;
+    messagesSessionIdRef.current = targetSessionId;
+    locallyModifiedSessionIdRef.current = targetSessionId;
+    setMessagesState((previousMessages) => {
+      const baseMessages = sameSession ? previousMessages : [];
+      return typeof update === "function" ? update(baseMessages) : update;
+    });
+  }, []);
 
   useEffect(() => {
+    const requestId = ++requestIdRef.current;
     if (sessionId === null) {
-      setMessages([]);
+      messagesSessionIdRef.current = null;
+      locallyModifiedSessionIdRef.current = null;
+      setMessagesState([]);
+      setError(null);
+      setLoading(false);
       return;
     }
 
     let cancelled = false;
+    if (messagesSessionIdRef.current !== sessionId) {
+      messagesSessionIdRef.current = sessionId;
+      locallyModifiedSessionIdRef.current = null;
+      setMessagesState([]);
+    }
     setLoading(true);
     setError(null);
     getSessionHistory(sessionId)
       .then((page) => {
-        if (!cancelled) setMessages(historyToTimeline(page.messages));
+        // History is hydration, not a last-writer-wins update. Once this
+        // session has local user/assistant messages, those stay authoritative.
+        if (
+          !cancelled &&
+          requestId === requestIdRef.current &&
+          messagesSessionIdRef.current === sessionId &&
+          locallyModifiedSessionIdRef.current !== sessionId
+        ) {
+          setMessagesState(historyToTimeline(page.messages));
+        }
       })
       .catch((historyError: unknown) => {
-        if (!cancelled) {
+        if (!cancelled && requestId === requestIdRef.current) {
           setError(historyError instanceof Error ? historyError.message : String(historyError));
         }
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled && requestId === requestIdRef.current) setLoading(false);
       });
 
     return () => {
@@ -174,7 +208,8 @@ function useTurnElapsed(isRunning: boolean): number {
 function useTurnSettlement(
   state: ChatTurnState,
   reset: () => void,
-  setMessages: Dispatch<SetStateAction<TimelineMessage[]>>,
+  sessionId: string | null,
+  setMessages: SetSessionMessages,
 ) {
   const [lastError, setLastError] = useState<ChatTurnError | null>(null);
   const [lastCancelled, setLastCancelled] = useState(false);
@@ -204,14 +239,19 @@ function useTurnSettlement(
       return;
     }
 
+    if (sessionId === null) {
+      reset();
+      return;
+    }
+
     const answer = settledAnswer(state);
-    setMessages((previousMessages) => {
+    setMessages(sessionId, (previousMessages) => {
       const previous = previousMessages.at(-1);
       if (previous?.role === "assistant" && previous.content === answer) return previousMessages;
       return [...previousMessages, { role: "assistant", content: answer, turn: state }];
     });
     reset();
-  }, [clearNotice, reset, setMessages, state]);
+  }, [clearNotice, reset, sessionId, setMessages, state]);
 
   return { lastError, lastCancelled, clearNotice };
 }
@@ -232,7 +272,12 @@ export function ChatView() {
   }, [sessions, sessionId]);
 
   const { state, send, cancel, reset } = useChatTurn(sessionId);
-  const { lastError, lastCancelled, clearNotice } = useTurnSettlement(state, reset, setMessages);
+  const { lastError, lastCancelled, clearNotice } = useTurnSettlement(
+    state,
+    reset,
+    sessionId,
+    setMessages,
+  );
 
   const handleSubmit = useCallback(
     async (text: string): Promise<void> => {
@@ -248,7 +293,7 @@ export function ChatView() {
 
       clearNotice();
 
-      setMessages((prev) => [...prev, { role: "user", content: trimmed }]);
+      setMessages(sid, (prev) => [...prev, { role: "user", content: trimmed }]);
       setComposer("");
       await send(trimmed, sid);
     },
@@ -280,9 +325,9 @@ export function ChatView() {
   }, []);
 
   const handleCleared = useCallback(() => {
-    setMessages([]);
+    if (sessionId !== null) setMessages(sessionId, []);
     clearNotice();
-  }, [clearNotice, setMessages]);
+  }, [clearNotice, sessionId, setMessages]);
 
   const isRunning = state.status === "running";
   const turnElapsed = useTurnElapsed(isRunning);
